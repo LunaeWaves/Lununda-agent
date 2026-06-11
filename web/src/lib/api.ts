@@ -1934,6 +1934,23 @@ export async function getKBStats(agentId: string): Promise<KBStats> {
   return res.json();
 }
 
+export interface KBEntry {
+  id: number;
+  source_id: string;
+  chunk_index: number;
+  content: string;
+}
+
+export async function listKBEntries(
+  agentId: string,
+  sourceId: string,
+): Promise<KBEntry[]> {
+  const res = await apiFetch(
+    `/api/agents/${agentId}/kb/sources/${sourceId}/entries`,
+  );
+  return res.json();
+}
+
 // --- Wiki ---
 
 export interface WikiPage {

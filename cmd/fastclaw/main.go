@@ -176,7 +176,6 @@ func runGateway(port int) error {
 	webSrv.SetUsageMeter(gw.Usage())
 	webSrv.SetAuth(authResolver)
 	webSrv.SetWebChannel(gw.WebChannel())
-	webSrv.SetWikiCache(gw.WikiCache())
 	// Share the chat-event hub so bus-fired web turns (cron / goal
 	// continuation / heartbeat / sub-agent) stream through the same
 	// SSE pipeline a user-typed turn uses. Must be wired before

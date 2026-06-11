@@ -46,6 +46,11 @@ func (r *GenerateResult) Ok() bool {
 func (g *Generator) Generate(ctx context.Context, agentID, sourceID string) *GenerateResult {
 	result := &GenerateResult{}
 
+	// Clean up old pages from this source to avoid duplicates on re-generation.
+	if n, err := g.store.DeletePagesBySource(ctx, agentID, sourceID); err == nil && n > 0 {
+		slog.Info("wiki: removed old pages for source", "source", sourceID, "deleted", n)
+	}
+
 	// Read source text from KB entries
 	sourceText := g.readSourceText(ctx, agentID, sourceID)
 	if sourceText == "" {
@@ -287,13 +292,16 @@ const analysisSystemPrompt = `你是一位专业的研究分析员。阅读原�
 - "补充"关系：某处对另一处做细化或补充说明
 - "统领"关系：总述部分统领下属内容
 
-## 6. 现存知识库关联
-- 该来源与现存知识库中哪些实体/概念页面相关？
-- 是对现存内容的强化、挑战还是补充？
+## 6. 现存知识库关联（去重检查）
+- 扫描现存知识库索引，找出该来源涉及到的已有页面
+- **重要**：若某个实体/概念在已有页面中已存在，必须复用其 slug，不要创建新页面
+- 对新来源是对已有页面的强化、挑战还是补充进行标注
+- 若两个概念内容高度重叠但名称不同，应合并为一个页面（选用更通用的名称）
 
 ## 7. 页面生成建议
-- 建议新建的页面——优先高质量深度页面，建议 8-15 页，而非大量浅层存根
-- 建议更新的已有页面
+- 建议新建的页面——仅当该实体/概念在已有索引中不存在时才创建，优先高质量深度页面，建议 8-15 页，而非大量浅层存根
+- 建议更新的已有页面——若已有页面需要补充该来源的信息，标注其 slug 并要求更新
+- 禁止创建内容与已有页面重复的新页面。若发现重复，改为建议更新已有页面
 - 建议的标签与页面间 wikilinks
 
 分析完成后，在末尾附加 JSON 调度计划：

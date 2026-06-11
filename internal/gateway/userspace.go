@@ -22,7 +22,6 @@ import (
 	"github.com/fastclaw-ai/fastclaw/internal/skills"
 	"github.com/fastclaw-ai/fastclaw/internal/store"
 	"github.com/fastclaw-ai/fastclaw/internal/usage"
-	"github.com/fastclaw-ai/fastclaw/internal/kb"
 	"github.com/fastclaw-ai/fastclaw/internal/workspace"
 )
 
@@ -611,7 +610,7 @@ func (sp *UserSpace) EnsureAgent(ctx context.Context, st store.Store, mb *bus.Me
 // by the resulting UserSpace. Pass nil when sandbox is disabled at
 // system scope; agents will run with path-only file roots in that
 // case.
-func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager, wikiCache *kb.WikiCache) (*UserSpace, error) {
+func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager) (*UserSpace, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("loadUserSpace: userID required")
 	}
@@ -756,10 +755,7 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 		agent.WithSessionStore(session.NewStoreAdapter(st, userID)),
 		agent.WithMemoryStore(agent.NewMemoryStoreAdapter(st)),
 		agent.WithDataStore(st),
-		agent.WithKBWikiSearchMode(cfg.KB.WikiSearchMode),
-	}
-	if wikiCache != nil {
-		managerOpts = append(managerOpts, agent.WithWikiCache(wikiCache))
+		
 	}
 	if ws != nil {
 		managerOpts = append(managerOpts, agent.WithWorkspaceStore(ws))
@@ -924,7 +920,6 @@ type userSpaceRegistry struct {
 	// EnsureAgent to register hook-type plugins onto each agent's
 	// HookRegistry, gated by per-agent plugins.enabled config.
 	pluginMgr *plugin.Manager
-	wikiCache *kb.WikiCache
 	idleTTL   time.Duration
 }
 
@@ -933,7 +928,7 @@ type userSpaceEntry struct {
 	lastUsed time.Time
 }
 
-func newUserSpaceRegistry(mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager, wikiCache *kb.WikiCache) *userSpaceRegistry {
+func newUserSpaceRegistry(mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager) *userSpaceRegistry {
 	return &userSpaceRegistry{
 		spaces:            make(map[string]*userSpaceEntry),
 		bus:               mb,
@@ -942,7 +937,6 @@ func newUserSpaceRegistry(mb *bus.MessageBus, st store.Store, ws workspace.Store
 		meter:             meter,
 		systemSandboxPool: systemSandboxPool,
 		pluginMgr:         pluginMgr,
-		wikiCache:         wikiCache,
 		idleTTL:           30 * time.Minute,
 	}
 }
@@ -970,7 +964,7 @@ func (r *userSpaceRegistry) getOrLoad(ctx context.Context, userID string) (*User
 		e.lastUsed = time.Now()
 		return e.space, nil
 	}
-	sp, err := loadUserSpace(ctx, userID, r.bus, r.store, r.workspace, r.meter, r.systemSandboxPool, r.pluginMgr, r.wikiCache)
+	sp, err := loadUserSpace(ctx, userID, r.bus, r.store, r.workspace, r.meter, r.systemSandboxPool, r.pluginMgr)
 	if err != nil {
 		return nil, err
 	}

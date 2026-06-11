@@ -33,9 +33,6 @@ export default function RuntimeSettingsPage() {
   const [sandboxBoxliteImage, setSandboxBoxliteImage] = useState("");
   const [sandboxBoxliteKey, setSandboxBoxliteKey] = useState("");
   const [sandboxBoxliteURL, setSandboxBoxliteURL] = useState("");
-  const [wikiSearchMode, setWikiSearchMode] = useState("");
-  const [kbRedisURL, setKbRedisURL] = useState("");
-
   useEffect(() => {
     // Belt-and-suspenders gate: the layout already hides the nav item,
     // but a direct URL hit needs to bounce too.
@@ -68,8 +65,6 @@ export default function RuntimeSettingsPage() {
           setSandboxE2BKey(cfg.sandbox?.e2bKey || "");
           setSandboxBoxliteKey(cfg.sandbox?.boxliteKey || "");
           setSandboxBoxliteURL(cfg.sandbox?.boxliteUrl || "");
-          setWikiSearchMode(cfg.kb?.wikiSearchMode || "");
-          setKbRedisURL(cfg.kb?.redisURL || "");
         })
         .catch(() => {})
         .finally(() => setLoading(false));
@@ -99,10 +94,6 @@ export default function RuntimeSettingsPage() {
         e2bKey: sandboxE2BKey || undefined,
         boxliteKey: sandboxBoxliteKey || undefined,
         boxliteUrl: sandboxBoxliteURL || undefined,
-      },
-      kb: {
-        wikiSearchMode: wikiSearchMode || undefined,
-        redisURL: kbRedisURL || undefined,
       },
     });
     setSaving(false);
@@ -260,59 +251,6 @@ export default function RuntimeSettingsPage() {
         )}
       </div>
 
-      <div className="rounded-lg border border-border bg-card">
-        <div className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Container className="h-4 w-4 text-blue-500" />
-                <h3 className="font-medium">Knowledge Base</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Wiki page search: SQL pre-filter with bigram re-rank, or Redis full-page token cache
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="px-5 pb-5">
-          <Separator className="mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Wiki Search Mode</Label>
-              <Select value={wikiSearchMode} onValueChange={(v) => setWikiSearchMode(v ?? "")}>
-                <SelectTrigger>
-                  <SelectValue>
-                    {(v: unknown) =>
-                      ({ "": "SQL + Bigram (default)", cache: "Redis Cache" } as Record<string, string>)[
-                        v as string
-                      ] ?? (v as string) ?? "SQL + Bigram (default)"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">SQL + Bigram (default)</SelectItem>
-                  <SelectItem value="cache">Redis Cache</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">
-                Redis requires FASTCLAW_REDIS_URL to be configured. Falls back to SQL if Redis is unavailable.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Redis URL</Label>
-              <Input
-                value={kbRedisURL}
-                onChange={(e) => setKbRedisURL(e.target.value)}
-                placeholder="redis://127.0.0.1:6379"
-                className="font-mono text-sm"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Overrides FASTCLAW_REDIS_URL env var. Requires restart to take effect.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

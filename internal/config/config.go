@@ -300,13 +300,6 @@ type Config struct {
 
 // KBCfg is the system-level knowledge base configuration.
 type KBCfg struct {
-	// WikiSearchMode controls how wiki pages are searched:
-	// "sql" = SQL pre-filter + bigram re-rank (default)
-	// "cache" = Redis-backed full-page token caching
-	WikiSearchMode string `json:"wikiSearchMode,omitempty"`
-	// RedisURL is the Redis connection URL for wiki page caching.
-	// e.g. "redis://127.0.0.1:6379" or "redis://user:pass@host:port/db"
-	RedisURL string `json:"redisURL,omitempty"`
 }
 
 // ModelCost holds pricing info for a model.
@@ -589,7 +582,6 @@ type AgentKBCfg struct {
 	ShowIndicator     *bool    `json:"showIndicator,omitempty"`
 	IndicatorFound    string   `json:"indicatorFound,omitempty"`
 	IndicatorNotFound string   `json:"indicatorNotFound,omitempty"`
-	WikiSearchMode    string   `json:"wikiSearchMode,omitempty"` // "" = SQL, "cache" = Redis
 }
 
 type SkillsConfig struct {

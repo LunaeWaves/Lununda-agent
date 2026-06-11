@@ -163,7 +163,7 @@ export default function WikiPage() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Left: Tree navigation */}
-      <div className="w-64 shrink-0 border-r bg-zinc-950/50 flex flex-col">
+      <div className="w-64 shrink-0 border-r bg-muted/30 flex flex-col">
         <div className="p-3 border-b">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Wiki</h3>

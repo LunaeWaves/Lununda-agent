@@ -142,6 +142,30 @@ func (s *Server) handleDeleteKBSource(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetKBStats returns knowledge base statistics for an agent.
+// handleListKBEntries returns the chunk entries for a KB source.
+func (s *Server) handleListKBEntries(w http.ResponseWriter, r *http.Request) {
+	agentID := r.PathValue("id")
+	sourceID := r.PathValue("sourceId")
+	if agentID == "" || sourceID == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+	kbStore := s.kbStoreFor(agentID)
+	if kbStore == nil {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+	entries, err := kbStore.ListEntries(r.Context(), agentID, sourceID, 50, 0)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if entries == nil {
+		entries = []kb.KBEntry{}
+	}
+	writeJSON(w, http.StatusOK, entries)
+}
+
 func (s *Server) handleGetKBStats(w http.ResponseWriter, r *http.Request) {
 	agentID := r.PathValue("id")
 	if agentID == "" {

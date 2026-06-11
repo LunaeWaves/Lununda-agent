@@ -188,6 +188,44 @@ func (s *WikiStore) GetStats(ctx context.Context, agentID string) (*WikiStats, e
 	return &WikiStats{PageCounts: counts, TotalPages: total, TotalEdges: edgeCount}, nil
 }
 
+// DeletePagesBySource removes all wiki pages that include the given KB source ID.
+// Call before regenerating to avoid duplicate pages.
+func (s *WikiStore) DeletePagesBySource(ctx context.Context, agentID, sourceID string) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// Find pages containing this source_id
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id FROM wiki_pages WHERE agent_id = `+s.ph(1)+` AND source_ids LIKE `+s.ph(2),
+		agentID, "%\""+sourceID+"\"%")
+	if err != nil {
+		return 0, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+	rows.Close()
+
+	var deleted int64
+	for _, id := range ids {
+		tx.Exec(`DELETE FROM wiki_links WHERE src_page_id = `+s.ph(1)+` OR dst_page_id = `+s.ph(2), id, id)
+		if res, err := tx.Exec(`DELETE FROM wiki_pages WHERE id = `+s.ph(1), id); err == nil {
+			if n, _ := res.RowsAffected(); n > 0 {
+				deleted += n
+			}
+		}
+	}
+
+	tx.Commit()
+	return deleted, nil
+}
+
 // --- Delete ---
 
 func (s *WikiStore) DeletePage(ctx context.Context, id string) error {

@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -28,7 +29,9 @@ import {
 import {
   type KBSource,
   type KBStats,
+  type KBEntry,
   listKBSources,
+  listKBEntries,
   kbIngestText,
   kbIngestURL,
   deleteKBSource,
@@ -55,12 +58,15 @@ export default function AgentKnowledgePage() {
   const [showIndicator, setShowIndicator] = useState(true);
   const [indicatorFound, setIndicatorFound] = useState("");
   const [indicatorNotFound, setIndicatorNotFound] = useState("");
-  const [wikiSearchMode, setWikiSearchMode] = useState("");
   const [configLoaded, setConfigLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSource, setPreviewSource] = useState<KBSource | null>(null);
+  const [previewEntries, setPreviewEntries] = useState<KBEntry[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [textTitle, setTextTitle] = useState("");
   const [textContent, setTextContent] = useState("");
   const [urlValue, setUrlValue] = useState("");
@@ -98,7 +104,6 @@ export default function AgentKnowledgePage() {
           setShowIndicator(kb.showIndicator ?? true);
           setIndicatorFound(kb.indicatorFound ?? "");
           setIndicatorNotFound(kb.indicatorNotFound ?? "");
-          setWikiSearchMode(kb.wikiSearchMode ?? "");
         }
         setConfigLoaded(true);
       })
@@ -120,12 +125,11 @@ export default function AgentKnowledgePage() {
           showIndicator,
           indicatorFound: indicatorFound || undefined,
           indicatorNotFound: indicatorNotFound || undefined,
-          wikiSearchMode: wikiSearchMode || undefined,
         },
       });
     } catch {}
     setSaving(false);
-  }, [agentId, kbEnabled, autoMode, keywords, maxResults, searchMode, emptyAction, showIndicator, indicatorFound, indicatorNotFound, wikiSearchMode]);
+  }, [agentId, kbEnabled, autoMode, keywords, maxResults, searchMode, emptyAction, showIndicator, indicatorFound, indicatorNotFound]);
 
   const handleIngestText = useCallback(async () => {
     if (!agentId || !textContent.trim()) return;
@@ -163,8 +167,20 @@ export default function AgentKnowledgePage() {
     } catch {}
   }, [agentId, loadData]);
 
+  const handlePreviewSource = useCallback(async (src: KBSource) => {
+    if (!agentId) return;
+    setPreviewSource(src);
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    try {
+      const entries = await listKBEntries(agentId, src.id);
+      setPreviewEntries(entries);
+    } catch { setPreviewEntries([]); }
+    setPreviewLoading(false);
+  }, [agentId]);
+
   return (
-    <div className="p-6 max-w-3xl space-y-6">
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -256,19 +272,6 @@ export default function AgentKnowledgePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Wiki Search Engine</Label>
-              <Select value={wikiSearchMode} onValueChange={(v) => v && setWikiSearchMode(v)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">SQL + Bigram (default)</SelectItem>
-                  <SelectItem value="cache">Redis Cache</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="flex items-center justify-between pt-1">
               <Label className="text-xs">Show status indicator</Label>
               <Switch checked={showIndicator} onCheckedChange={setShowIndicator} />
@@ -333,7 +336,11 @@ export default function AgentKnowledgePage() {
         ) : (
           <div className="space-y-1">
             {sources.map((src) => (
-              <div key={src.id} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
+              <div
+                key={src.id}
+                className="flex items-center gap-2 rounded-md border px-3 py-1.5 cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={() => handlePreviewSource(src)}
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{src.title}</p>
                   <p className="text-xs text-muted-foreground">
@@ -401,6 +408,33 @@ export default function AgentKnowledgePage() {
               {submitting ? "Fetching..." : "Add"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{previewSource?.title || "Source Preview"}</DialogTitle>
+            <DialogDescription>
+              {previewSource?.entry_count} entries · {((previewSource?.total_chars ?? 0) / 1024).toFixed(1)} KB
+              {previewSource?.source_type && ` · ${previewSource.source_type}`}
+            </DialogDescription>
+          </DialogHeader>
+          {previewLoading ? (
+            <p className="text-sm text-muted-foreground py-4">Loading...</p>
+          ) : previewEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">No entries found.</p>
+          ) : (
+            <div className="space-y-3">
+              {previewEntries.map((entry) => (
+                <div key={entry.id} className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-[10px] text-muted-foreground mb-1">Chunk {entry.chunk_index}</p>
+                  <pre className="text-sm whitespace-pre-wrap font-sans">{entry.content}</pre>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

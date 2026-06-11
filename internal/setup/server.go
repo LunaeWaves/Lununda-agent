@@ -361,6 +361,7 @@ func (s *Server) Run(ctx context.Context) error {
 		mux.HandleFunc("POST /api/agents/{id}/kb/ingest/text", auth(s.handleKBIngestText))
 		mux.HandleFunc("POST /api/agents/{id}/kb/ingest/url", auth(s.handleKBIngestURL))
 		mux.HandleFunc("DELETE /api/agents/{id}/kb/sources/{sourceId}", auth(s.handleDeleteKBSource))
+		mux.HandleFunc("GET /api/agents/{id}/kb/sources/{sourceId}/entries", auth(s.handleListKBEntries))
 		mux.HandleFunc("GET /api/agents/{id}/kb/stats", auth(s.handleGetKBStats))
 		mux.HandleFunc("POST /api/agents/{id}/kb/search", auth(s.handleKBSearch))
 		mux.HandleFunc("POST /api/agents/{id}/kb/mcp", auth(s.handleKBMCP))

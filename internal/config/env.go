@@ -18,7 +18,6 @@ type EnvConfig struct {
 	Storage EnvStorage
 	Sandbox EnvSandbox
 	Log     EnvLog
-	Redis   EnvRedis
 }
 
 type EnvGateway struct {
@@ -45,10 +44,6 @@ type EnvSandbox struct {
 
 type EnvLog struct {
 	Level string // FASTCLAW_LOG_LEVEL — "debug" / "info" / "warn" / "error"
-}
-
-type EnvRedis struct {
-	URL string // FASTCLAW_REDIS_URL — e.g. redis://127.0.0.1:6379
 }
 
 // LoadEnv reads the bootstrap configuration from FASTCLAW_* environment
@@ -110,9 +105,6 @@ func LoadEnv() *EnvConfig {
 
 	if v := os.Getenv("FASTCLAW_LOG_LEVEL"); v != "" {
 		cfg.Log.Level = v
-	}
-	if v := os.Getenv("FASTCLAW_REDIS_URL"); v != "" {
-		cfg.Redis.URL = v
 	}
 	return cfg
 }

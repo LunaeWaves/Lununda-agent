@@ -38,12 +38,10 @@ import (
 	"github.com/fastclaw-ai/fastclaw/internal/toolproviders/tts"
 	"github.com/fastclaw-ai/fastclaw/internal/toolproviders/webfetch"
 	"github.com/fastclaw-ai/fastclaw/internal/toolproviders/websearch"
-	"github.com/fastclaw-ai/fastclaw/internal/kb"
 	"github.com/fastclaw-ai/fastclaw/internal/usage"
 	"github.com/fastclaw-ai/fastclaw/internal/users"
 	"github.com/fastclaw-ai/fastclaw/internal/webhook"
 	"github.com/fastclaw-ai/fastclaw/internal/workspace"
-	"github.com/redis/go-redis/v9"
 )
 
 var toolProviderRegistry = func() *toolproviders.Registry {
@@ -181,13 +179,9 @@ type Gateway struct {
 	// SSE hub a user-typed POST /api/chat turn uses. Nil-safe: unset
 	// keeps the legacy bus.Outbound → WebChannel async-bubble path.
 	chatEvents *agent.EventHub
-	wikiCache  *kb.WikiCache
 	mu         sync.RWMutex
 	dedup      sync.Map
 }
-
-// WikiCache returns the shared Redis-backed wiki page token cache.
-func (g *Gateway) WikiCache() *kb.WikiCache { return g.wikiCache }
 
 // SetChatEvents wires the agent event hub the setup server lazy-inits.
 // Must be called before Run() so the very first bus-fired web turn
@@ -195,30 +189,6 @@ func (g *Gateway) WikiCache() *kb.WikiCache { return g.wikiCache }
 // bubble. Safe to call once.
 func (g *Gateway) SetChatEvents(h *agent.EventHub) { g.chatEvents = h }
 
-func initWikiCache(env *config.EnvConfig, st store.Store) *kb.WikiCache {
-	redisURL := env.Redis.URL
-	if redisURL == "" && st != nil {
-		var cfg config.KBCfg
-		if err := scope.SettingInto(context.Background(), st, NSKB, "", "", &cfg); err == nil && cfg.RedisURL != "" {
-			redisURL = cfg.RedisURL
-		}
-	}
-	if redisURL == "" {
-		return nil
-	}
-	opts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		slog.Warn("invalid redis URL, KB cache disabled", "err", err)
-		return nil
-	}
-	rdb := redis.NewClient(opts)
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		slog.Warn("redis ping failed, KB cache disabled", "err", err)
-		return nil
-	}
-	slog.Info("redis connected, KB wiki cache enabled")
-	return kb.NewWikiCache(rdb)
-}
 
 // WebChannel returns the in-process fan-out for web SSE subscribers.
 // Used by the setup server to register chat-stream subscribers so cron-
@@ -376,8 +346,6 @@ func New(env *config.EnvConfig) (*Gateway, error) {
 		return nil, fmt.Errorf("init accounts: %w", err)
 	}
 
-	wc := initWikiCache(env, st)
-
 	g := &Gateway{
 		bus:         mb,
 		store:       st,
@@ -385,14 +353,13 @@ func New(env *config.EnvConfig) (*Gateway, error) {
 		workspace:   ws,
 		usage:       meter,
 		sandboxPool: systemSandboxPool,
-		users:       newUserSpaceRegistry(mb, st, ws, meter, systemSandboxPool, pluginMgr, wc),
+		users:       newUserSpaceRegistry(mb, st, ws, meter, systemSandboxPool, pluginMgr),
 		chanMgr:     chanMgr,
 		webChan:     webChan,
 		scheduler:   scheduler,
 		webhookSrv:  webhookSrv,
 		pluginMgr:   pluginMgr,
 		envCfg:      env,
-		wikiCache:   wc,
 	}
 
 	if webhookSrv != nil {

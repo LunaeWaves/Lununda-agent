@@ -259,7 +259,7 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 					ShowIndicator:     showIndicator,
 					IndicatorFound:    kbCfg.IndicatorFound,
 					IndicatorNotFound: kbCfg.IndicatorNotFound,
-					WikiSearchMode:    firstNonEmpty(kbCfg.WikiSearchMode, m.opts.kbWikiSearchMode),
+
 				}
 			})
 			ag.hooks.Register(BeforeModelCall, func(ctx context.Context, hc *HookContext) {
