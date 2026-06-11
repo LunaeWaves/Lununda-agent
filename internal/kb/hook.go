@@ -264,9 +264,17 @@ func injectKBContext(hc *HookContext, results []KBResult, cfg AutoQueryCfg) {
 		insertAt = 1
 	}
 
-	tail := make([]provider.Message, len(hc.Messages)-insertAt)
-	copy(tail, hc.Messages[insertAt:])
-	hc.Messages = append(hc.Messages[:insertAt:insertAt], kbMsg)
+	// Remove any previous KB context messages to avoid stacking across ReAct iterations.
+	var filtered []provider.Message
+	filtered = append(filtered, hc.Messages[:insertAt]...)
+	for _, m := range hc.Messages[insertAt:] {
+		if !strings.HasPrefix(m.Content, "[KB]") {
+			filtered = append(filtered, m)
+		}
+	}
+	tail := make([]provider.Message, len(filtered)-insertAt)
+	copy(tail, filtered[insertAt:])
+	hc.Messages = append(filtered[:insertAt:insertAt], kbMsg)
 	hc.Messages = append(hc.Messages, tail...)
 }
 
