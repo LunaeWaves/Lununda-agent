@@ -3,15 +3,16 @@ package kb
 import "time"
 
 type KBSource struct {
-	ID         string    `json:"id"`
-	AgentID    string    `json:"agent_id"`
-	Title      string    `json:"title"`
-	SourceType string    `json:"source_type"` // "text", "url", "file"
-	SourceRef  string    `json:"source_ref"`  // URL or filename
-	EntryCount int       `json:"entry_count"`
-	TotalChars int       `json:"total_chars"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	AgentID         string     `json:"agent_id"`
+	Title           string     `json:"title"`
+	SourceType      string     `json:"source_type"` // "text", "url", "file"
+	SourceRef       string     `json:"source_ref"`  // URL or filename
+	EntryCount      int        `json:"entry_count"`
+	TotalChars      int        `json:"total_chars"`
+	WikiGeneratedAt *time.Time `json:"wiki_generated_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type KBEntry struct {

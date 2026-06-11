@@ -106,6 +106,16 @@ func (g *Generator) Generate(ctx context.Context, agentID, sourceID string) *Gen
 			pageID = fmt.Sprintf("%s:%s", pp.PageType, pp.Slug)
 		}
 
+		// Dedup: if a page with the same title already exists, merge source.
+		if existingByTitle, _ := g.store.FindPageByTitle(ctx, agentID, pp.Title); existingByTitle != nil && existingByTitle.ID != pageID {
+			if !hasSourceID(existingByTitle.SourceIDs, sourceID) {
+				existingByTitle.SourceIDs = append(existingByTitle.SourceIDs, sourceID)
+			}
+			_ = g.store.UpsertPage(ctx, existingByTitle)
+			result.PageIDs = append(result.PageIDs, existingByTitle.ID)
+			continue
+		}
+
 		var body string
 		if pp.PageType == PageTypeSource {
 			// Source pages get the full text verbatim
@@ -443,23 +453,36 @@ var jsonBlockRe = regexp.MustCompile("(?s)\\{.*\\}")
 var codeFenceRe = regexp.MustCompile("(?s)^```\\w*\\n?|\\n?```$")
 
 func extractPlan(text string) *wikiPlan {
-	// OmniKB uses "---DISPATCH PLAN---" as delimiter; extract text after it
+	// Try multiple extraction strategies in order.
+	tryParse := func(s string) (*wikiPlan, bool) {
+		s = stripCodeFences(s)
+		var plan wikiPlan
+		if err := json.Unmarshal([]byte(s), &plan); err == nil && len(plan.Pages) > 0 {
+			return &plan, true
+		}
+		if m := jsonBlockRe.FindString(s); m != "" {
+			if err := json.Unmarshal([]byte(m), &plan); err == nil && len(plan.Pages) > 0 {
+				return &plan, true
+			}
+		}
+		return nil, false
+	}
+
+	// 1. Look for DISPATCH PLAN marker (OmniKB format)
 	if idx := strings.Index(text, "---DISPATCH PLAN---"); idx >= 0 {
-		text = text[idx+len("---DISPATCH PLAN---"):]
+		if plan, ok := tryParse(text[idx+len("---DISPATCH PLAN---"):]); ok {
+			return plan
+		}
 	}
-	cleaned := stripCodeFences(text)
-	// Try direct JSON parse
-	var plan wikiPlan
-	if err := json.Unmarshal([]byte(cleaned), &plan); err == nil && len(plan.Pages) > 0 {
-		return &plan
+	// 2. Try the full text (some models skip the marker)
+	if plan, ok := tryParse(text); ok {
+		return plan
 	}
-	// Find JSON block
-	m := jsonBlockRe.FindString(cleaned)
-	if m == "" {
-		return nil
-	}
-	if err := json.Unmarshal([]byte(m), &plan); err == nil && len(plan.Pages) > 0 {
-		return &plan
+	// 3. Try everything after the last code block
+	if idx := strings.LastIndex(text, "```"); idx >= 0 {
+		if plan, ok := tryParse(text[idx:]); ok {
+			return plan
+		}
 	}
 	return nil
 }
@@ -505,6 +528,15 @@ func slugify(s string) string {
 		s = fmt.Sprintf("page-%d", time.Now().UnixMilli()%10000)
 	}
 	return s
+}
+
+func hasSourceID(ids []string, target string) bool {
+	for _, id := range ids {
+		if id == target {
+			return true
+		}
+	}
+	return false
 }
 
 func filterByType(ids []string, pt string) []string {

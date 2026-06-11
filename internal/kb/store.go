@@ -328,7 +328,7 @@ func (s *KBStore) ListSources(ctx context.Context, agentID string, limit, offset
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT id, agent_id, title, source_type, source_ref, entry_count, total_chars, created_at, updated_at
+		fmt.Sprintf(`SELECT id, agent_id, title, source_type, source_ref, entry_count, total_chars, wiki_generated_at, created_at, updated_at
 			FROM kb_sources WHERE agent_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s`,
 			s.ph(1), s.ph(2), s.ph(3)),
 		agentID, limit, offset)
@@ -340,12 +340,12 @@ func (s *KBStore) ListSources(ctx context.Context, agentID string, limit, offset
 	var sources []KBSource
 	for rows.Next() {
 		var src KBSource
-		var createdAt, updatedAt string
-		if err := rows.Scan(&src.ID, &src.AgentID, &src.Title, &src.SourceType, &src.SourceRef, &src.EntryCount, &src.TotalChars, &createdAt, &updatedAt); err != nil {
+		var wikiGeneratedAt, createdAt, updatedAt sql.NullString
+		if err := rows.Scan(&src.ID, &src.AgentID, &src.Title, &src.SourceType, &src.SourceRef, &src.EntryCount, &src.TotalChars, &wikiGeneratedAt, &createdAt, &updatedAt); err != nil {
 			continue
 		}
-		src.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		src.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+		src.CreatedAt, _ = time.Parse(time.RFC3339, createdAt.String)
+		src.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt.String)
 		sources = append(sources, src)
 	}
 	return sources, nil
@@ -369,6 +369,15 @@ func (s *KBStore) DeleteSource(ctx context.Context, agentID, sourceID string) er
 		return fmt.Errorf("source not found")
 	}
 	return nil
+}
+
+// MarkSourceGenerated sets the wiki_generated_at timestamp for a source.
+func (s *KBStore) MarkSourceGenerated(ctx context.Context, sourceID string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx,
+		fmt.Sprintf(`UPDATE kb_sources SET wiki_generated_at = %s WHERE id = %s`, s.ph(1), s.ph(2)),
+		now, sourceID)
+	return err
 }
 
 func (s *KBStore) GetStats(ctx context.Context, agentID string) (*KBStats, error) {

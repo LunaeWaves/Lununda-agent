@@ -147,8 +147,24 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateSessionsAddChatterUserID(ctx); err != nil {
 		return fmt.Errorf("migrate sessions chatter_user_id: %w", err)
 	}
+	if err := d.migrateKBSourcesAddWikiGeneratedAt(ctx); err != nil {
+		return fmt.Errorf("migrate kb_sources.wiki_generated_at: %w", err)
+	}
 	return nil
 }
+
+func (d *DBStore) migrateKBSourcesAddWikiGeneratedAt(ctx context.Context) error {
+	has, err := d.tableHasColumn(ctx, "kb_sources", "wiki_generated_at")
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	_, err = d.db.ExecContext(ctx, "ALTER TABLE kb_sources ADD COLUMN wiki_generated_at TIMESTAMP")
+	return err
+}
+
 
 // migrateSessionsAddChatterUserID retrofits a chatter_user_id column
 // onto sessions / session_messages / session_events. user_id continues
@@ -1491,6 +1507,56 @@ func (d *DBStore) migrationSQL() []string {
 			expires_at TIMESTAMP NOT NULL,
 			PRIMARY KEY (channel, account_id)
 		)`,
+
+		// Knowledge Base tables
+		`CREATE TABLE IF NOT EXISTS kb_sources (
+			id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			source_type TEXT NOT NULL,
+			source_ref TEXT NOT NULL,
+			entry_count INTEGER NOT NULL DEFAULT 0,
+			total_chars INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			wiki_generated_at TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_kb_sources_agent ON kb_sources (agent_id)`,
+		`CREATE TABLE IF NOT EXISTS kb_entries (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			source_id TEXT NOT NULL,
+			chunk_index INTEGER NOT NULL DEFAULT 0,
+			content TEXT NOT NULL,
+			agent_id TEXT NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_kb_entries_source ON kb_entries (source_id, chunk_index)`,
+		`CREATE INDEX IF NOT EXISTS idx_kb_entries_agent ON kb_entries (agent_id)`,
+		// Wiki tables
+		`CREATE TABLE IF NOT EXISTS wiki_pages (
+			id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			page_type TEXT NOT NULL,
+			slug TEXT NOT NULL,
+			title TEXT NOT NULL,
+			body TEXT NOT NULL,
+			summary TEXT NOT NULL,
+			source_ids TEXT NOT NULL,
+			tags TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			revision INTEGER NOT NULL DEFAULT 1
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_wiki_pages_agent ON wiki_pages (agent_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_wiki_pages_type ON wiki_pages (agent_id, page_type)`,
+		`CREATE TABLE IF NOT EXISTS wiki_links (
+			src_page_id TEXT NOT NULL,
+			dst_page_id TEXT NOT NULL,
+			relation TEXT NOT NULL,
+			weight REAL NOT NULL DEFAULT 0.5,
+			PRIMARY KEY (src_page_id, dst_page_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_wiki_links_src ON wiki_links (src_page_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_wiki_links_dst ON wiki_links (dst_page_id)`,
 	}
 }
 

@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/fastclaw-ai/fastclaw/internal/kb"
 	"github.com/fastclaw-ai/fastclaw/internal/provider"
 	"github.com/fastclaw-ai/fastclaw/internal/store"
 	"github.com/fastclaw-ai/fastclaw/internal/wiki"
@@ -104,8 +106,12 @@ func (s *Server) handleWikiDeletePage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// wikiGenLocks prevents concurrent generation for the same agent.
+var wikiGenLocks sync.Map // map[string]bool
+
 type wikiGenerateRequest struct {
 	SourceIDs []string `json:"source_ids"`
+	Force     bool     `json:"force,omitempty"`
 }
 
 func (s *Server) handleWikiGenerate(w http.ResponseWriter, r *http.Request) {
@@ -121,12 +127,20 @@ func (s *Server) handleWikiGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go s.runWikiGeneration(agentID, req.SourceIDs)
+	if _, loaded := wikiGenLocks.LoadOrStore(agentID, true); loaded {
+		writeJSON(w, http.StatusConflict, map[string]string{"status": "already_running"})
+		return
+	}
+
+	go func() {
+		defer wikiGenLocks.Delete(agentID)
+		s.runWikiGeneration(agentID, req.SourceIDs, req.Force)
+	}()
 
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "started"})
 }
 
-func (s *Server) runWikiGeneration(agentID string, sourceIDs []string) {
+func (s *Server) runWikiGeneration(agentID string, sourceIDs []string, force bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
@@ -143,6 +157,34 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string) {
 		return
 	}
 
+	// Filter out already-processed sources unless forcing
+	var toProcess []string
+	if !force && kbs != nil {
+		sources, err := kbs.ListSources(ctx, agentID, 100, 0)
+		if err == nil {
+			sourceMap := make(map[string]*kb.KBSource, len(sources))
+			for i := range sources {
+				sourceMap[sources[i].ID] = &sources[i]
+			}
+			for _, sid := range sourceIDs {
+				src, ok := sourceMap[sid]
+				if !ok || src.WikiGeneratedAt == nil {
+					toProcess = append(toProcess, sid)
+				} else {
+					slog.Info("wiki generate: skipping already processed source", "source", sid)
+				}
+			}
+		}
+	}
+	if force || kbs == nil {
+		toProcess = sourceIDs
+	}
+	if len(toProcess) == 0 {
+		slog.Info("wiki generate: all sources already processed, nothing to do", "agent", agentID)
+		return
+	}
+
+	slog.Info("wiki generate: using model", "model", model, "agent", agentID)
 	invoker := func(ctx context.Context, messages []provider.Message) (string, error) {
 		resp, err := prov.Chat(ctx, messages, nil, model, 4096, 0.3)
 		if err != nil {
@@ -152,7 +194,7 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string) {
 	}
 
 	gen := wiki.NewGenerator(ws, kbs, invoker)
-	for _, sid := range sourceIDs {
+	for _, sid := range toProcess {
 		r := gen.Generate(ctx, agentID, sid)
 		if r.Error != "" {
 			slog.Warn("wiki generate failed", "source", sid, "error", r.Error)
@@ -160,12 +202,14 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string) {
 			slog.Info("wiki generate done", "source", sid,
 				"created", r.PagesCreated, "updated", r.PagesUpdated,
 				"failed", r.PagesFailed, "edges", r.EdgesAdded)
+			if kbs != nil {
+				kbs.MarkSourceGenerated(ctx, sid)
+			}
 		}
 	}
 }
 
-// providerForAgent reads the system-level config from the store and
-// constructs a provider for wiki generation.
+// providerForAgent reads system + agent model config and constructs a provider.
 func (s *Server) providerForAgent(agentID string) (provider.Provider, string) {
 	if s.dataStore == nil {
 		return nil, ""
@@ -180,14 +224,22 @@ func (s *Server) providerForAgent(agentID string) (provider.Provider, string) {
 		return nil, ""
 	}
 
-	// Read default model from agents.defaults
-	defaultsRow, err := s.dataStore.GetConfigByName(ctx, store.KindSetting, "", "", "agents.defaults")
-	if err != nil || defaultsRow == nil {
-		slog.Warn("wiki: no agents.defaults config found")
-		return nil, ""
+	// Read agent-level model override first, fall back to system default
+	model := ""
+	if agentID != "" {
+		agentRow, _ := s.dataStore.GetConfigByName(ctx, store.KindSetting, "", agentID, "agents.defaults")
+		if agentRow != nil {
+			model, _ = agentRow.Data["model"].(string)
+		}
 	}
-
-	model, _ := defaultsRow.Data["model"].(string)
+	if model == "" {
+		defaultsRow, err := s.dataStore.GetConfigByName(ctx, store.KindSetting, "", "", "agents.defaults")
+		if err != nil || defaultsRow == nil {
+			slog.Warn("wiki: no agents.defaults config found")
+			return nil, ""
+		}
+		model, _ = defaultsRow.Data["model"].(string)
+	}
 	if model == "" {
 		return nil, ""
 	}

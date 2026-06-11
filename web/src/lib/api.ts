@@ -1877,8 +1877,10 @@ export interface KBSource {
   id: string;
   title: string;
   source_type: string;
+  source_ref: string;
   entry_count: number;
   total_chars: number;
+  wiki_generated_at?: string;
   created_at: string;
 }
 
@@ -2011,11 +2013,12 @@ export async function deleteWikiPage(
 export async function generateWiki(
   agentId: string,
   sourceIds: string[],
-): Promise<{ ok: boolean; message: string }> {
+  force?: boolean,
+): Promise<{ status: string }> {
   const res = await apiFetch(`/api/agents/${agentId}/wiki/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source_ids: sourceIds }),
+    body: JSON.stringify({ source_ids: sourceIds, force }),
   });
   return res.json();
 }

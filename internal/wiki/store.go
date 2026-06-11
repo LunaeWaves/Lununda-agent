@@ -80,6 +80,25 @@ func (s *WikiStore) GetPage(ctx context.Context, id string) (*WikiPage, error) {
 	return p, nil
 }
 
+// FindPageByTitle returns an existing page with the given title for the agent.
+func (s *WikiStore) FindPageByTitle(ctx context.Context, agentID, title string) (*WikiPage, error) {
+	q := `SELECT id, agent_id, page_type, slug, title, body, summary, source_ids, tags, created_at, updated_at, revision
+		FROM wiki_pages WHERE agent_id = ` + s.ph(1) + ` AND title = ` + s.ph(2) + ` LIMIT 1`
+	row := s.db.QueryRowContext(ctx, q, agentID, title)
+	var p WikiPage
+	var srcJSON, tagsJSON string
+	var createdAt, updatedAt string
+	err := row.Scan(&p.ID, &p.AgentID, &p.PageType, &p.Slug, &p.Title, &p.Body, &p.Summary, &srcJSON, &tagsJSON, &createdAt, &updatedAt, &p.Revision)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal([]byte(srcJSON), &p.SourceIDs)
+	json.Unmarshal([]byte(tagsJSON), &p.Tags)
+	p.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	p.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+	return &p, nil
+}
+
 func (s *WikiStore) ListPages(ctx context.Context, agentID, pageType string, limit, offset int) ([]WikiPage, int, error) {
 	var where []string
 	var args []any

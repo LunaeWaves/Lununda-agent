@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,7 +51,6 @@ const PAGE_TYPE_SECTIONS = [
   { type: "entity", label: "实体", icon: DatabaseIcon },
   { type: "concept", label: "概念", icon: LightbulbIcon },
   { type: "source", label: "来源", icon: BookOpenIcon },
-  { type: "query", label: "查询", icon: SearchIcon },
 ];
 
 export default function WikiPage() {
@@ -66,7 +65,7 @@ export default function WikiPage() {
   const [generating, setGenerating] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
   const [showGraph, setShowGraph] = useState(false);
-  const [graphHtml, setGraphHtml] = useState<string>("");
+  const graphRef = useRef<HTMLDivElement>(null);
 
   // KB sources for generation
   const [kbSources, setKbSources] = useState<KBSource[]>([]);
@@ -107,15 +106,20 @@ export default function WikiPage() {
     [agentId],
   );
 
-  const handleGenerate = useCallback(async () => {
+  const handleGenerate = useCallback(async (force?: boolean) => {
     if (!agentId || kbSources.length === 0) return;
     setGenerating(true);
     try {
-      await generateWiki(
+      const res = await generateWiki(
         agentId,
         kbSources.map((s) => s.id),
+        force,
       );
-      // Wait a moment then refresh
+      if (res.status === "already_running") {
+        alert("Wiki 生成正在进行中，请等待完成后再试。");
+        setGenerating(false);
+        return;
+      }
       setTimeout(() => {
         loadData();
         setGenerating(false);
@@ -124,6 +128,8 @@ export default function WikiPage() {
       setGenerating(false);
     }
   }, [agentId, kbSources, loadData]);
+
+  const unprocessedCount = kbSources.filter((s) => !s.wiki_generated_at).length;
 
   const handleDelete = useCallback(
     async (pageId: string) => {
@@ -142,13 +148,67 @@ export default function WikiPage() {
 
   const handleLoadGraph = useCallback(async () => {
     if (!agentId) return;
-    try {
-      const g = await getWikiGraph(agentId);
-      const svg = renderGraphSVG(g.nodes, g.edges);
-      setGraphHtml(svg);
-      setShowGraph(true);
-    } catch {}
+    setShowGraph(true);
   }, [agentId]);
+
+  // Render vis-network graph
+  useEffect(() => {
+    if (!showGraph || !graphRef.current || !agentId) return;
+    let network: import("vis-network").Network | null = null;
+    let cancelled = false;
+
+    const init = async () => {
+      const [{ Network }, { DataSet }] = await Promise.all([
+        import("vis-network/standalone"),
+        import("vis-data/standalone"),
+      ]);
+      if (cancelled) return;
+
+      const g = await getWikiGraph(agentId);
+      if (cancelled) return;
+
+      const typeColors: Record<string, string> = {
+        overview: "#8b5cf6",
+        entity: "#3b82f6",
+        concept: "#10b981",
+        source: "#f59e0b",
+        query: "#ef4444",
+      };
+
+      const nodes = new DataSet(
+        g.nodes.map((n) => ({
+          id: n.id,
+          label: n.title.length > 12 ? n.title.slice(0, 12) + "…" : n.title,
+          title: n.title,
+          color: { background: typeColors[n.page_type] || "#666", border: "#333" },
+          font: { size: 11, color: "#e5e7eb" },
+          shape: "dot",
+          size: 20,
+        })),
+      );
+
+      const edges = new DataSet(
+        g.edges.map((e, i) => ({
+          id: i + 1,
+          from: e.src_page_id,
+          to: e.dst_page_id,
+          title: e.relation,
+          arrows: "to",
+          color: { color: "#555", opacity: 0.4 },
+          width: 1,
+        })),
+      );
+
+      network = new Network(graphRef.current!, { nodes, edges }, {
+        physics: { stabilization: { iterations: 100 }, solver: "forceAtlas2Based" },
+        interaction: { hover: true, tooltipDelay: 200 },
+        edges: { smooth: true },
+      });
+    };
+
+    init();
+    return () => { cancelled = true; if (network) network.destroy(); };
+  }, [showGraph, agentId]);
 
   // Group pages by type
   const grouped = useMemo(() => {
@@ -172,11 +232,21 @@ export default function WikiPage() {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={handleGenerate}
-                disabled={generating || kbSources.length === 0}
-                title="生成 Wiki"
+                onClick={() => handleGenerate()}
+                disabled={generating || unprocessedCount === 0}
+                title={unprocessedCount === 0 ? "所有源已处理" : "生成未处理的 Wiki"}
               >
                 <SparklesIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleGenerate(true)}
+                disabled={generating || kbSources.length === 0}
+                title="强制重新生成所有 Wiki"
+              >
+                <RefreshCwIcon className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="ghost"
@@ -243,10 +313,7 @@ export default function WikiPage() {
                 返回
               </Button>
             </div>
-            <div
-              className="flex-1 p-4"
-              dangerouslySetInnerHTML={{ __html: graphHtml }}
-            />
+            <div ref={graphRef} className="flex-1" />
           </div>
         ) : selectedPage ? (
           <ScrollArea className="flex-1">
@@ -313,10 +380,23 @@ export default function WikiPage() {
                   : "从知识库源生成结构化 Wiki 页面"}
               </p>
               {pages.length === 0 && kbSources.length > 0 && (
-                <Button onClick={handleGenerate} disabled={generating}>
-                  <SparklesIcon className="h-4 w-4 mr-2" />
-                  {generating ? "生成中..." : "生成 Wiki"}
-                </Button>
+                <div className="space-y-2">
+                  <Button onClick={() => handleGenerate()} disabled={generating || unprocessedCount === 0}>
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    {generating ? "生成中..." : `生成 Wiki (${unprocessedCount} 待处理)`}
+                  </Button>
+                  {unprocessedCount < kbSources.length && (
+                    <p className="text-xs text-muted-foreground">
+                      {kbSources.length - unprocessedCount} 个源已处理，
+                      <button
+                        className="underline hover:text-foreground ml-1"
+                        onClick={() => handleGenerate(true)}
+                      >
+                        强制重新生成全部
+                      </button>
+                    </p>
+                  )}
+                </div>
               )}
               {kbSources.length === 0 && (
                 <p className="text-xs">
@@ -331,60 +411,3 @@ export default function WikiPage() {
   );
 }
 
-// Simple SVG graph renderer (no d3 dependency)
-function renderGraphSVG(
-  nodes: WikiPage[],
-  edges: { src_page_id: string; dst_page_id: string; relation: string }[],
-): string {
-  if (nodes.length === 0) {
-    return '<p class="text-center text-muted-foreground mt-20">暂无图谱数据</p>';
-  }
-
-  const W = 800;
-  const H = 600;
-  const cx = W / 2;
-  const cy = H / 2;
-
-  // Position nodes in a circle
-  const positions: Record<string, { x: number; y: number }> = {};
-  const R = Math.min(W, H) * 0.35;
-  nodes.forEach((n, i) => {
-    const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
-    positions[n.id] = {
-      x: cx + R * Math.cos(angle),
-      y: cy + R * Math.sin(angle),
-    };
-  });
-
-  // Type colors
-  const typeColors: Record<string, string> = {
-    overview: "#8b5cf6",
-    entity: "#3b82f6",
-    concept: "#10b981",
-    source: "#f59e0b",
-    query: "#ef4444",
-  };
-
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="w-full h-full">`;
-
-  // Edges
-  for (const e of edges) {
-    const s = positions[e.src_page_id];
-    const d = positions[e.dst_page_id];
-    if (!s || !d) continue;
-    svg += `<line x1="${s.x}" y1="${s.y}" x2="${d.x}" y2="${d.y}" stroke="#444" stroke-width="1" opacity="0.5"/>`;
-  }
-
-  // Nodes
-  for (const n of nodes) {
-    const pos = positions[n.id];
-    if (!pos) continue;
-    const color = typeColors[n.page_type] || "#666";
-    const label = n.title.length > 10 ? n.title.slice(0, 10) + "…" : n.title;
-    svg += `<circle cx="${pos.x}" cy="${pos.y}" r="18" fill="${color}" opacity="0.8"/>`;
-    svg += `<text x="${pos.x}" y="${pos.y + 32}" text-anchor="middle" fill="#ccc" font-size="10">${label}</text>`;
-  }
-
-  svg += "</svg>";
-  return svg;
-}
