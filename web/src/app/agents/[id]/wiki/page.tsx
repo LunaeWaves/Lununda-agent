@@ -129,6 +129,11 @@ export default function WikiPage() {
     }
   }, [agentId, kbSources, loadData]);
 
+  const handleForceGenerate = useCallback(() => {
+    if (!window.confirm("强制重新生成将删除已有 Wiki 页面并重新分析所有知识库源，确定继续？")) return;
+    handleGenerate(true);
+  }, [handleGenerate]);
+
   const unprocessedCount = kbSources.filter((s) => !s.wiki_generated_at).length;
 
   const handleDelete = useCallback(
@@ -242,7 +247,7 @@ export default function WikiPage() {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => handleGenerate(true)}
+                onClick={handleForceGenerate}
                 disabled={generating || kbSources.length === 0}
                 title="强制重新生成所有 Wiki"
               >
@@ -390,7 +395,7 @@ export default function WikiPage() {
                       {kbSources.length - unprocessedCount} 个源已处理，
                       <button
                         className="underline hover:text-foreground ml-1"
-                        onClick={() => handleGenerate(true)}
+                        onClick={handleForceGenerate}
                       >
                         强制重新生成全部
                       </button>

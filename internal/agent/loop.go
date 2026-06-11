@@ -1908,6 +1908,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// channels.SplitMessageMarker at return time; manager.dispatchOutbound
 	// splits on it (AllowSplit=true) or collapses to newlines otherwise.
 	var replyParts []string
+	var kbIndicator string
 	// ReAct loop
 	for i := 0; i < a.maxToolIterations; i++ {
 		slog.Info("agent loop iteration",
@@ -1921,6 +1922,9 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		hcBefore := &HookContext{AgentName: a.name, Point: BeforeModelCall, Messages: messages, Source: msg.Source, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID}
 		a.hooks.Run(ctx, hcBefore)
 
+		if hcBefore.IndicatorText != "" && kbIndicator == "" {
+			kbIndicator = hcBefore.IndicatorText
+		}
 		for _, stc := range hcBefore.SyntheticToolCalls {
 			tcID := "synth-" + stc.Name
 			emitEvent(ctx, ChatEvent{Type: "tool_call", Data: map[string]any{"id": tcID, "name": stc.Name, "arguments": stc.Args}})
@@ -2011,7 +2015,10 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			}
 			emitEvent(ctx, ChatEvent{Type: "done"})
 			a.runPostTurn(ctx, msg, messages, totalToolCalls, chatterMem)
-			return joinReplyParts(replyParts)
+			if kbIndicator != "" && len(replyParts) > 0 {
+		replyParts[0] = kbIndicator + "\n\n" + replyParts[0]
+	}
+	return joinReplyParts(replyParts)
 		}
 
 		// Emit assistant content before tool calls if present
