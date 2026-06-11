@@ -295,6 +295,18 @@ type Config struct {
 	Memory        MemoryCfg                  `json:"memory,omitempty"`
 	Privacy       PrivacyCfg                 `json:"privacy,omitempty"`
 	SkillsLearner SkillsLearnerCfg           `json:"skillsLearner,omitempty"`
+	KB            KBCfg                      `json:"kb,omitempty"`
+}
+
+// KBCfg is the system-level knowledge base configuration.
+type KBCfg struct {
+	// WikiSearchMode controls how wiki pages are searched:
+	// "sql" = SQL pre-filter + bigram re-rank (default)
+	// "cache" = Redis-backed full-page token caching
+	WikiSearchMode string `json:"wikiSearchMode,omitempty"`
+	// RedisURL is the Redis connection URL for wiki page caching.
+	// e.g. "redis://127.0.0.1:6379" or "redis://user:pass@host:port/db"
+	RedisURL string `json:"redisURL,omitempty"`
 }
 
 // ModelCost holds pricing info for a model.
@@ -562,6 +574,22 @@ type AgentFileConfig struct {
 	// regardless of this field, since those channels carry the FastClaw
 	// identity directly and don't need a per-platform allowlist.
 	Admins map[string][]string `json:"admins,omitempty"`
+	// KB auto-query config. Stored as a sub-object in the agent's config
+	// blob and mapped to kb.AutoQueryCfg at hook wiring time.
+	KB *AgentKBCfg `json:"kb,omitempty"`
+}
+
+type AgentKBCfg struct {
+	Enabled           bool     `json:"enabled"`
+	AutoMode          string   `json:"autoMode,omitempty"`
+	Keywords          []string `json:"keywords,omitempty"`
+	MaxResults        int      `json:"maxResults,omitempty"`
+	SearchMode        string   `json:"searchMode,omitempty"`
+	EmptyAction       string   `json:"emptyAction,omitempty"`
+	ShowIndicator     *bool    `json:"showIndicator,omitempty"`
+	IndicatorFound    string   `json:"indicatorFound,omitempty"`
+	IndicatorNotFound string   `json:"indicatorNotFound,omitempty"`
+	WikiSearchMode    string   `json:"wikiSearchMode,omitempty"` // "" = SQL, "cache" = Redis
 }
 
 type SkillsConfig struct {
@@ -632,6 +660,8 @@ type ResolvedAgent struct {
 	// runPostTurn hook fires AutoPersistMemory (the LLM-driven distill-
 	// to-USER.md/MEMORY.md pass) every N turns.
 	AutoPersist *bool
+	// KB auto-query config forwarded from AgentFileConfig.KB.
+	KB *AgentKBCfg
 }
 
 type TeamEntry struct {
@@ -854,6 +884,9 @@ func (cfg *Config) MergedAgentConfig(entry AgentEntry) ResolvedAgent {
 		if fileCfg.AutoPersist != nil {
 			v := *fileCfg.AutoPersist
 			resolved.AutoPersist = &v
+		}
+		if fileCfg.KB != nil {
+			resolved.KB = fileCfg.KB
 		}
 	}
 

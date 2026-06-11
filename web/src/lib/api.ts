@@ -262,6 +262,10 @@ export interface ConfigResponse {
   meta?: {
     systemDefaultModel?: string;
   };
+  kb?: {
+    wikiSearchMode?: string;
+    redisURL?: string;
+  };
 }
 
 // Auth token for cloud mode. Set via setAuthToken() on login; empty in local mode.
@@ -1024,7 +1028,8 @@ export interface ChatStreamEvent {
     | "steer"
     | "error"
     | "done"
-    | "subagent_progress";
+    | "subagent_progress"
+    | "indicator";
   // Per-session monotonic sequence assigned by chat_events. Lets the
   // chat page dedupe events arriving on both the active POST stream
   // and the parallel /api/chat/subscribe SSE connection. -1 means
@@ -1051,6 +1056,7 @@ export interface ChatStreamEvent {
     max?: number;
     phase?: "thinking" | "running" | "final-delivery" | "done";
     tools?: string[];
+    text?: string;
   };
 }
 
@@ -1270,6 +1276,7 @@ export interface AgentUpdatePayload {
   // per-agent overrides and fall back to system-wide enable state.
   plugins?: Record<string, boolean>;
   pluginsReset?: boolean;
+  kb?: AgentFileConfig["kb"];
 }
 
 export async function updateAgent(id: string, agent: AgentUpdatePayload) {
@@ -1309,6 +1316,18 @@ export interface AgentFileConfig {
   workspace?: string;
   skills?: AgentSkillsConfig;
   providers?: Record<string, ProviderData>;
+  kb?: {
+    enabled?: boolean;
+    autoMode?: string;
+    keywords?: string[];
+    maxResults?: number;
+    searchMode?: string;
+    emptyAction?: string;
+    showIndicator?: boolean;
+    indicatorFound?: string;
+    indicatorNotFound?: string;
+    wikiSearchMode?: string;
+  };
 }
 
 // Fetch the raw agent.json for one agent (per-agent overrides only — not
@@ -1849,5 +1868,137 @@ export async function getAgentTokenUsage(
   const res = await apiFetch(
     `/api/agents/${agentId}/usage?range=${range}&limit=${limit}`,
   );
+  return res.json();
+}
+
+// --- Knowledge Base ---
+
+export interface KBSource {
+  id: string;
+  title: string;
+  source_type: string;
+  entry_count: number;
+  total_chars: number;
+  created_at: string;
+}
+
+export interface KBStats {
+  source_count: number;
+  entry_count: number;
+  total_chars: number;
+}
+
+export async function listKBSources(agentId: string): Promise<KBSource[]> {
+  const res = await apiFetch(`/api/agents/${agentId}/kb/sources`);
+  return res.json();
+}
+
+export async function kbIngestText(
+  agentId: string,
+  title: string,
+  content: string,
+): Promise<{ source_id: string; chars: number } | { error: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/kb/ingest/text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, content }),
+  });
+  return res.json();
+}
+
+export async function kbIngestURL(
+  agentId: string,
+  url: string,
+  title?: string,
+): Promise<{ source_id: string; chars: number; title: string } | { error: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/kb/ingest/url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, title }),
+  });
+  return res.json();
+}
+
+export async function deleteKBSource(
+  agentId: string,
+  sourceId: string,
+): Promise<{ status: string } | { error: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/kb/sources/${sourceId}`, {
+    method: "DELETE",
+  });
+  return res.json();
+}
+
+export async function getKBStats(agentId: string): Promise<KBStats> {
+  const res = await apiFetch(`/api/agents/${agentId}/kb/stats`);
+  return res.json();
+}
+
+// --- Wiki ---
+
+export interface WikiPage {
+  id: string;
+  page_type: string;
+  slug: string;
+  title: string;
+  body: string;
+  summary: string;
+  source_ids: string[];
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WikiStats {
+  total_pages: number;
+  total_edges: number;
+}
+
+export interface WikiGraph {
+  nodes: WikiPage[];
+  edges: { src_page_id: string; dst_page_id: string; relation: string }[];
+}
+
+export async function listWikiPages(agentId: string, pageType?: string): Promise<{ pages: WikiPage[] }> {
+  const params = pageType ? `?type=${encodeURIComponent(pageType)}` : "";
+  const res = await apiFetch(`/api/agents/${agentId}/wiki/pages${params}`);
+  return res.json();
+}
+
+export async function getWikiPage(agentId: string, pageId: string): Promise<WikiPage> {
+  const res = await apiFetch(`/api/agents/${agentId}/wiki/pages/${encodeURIComponent(pageId)}`);
+  return res.json();
+}
+
+export async function getWikiStats(agentId: string): Promise<WikiStats> {
+  const res = await apiFetch(`/api/agents/${agentId}/wiki/stats`);
+  return res.json();
+}
+
+export async function getWikiGraph(agentId: string): Promise<WikiGraph> {
+  const res = await apiFetch(`/api/agents/${agentId}/wiki/graph`);
+  return res.json();
+}
+
+export async function deleteWikiPage(
+  agentId: string,
+  pageId: string,
+): Promise<{ status: string }> {
+  const res = await apiFetch(
+    `/api/agents/${agentId}/wiki/pages/${encodeURIComponent(pageId)}`,
+    { method: "DELETE" },
+  );
+  return res.json();
+}
+
+export async function generateWiki(
+  agentId: string,
+  sourceIds: string[],
+): Promise<{ ok: boolean; message: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/wiki/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source_ids: sourceIds }),
+  });
   return res.json();
 }

@@ -20,8 +20,10 @@ import { NavUser } from "@/components/nav-user";
 import { AgentSettingsDialog } from "@/components/agent-settings-dialog";
 import {
   BotIcon,
+  BookOpenIcon,
   BrainIcon,
   CoinsIcon,
+  DatabaseIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
   MessagesSquareIcon,
@@ -51,7 +53,7 @@ import {
 // the sidebar showing the platform nav for /agents/<id>/project/...
 function extractAgentId(pathname: string): string | null {
   const match = pathname.match(
-    /^\/agents\/([^/]+)\/(chat|customize|skills|models|sessions|channels|chats|scheduler|project)/,
+    /^\/agents\/([^/]+)\/(chat|customize|skills|models|sessions|channels|chats|scheduler|project|wiki|knowledge)/,
   );
   return match ? match[1] : null;
 }
@@ -89,6 +91,29 @@ const ADMIN_AGENT_GROUP: NavItem[] = [
 
 const USER_USER_GROUP: NavItem[] = [
   { title: "API Keys", url: "/apikeys/", icon: KeyRoundIcon },
+];
+
+// Knowledge section — rendered when an agent is active so the sidebar
+// shows agent-scoped links to Wiki (generated from KB content) and
+// Knowledge Base (ingest / manage sources). These open as separate pages
+// rather than chat sub-routes, so they use plain URL navigation.
+const AGENT_KNOWLEDGE_NAV = (agentId: string): NavItem[] => [
+  {
+    title: "Wiki",
+    url: `/agents/${agentId}/wiki/`,
+    icon: BookOpenIcon,
+    onClick: () => {
+      window.location.href = `/agents/${agentId}/wiki/`;
+    },
+  },
+  {
+    title: "Knowledge Base",
+    url: `/agents/${agentId}/knowledge/`,
+    icon: DatabaseIcon,
+    onClick: () => {
+      window.location.href = `/agents/${agentId}/knowledge/`;
+    },
+  },
 ];
 
 const ADMIN_USER_GROUP: NavItem[] = [
@@ -298,6 +323,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               items={isAdmin ? ADMIN_USER_GROUP : USER_USER_GROUP}
             />
           </>
+        )}
+        {activeAgentId && (
+          <NavMain
+            label="Knowledge"
+            items={AGENT_KNOWLEDGE_NAV(activeAgentId)}
+          />
         )}
         {/* Projects are per-(user, agent), so viewers on a shared agent
             see/create their OWN projects — the owner's projects stay

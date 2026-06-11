@@ -204,6 +204,9 @@ var settingNamespaces = []settingNamespace{
 			}
 			return map[string]interface{}{"list": c.Bindings}
 		}},
+	{namespace: "kb",
+		dst:     func(c *config.Config) interface{} { return &c.KB },
+		collect: func(c *config.Config) map[string]interface{} { return toMap(c.KB) }},
 }
 
 type settingNamespace struct {

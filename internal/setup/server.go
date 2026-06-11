@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fastclaw-ai/fastclaw/internal/agent"
+	"github.com/fastclaw-ai/fastclaw/internal/kb"
 	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
 	"github.com/fastclaw-ai/fastclaw/internal/api"
 	"github.com/fastclaw-ai/fastclaw/internal/auth"
@@ -84,6 +85,7 @@ type Server struct {
 	chatEvents *agent.EventHub
 	usage      usage.Meter
 	startedAt  time.Time
+	wikiCache  *kb.WikiCache
 }
 
 // NewServer creates a setup wizard server on the given port.
@@ -148,6 +150,10 @@ func (s *Server) SetAuth(resolver *auth.Resolver) {
 // agent replies live in the dashboard chat panel.
 func (s *Server) SetWebChannel(wc *channels.WebChannel) {
 	s.webChan = wc
+}
+
+func (s *Server) SetWikiCache(c *kb.WikiCache) {
+	s.wikiCache = c
 }
 
 // chatEventHub returns the lazy-initialized hub. Centralized so every
@@ -350,6 +356,21 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("DELETE /api/agents/{id}/cron/{jobId}", auth(s.handleDeleteAgentCronJob))
 	mux.HandleFunc("PUT /api/agents/{id}/cron/{jobId}", auth(s.handleToggleAgentCronJob))
 
+		// KB (knowledge base) endpoints
+		mux.HandleFunc("GET /api/agents/{id}/kb/sources", auth(s.handleListKBSources))
+		mux.HandleFunc("POST /api/agents/{id}/kb/ingest/text", auth(s.handleKBIngestText))
+		mux.HandleFunc("POST /api/agents/{id}/kb/ingest/url", auth(s.handleKBIngestURL))
+		mux.HandleFunc("DELETE /api/agents/{id}/kb/sources/{sourceId}", auth(s.handleDeleteKBSource))
+		mux.HandleFunc("GET /api/agents/{id}/kb/stats", auth(s.handleGetKBStats))
+		mux.HandleFunc("POST /api/agents/{id}/kb/search", auth(s.handleKBSearch))
+		mux.HandleFunc("POST /api/agents/{id}/kb/mcp", auth(s.handleKBMCP))
+		// Wiki endpoints
+		mux.HandleFunc("GET /api/agents/{id}/wiki/stats", auth(s.handleWikiStats))
+		mux.HandleFunc("GET /api/agents/{id}/wiki/pages", auth(s.handleWikiListPages))
+		mux.HandleFunc("GET /api/agents/{id}/wiki/pages/{pageId}", auth(s.handleWikiGetPage))
+		mux.HandleFunc("GET /api/agents/{id}/wiki/graph", auth(s.handleWikiGraph))
+		mux.HandleFunc("DELETE /api/agents/{id}/wiki/pages/{pageId}", auth(s.handleWikiDeletePage))
+		mux.HandleFunc("POST /api/agents/{id}/wiki/generate", auth(s.handleWikiGenerate))
 	// Tasks
 	mux.HandleFunc("GET /api/tasks", admin(s.handleListTasks))
 
@@ -485,7 +506,7 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// flickers the page and tears down any in-flight stream.
 			// Add new dynamic routes to dynamicParents below as they
 			// get introduced.
-			dynamicParents := map[string]bool{"chat": true, "project": true}
+			dynamicParents := map[string]bool{"chat": true, "project": true, "wiki": true, "knowledge": true}
 			sub := strings.Split(parts[2], "/")
 			substituted := false
 			for i := 0; i < len(sub)-1; i++ {

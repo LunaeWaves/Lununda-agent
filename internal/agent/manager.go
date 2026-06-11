@@ -1,12 +1,14 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
 	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/fastclaw-ai/fastclaw/internal/kb"
 	"github.com/fastclaw-ai/fastclaw/internal/config"
 	"github.com/fastclaw-ai/fastclaw/internal/provider"
 	"github.com/fastclaw-ai/fastclaw/internal/session"
@@ -48,7 +50,9 @@ type managerOpts struct {
 	dataStore       store.Store
 	meter           usage.Meter
 	userID          string
-	globalSkillsCfg config.SkillsCfg
+	globalSkillsCfg  config.SkillsCfg
+	wikiCache        *kb.WikiCache
+	kbWikiSearchMode string
 }
 
 func WithSessionStore(st session.SessionStore) ManagerOption {
@@ -98,6 +102,21 @@ func WithMeter(m usage.Meter) ManagerOption {
 // REPLICATE_API_TOKEN regardless of what's saved in the DB.
 func WithGlobalSkillsCfg(cfg config.SkillsCfg) ManagerOption {
 	return func(o *managerOpts) { o.globalSkillsCfg = cfg }
+}
+
+func WithWikiCache(c *kb.WikiCache) ManagerOption {
+	return func(o *managerOpts) { o.wikiCache = c }
+}
+
+func WithKBWikiSearchMode(mode string) ManagerOption {
+	return func(o *managerOpts) { o.kbWikiSearchMode = mode }
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // Manager loads and manages all agent instances.
@@ -217,6 +236,58 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 		ag.ReloadWorkspaceFiles()
 	}
 	if m.opts.dataStore != nil {
+		// KB auto-query hook: intercepts BeforeModelCall to inject KB
+		// context or skip the LLM call entirely.
+		if rc.KB != nil && rc.KB.Enabled {
+			var kbStore *kb.KBStore
+			if dbs, ok := m.opts.dataStore.(*store.DBStore); ok {
+				kbStore = kb.NewKBStore(dbs.DB(), dbs.Dialect(), m.opts.wikiCache)
+			}
+			kbCfg := rc.KB
+			hookFn := kb.AutoQueryHook(kbStore, rc.ID, func() kb.AutoQueryCfg {
+				showIndicator := true
+				if kbCfg.ShowIndicator != nil {
+					showIndicator = *kbCfg.ShowIndicator
+				}
+				return kb.AutoQueryCfg{
+					Enabled:           kbCfg.Enabled,
+					AutoMode:          kbCfg.AutoMode,
+					Keywords:          kbCfg.Keywords,
+					MaxResults:        kbCfg.MaxResults,
+					SearchMode:        kbCfg.SearchMode,
+					EmptyAction:       kbCfg.EmptyAction,
+					ShowIndicator:     showIndicator,
+					IndicatorFound:    kbCfg.IndicatorFound,
+					IndicatorNotFound: kbCfg.IndicatorNotFound,
+					WikiSearchMode:    firstNonEmpty(kbCfg.WikiSearchMode, m.opts.kbWikiSearchMode),
+				}
+			})
+			ag.hooks.Register(BeforeModelCall, func(ctx context.Context, hc *HookContext) {
+				kbHC := &kb.HookContext{
+					Messages: hc.Messages,
+					Source:   hc.Source,
+				}
+				hookFn(ctx, kbHC)
+				if kbHC.SkipLLM {
+					hc.SkipLLM = true
+					hc.PrebuiltContent = kbHC.PrebuiltContent
+				}
+				hc.IndicatorText = kbHC.IndicatorText
+				hc.Messages = kbHC.Messages
+				for _, stc := range kbHC.SyntheticToolCalls {
+					hc.SyntheticToolCalls = append(hc.SyntheticToolCalls, SyntheticToolCall{
+						Name:   stc.Name,
+						Args:   stc.Args,
+						Result: stc.Result,
+					})
+				}
+			})
+			// Register KB tools so the agent can search/add/list/delete
+			// knowledge-base entries during chat turns.
+			if kbStore != nil {
+				kb.RegisterKBTools(ag.registry, kbStore, rc.ID)
+			}
+		}
 		// Cron tools need the relational store to persist scheduled
 		// jobs; the closure also reads channel/chatID off the registry
 		// at execute time (bindSession stamps them per-turn) so the

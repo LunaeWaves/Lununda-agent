@@ -818,6 +818,7 @@ export function ChatScreen() {
           max?: number;
           phase?: "thinking" | "running" | "final-delivery" | "done";
           tools?: string[];
+          text?: string;
         };
       };
       try {
@@ -912,6 +913,17 @@ export function ChatScreen() {
                 phase: data.data?.phase,
                 tools: data.data?.tools,
               });
+            }
+            break;
+          }
+          case "indicator": {
+            claim();
+            const indicatorText = data.data?.text || "";
+            if (indicatorText) {
+              setMessages((prev) => [
+                ...prev,
+                { id: "kb-" + Date.now(), role: "agent", content: indicatorText, timestamp: Date.now() },
+              ]);
             }
             break;
           }
@@ -1376,9 +1388,14 @@ export function ChatScreen() {
       streamingMsgIdRef.current = null;
     };
     startNewGroup();
+    let pendingIndicator = "";
 
     try {
       await sendChatStream(selectedAgent, sessionId, fullText, (evt: ChatStreamEvent) => {
+        if (evt.type === "indicator") {
+          const it = evt.data?.text || "";
+          if (it) pendingIndicator = it;
+        }
         // Dedup against /api/chat/subscribe SSE, which subscribes to
         // the same chat-events hub server-side. Whichever path arrives
         // first renders; the other skips. seq < 0 means persistence
@@ -1397,8 +1414,9 @@ export function ChatScreen() {
             // final `content` event still arrives with the full text
             // when the turn completes so refresh / replay paths stay
             // intact even though deltas aren't persisted.
-            const delta = evt.data?.delta || "";
+            let delta = evt.data?.delta || "";
             if (!delta) break;
+            if (pendingIndicator) { delta = pendingIndicator + "\n\n" + delta; pendingIndicator = ""; }
             if (curCalls.length > 0 && !streamingMsgIdRef.current) {
               // Content after tool calls = new round; reset state so
               // the new bubble is its own message, not appended onto

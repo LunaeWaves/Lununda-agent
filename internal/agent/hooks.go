@@ -62,6 +62,23 @@ type HookContext struct {
 	// user's back — plan mode exists precisely to let the user review
 	// before more work happens.
 	IsPlanMode bool
+
+	// SkipLLM signals the agent loop to skip the LLM call and return
+	// PrebuiltContent directly. Set by BeforeModelCall hooks (e.g. KB
+	// auto-query in strict mode or stop-on-empty).
+	SkipLLM         bool
+	PrebuiltContent string
+	IndicatorText   string
+	SyntheticToolCalls []SyntheticToolCall
+}
+
+// SyntheticToolCall represents a hook-generated "tool call" that should be
+// emitted as real tool_call/tool_result events so it appears in the chat UI
+// and persists to session history. Used e.g. by KB auto-query.
+type SyntheticToolCall struct {
+	Name   string // e.g. "kb_search"
+	Args   string // JSON string of arguments
+	Result string // the tool result text
 }
 
 // HookFunc is a function that runs at a hook point.

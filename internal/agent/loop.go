@@ -1908,7 +1908,6 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// channels.SplitMessageMarker at return time; manager.dispatchOutbound
 	// splits on it (AllowSplit=true) or collapses to newlines otherwise.
 	var replyParts []string
-
 	// ReAct loop
 	for i := 0; i < a.maxToolIterations; i++ {
 		slog.Info("agent loop iteration",
@@ -1919,8 +1918,25 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		)
 
 		// Hook: BeforeModelCall
-		hcBefore := &HookContext{AgentName: a.name, Point: BeforeModelCall, Messages: messages, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID}
+		hcBefore := &HookContext{AgentName: a.name, Point: BeforeModelCall, Messages: messages, Source: msg.Source, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID}
 		a.hooks.Run(ctx, hcBefore)
+
+		for _, stc := range hcBefore.SyntheticToolCalls {
+			tcID := "synth-" + stc.Name
+			emitEvent(ctx, ChatEvent{Type: "tool_call", Data: map[string]any{"id": tcID, "name": stc.Name, "arguments": stc.Args}})
+			emitEvent(ctx, ChatEvent{Type: "tool_result", Data: map[string]any{"id": tcID, "name": stc.Name, "result": stc.Result}})
+			asstMsg := provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: tcID, Function: provider.FunctionCall{Name: stc.Name, Arguments: stc.Args}}}, Timestamp: time.Now().UnixMilli()}
+			sess.Append(asstMsg)
+			toolMsg := provider.Message{Role: "tool", ToolCallID: tcID, Content: stc.Result}
+			sess.Append(toolMsg)
+		}
+		if hcBefore.SkipLLM {
+			content := hcBefore.PrebuiltContent
+			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": content}})
+			emitEvent(ctx, ChatEvent{Type: "done"})
+			return content
+		}
+		messages = hcBefore.Messages
 
 		// PII scrubbing: redact sensitive data before sending to LLM
 		llmMessages := messages
@@ -1970,11 +1986,12 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		a.maybeRecoverToolCalls(resp)
 
 		if !resp.HasToolCalls() {
-			asst := provider.Message{Role: "assistant", Content: resp.Content, Thinking: resp.Thinking, Timestamp: time.Now().UnixMilli(), RawAssistant: resp.RawAssistant}
+			finalContent := resp.Content
+			asst := provider.Message{Role: "assistant", Content: finalContent, Thinking: resp.Thinking, Timestamp: time.Now().UnixMilli(), RawAssistant: resp.RawAssistant}
 			sess.Append(asst)
-			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": resp.Content}})
-			if resp.Content != "" {
-				replyParts = append(replyParts, resp.Content)
+			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": finalContent}})
+			if finalContent != "" {
+				replyParts = append(replyParts, finalContent)
 			}
 			// End-of-turn steer race: a message buffered after the last
 			// between-rounds drain but before we declare the turn done.
@@ -2588,8 +2605,17 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 
 	// ReAct loop - use Chat for tool iterations
 	for i := 0; i < a.maxToolIterations; i++ {
-		hcBefore := &HookContext{AgentName: a.name, Point: BeforeModelCall, Messages: messages, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID}
+		hcBefore := &HookContext{AgentName: a.name, Point: BeforeModelCall, Messages: messages, Source: msg.Source, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID}
 		a.hooks.Run(ctx, hcBefore)
+
+		if hcBefore.SkipLLM {
+			ch := make(chan provider.StreamChunk, 2)
+			ch <- provider.StreamChunk{Content: hcBefore.PrebuiltContent}
+			ch <- provider.StreamChunk{Done: true}
+			close(ch)
+			return provider.NewStreamReader(ch)
+		}
+		messages = hcBefore.Messages
 
 		dumpLLMRequest(a.name, a.model, messages, toolDefs)
 		resp, err := a.provider.Chat(ctx, messages, toolDefs, a.model, a.maxTokens, a.temperature)

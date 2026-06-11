@@ -490,6 +490,7 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		// To clear all overrides for this agent, send pluginsReset:true.
 		Plugins      map[string]bool `json:"plugins,omitempty"`
 		PluginsReset bool            `json:"pluginsReset,omitempty"`
+		KB *config.AgentKBCfg `json:"kb,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonResponse(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
@@ -531,6 +532,12 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 			rec.Config["shareModelConfig"] = false
 		}
 	}
+	if req.KB != nil {
+			if rec.Config == nil {
+				rec.Config = map[string]interface{}{}
+			}
+			rec.Config["kb"] = req.KB
+		}
 	if err := s.dataStore.SaveAgent(r.Context(), rec); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
