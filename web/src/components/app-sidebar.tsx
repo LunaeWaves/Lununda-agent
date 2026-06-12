@@ -53,7 +53,7 @@ import {
 // the sidebar showing the platform nav for /agents/<id>/project/...
 function extractAgentId(pathname: string): string | null {
   const match = pathname.match(
-    /^\/agents\/([^/]+)\/(chat|customize|skills|models|sessions|channels|chats|scheduler|project|wiki|knowledge)/,
+    /^\/agents\/([^/]+)\/(chat|customize|skills|models|sessions|channels|chats|scheduler|project|wiki|knowledge|regex-hooks)/,
   );
   return match ? match[1] : null;
 }
