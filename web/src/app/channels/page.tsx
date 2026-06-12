@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ const channelColors: Record<string, string> = {
 };
 
 export default function ChannelsPage() {
+  const t = useT();
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editChannel, setEditChannel] = useState<ChannelInfo | null>(null);

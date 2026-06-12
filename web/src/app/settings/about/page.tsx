@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
@@ -11,6 +12,7 @@ const UPGRADE_CMD = "fastclaw upgrade";
 const RELEASES_URL = "https://github.com/fastclaw-ai/fastclaw/releases";
 
 export default function AboutSettingsPage() {
+  const t = useT();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -35,7 +37,7 @@ export default function AboutSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-semibold tracking-tight">About</h3>
+        <h3 className="text-xl font-semibold tracking-tight">{t("about.title")}</h3>
         <p className="text-sm text-muted-foreground mt-1">
           Gateway version and release info.
         </p>

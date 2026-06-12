@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -29,13 +30,13 @@ import { useAgentName } from "@/hooks/use-agent-name";
 
 type PromptModeValue = "" | "agent" | "chatbot" | "customize";
 
-const MODE_LABEL: Record<string, string> = {
-  agent: "Agent",
-  chatbot: "Chatbot",
-  customize: "Customize",
-};
-
 export default function AgentContextPage() {
+  const t = useT();
+  const MODE_LABEL: Record<string, string> = {
+    agent: t("context.modeAgent"),
+    chatbot: t("context.modeChatbot"),
+    customize: t("context.modeCustomize"),
+  };
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
 
@@ -144,7 +145,7 @@ export default function AgentContextPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Context</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("context.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
             What the LLM sees for{" "}
             <strong>{agentName || "this agent"}</strong>. The prompt mode
@@ -167,7 +168,7 @@ export default function AgentContextPage() {
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-primary" />
-            <h3 className="font-medium">Prompt mode</h3>
+            <h3 className="font-medium">{t("context.promptMode")}</h3>
             {promptMode === "" || promptMode === "agent" ? (
               <Badge variant="outline" className="text-[10px]">
                 Default
@@ -195,9 +196,9 @@ export default function AgentContextPage() {
             <SelectValue>{MODE_LABEL[promptMode || "agent"]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="agent">Agent</SelectItem>
-            <SelectItem value="chatbot">Chatbot</SelectItem>
-            <SelectItem value="customize">Customize</SelectItem>
+            <SelectItem value="agent">{t("context.modeAgent")}</SelectItem>
+            <SelectItem value="chatbot">{t("context.modeChatbot")}</SelectItem>
+            <SelectItem value="customize">{t("context.modeCustomize")}</SelectItem>
           </SelectContent>
         </Select>
         <div className="mt-3 text-xs text-muted-foreground space-y-1.5">
@@ -250,7 +251,7 @@ export default function AgentContextPage() {
           <div className="flex items-start gap-3 min-w-0">
             <MessagesSquare className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <h3 className="font-medium">Multi-bubble replies</h3>
+              <h3 className="font-medium">{t("context.splitReplies")}</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 Let the agent split one reply into multiple chat bubbles
                 using a separator marker — natural for short, multi-beat
@@ -265,7 +266,7 @@ export default function AgentContextPage() {
             checked={splitReplies}
             onCheckedChange={handleSplitRepliesChange}
             disabled={splitRepliesSaving}
-            aria-label="Multi-bubble replies"
+            aria-label={t("context.multiBubble")}
           />
         </div>
       </div>

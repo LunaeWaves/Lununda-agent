@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,6 +124,7 @@ function presetModelRows(preset: string): ModelEntry[] {
 }
 
 export default function ModelsPage() {
+  const t = useT();
   // Agent context is auto-detected from the URL. The standalone /models
   // page lives outside any /agents/<id>/ path, so the hook returns
   // "default" and we render the plain user-scope view. When this same
@@ -411,12 +413,12 @@ export default function ModelsPage() {
             ...prev,
             [idx]: result.ok
               ? { status: "success" }
-              : { status: "error", error: result.error || "Connection failed" },
+              : { status: "error", error: result.error || t("models.connectionFailed") },
           }));
         } catch {
           setModelTests((prev) => ({
             ...prev,
-            [idx]: { status: "error", error: "Connection failed" },
+            [idx]: { status: "error", error: t("models.connectionFailed") },
           }));
         }
       }),
@@ -614,7 +616,7 @@ export default function ModelsPage() {
                 Saved
               </>
             ) : (
-              saving ? "Saving..." : "Save"
+              saving ? t("common.saving") : t("common.save")
             )}
           </Button>
         </div>
@@ -668,7 +670,7 @@ export default function ModelsPage() {
         {allModelOptions.length > 0 ? (
           <Select value={inheriting ? "" : model} onValueChange={(v: string | null) => v && handleDefaultModelChange(v)}>
             <SelectTrigger className="font-mono text-sm max-w-md">
-              <SelectValue placeholder={inheriting ? `Inherit (${effectiveFallback || "no default"})` : "Select a model"} />
+              <SelectValue placeholder={inheriting ? `Inherit (${effectiveFallback || t("models.noDefault")})` : t("models.selectModel")} />
             </SelectTrigger>
             {/* Default `w-(--anchor-width)` locks the popup to the
                 trigger's max-w-md. Long ids like
@@ -767,16 +769,16 @@ export default function ModelsPage() {
                   : provider.scope === "user";
                 const sourceLabel =
                   provider.scope === "agent"
-                    ? "Inherited from agent"
+                    ? t("models.inheritedFromAgent")
                     : editable
-                      ? "Mine"
-                      : "Inherited";
+                      ? t("models.mine")
+                      : t("models.inherit");
                 const sourceTitle =
                   provider.scope === "agent"
-                    ? "Configured on this agent by its owner — shared with chatters."
+                    ? t("models.ownerShared")
                     : editable
                       ? ""
-                      : "Configured by an admin and shared with all users.";
+                      : t("models.adminShared");
                 return (
                 <TableRow key={`${provider.scope}:${provider.id}`}>
                   <TableCell className="font-medium">{provider.name}</TableCell>
@@ -813,7 +815,7 @@ export default function ModelsPage() {
                         size="icon"
                         variant="ghost"
                         onClick={() => openEditDialog(provider)}
-                        title={editable ? "Edit" : "Read-only — inherited row"}
+                        title={editable ? t("common.edit") : "Read-only — inherited row"}
                         disabled={!editable}
                       >
                         <Pencil className="size-4" />
@@ -823,7 +825,7 @@ export default function ModelsPage() {
                         variant="ghost"
                         className="text-destructive hover:text-destructive"
                         onClick={() => handleDeleteProvider(provider)}
-                        title={editable ? "Remove" : "Read-only — inherited row"}
+                        title={editable ? t("common.delete") : "Read-only — inherited row"}
                         disabled={!editable}
                       >
                         <Trash2 className="size-4" />

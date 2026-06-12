@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function ConfigureSkillDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const [env, setEnv] = useState<Record<string, string>>({});
   const [customRows, setCustomRows] = useState<{ name: string; value: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -109,13 +111,13 @@ export function ConfigureSkillDialog({
         agentId,
       );
       if (resp && resp.ok === false) {
-        setError(resp.error || "Save failed");
+        setError(resp.error || t("skills.saveFailed"));
         setSaving(false);
         return;
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      setError(e instanceof Error ? e.message : t("skills.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -125,7 +127,7 @@ export function ConfigureSkillDialog({
     <Dialog open={!!skill} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Configure {skill.name}</DialogTitle>
+          <DialogTitle>{t("skill.configureTitle", { name: skill.name })}</DialogTitle>
           <DialogDescription>
             {agentId ? (
               <>
@@ -240,7 +242,7 @@ export function ConfigureSkillDialog({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("skill.saving") : t("common.save")}
           </Button>
         </div>
       </DialogContent>

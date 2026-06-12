@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
 import { ConfigureSkillDialog, type SkillEntryView } from "@/components/configure-skill-dialog";
 
 export default function SkillsPage() {
+  const t = useT();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -96,12 +98,12 @@ export default function SkillsPage() {
   const acceptDroppedFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     if (files.length > 1) {
-      setUploadError("Please drop only one .zip file at a time.");
+      setUploadError(t("skills.dropOne"));
       return;
     }
     const f = files[0];
     if (!/\.zip$/i.test(f.name)) {
-      setUploadError("File must be a .zip archive.");
+      setUploadError(t("skills.mustBeZip"));
       return;
     }
     setUploadFile(f);
@@ -198,7 +200,7 @@ export default function SkillsPage() {
                     size="icon"
                     className="h-7 w-7 text-muted-foreground hover:text-foreground"
                     onClick={() => setConfigureTarget(skill)}
-                    title="Configure env / API keys"
+                    title={t("skills.configure")}
                   >
                     <Settings className="h-3.5 w-3.5" />
                   </Button>
@@ -213,7 +215,7 @@ export default function SkillsPage() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground line-clamp-2">
-                {skill.description || "No description"}
+                {skill.description || t("skills.noDescription")}
               </p>
               {(skillEntries[skill.name]?.apiKey ||
                 Object.keys(skillEntries[skill.name]?.env || {}).length > 0) && (
@@ -230,7 +232,7 @@ export default function SkillsPage() {
       <Dialog open={uploadOpen} onOpenChange={handleUploadOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Upload skill</DialogTitle>
+            <DialogTitle>{t("skills.uploadSkill")}</DialogTitle>
           </DialogHeader>
 
           <input
@@ -344,13 +346,13 @@ export default function SkillsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Skill</AlertDialogTitle>
+            <AlertDialogTitle>{t("skills.removeSkill")}</AlertDialogTitle>
             <AlertDialogDescription>
               Remove <strong>{deleteTarget}</strong> from installed skills?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

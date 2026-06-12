@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -95,6 +96,7 @@ export function NavProjectsList({
   // Project state lives one level up in AppSidebar.
   onChanged: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -237,9 +239,9 @@ export function NavProjectsList({
   return (
     <>
       <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel>Projects</SidebarGroupLabel>
+        <SidebarGroupLabel>{t("sidebar.projects")}</SidebarGroupLabel>
         <SidebarGroupAction
-          aria-label="New project"
+          aria-label={t("sidebar.newProject")}
           onClick={() => setCreateOpen(true)}
           render={
             <button>
@@ -357,6 +359,7 @@ function ProjectRow({
   agentId: string;
   onMoved: () => void;
 }) {
+  const t = useT();
   const { isMobile } = useSidebar();
   const [dropActive, setDropActive] = React.useState(false);
   const onDragOver = (e: React.DragEvent) => {
@@ -435,19 +438,19 @@ function ProjectRow({
         >
           <DropdownMenuItem onClick={onNewChat}>
             <PlusIcon className="text-muted-foreground" />
-            <span>New chat in project</span>
+            <span>{t("sidebar.newChatInProject")}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onEdit}>
             <PencilIcon className="text-muted-foreground" />
-            <span>Edit</span>
+            <span>{t("sidebar.editProject")}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onDelete}
             className="text-destructive focus:text-destructive"
           >
             <Trash2Icon className="text-destructive" />
-            <span>Delete</span>
+            <span>{t("sidebar.deleteProject")}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -503,6 +506,7 @@ function CreateProjectDialog({
   onOpenChange: (v: boolean) => void;
   onCreated: () => void;
 }) {
+  const t = useT();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -535,7 +539,7 @@ function CreateProjectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New project</DialogTitle>
+          <DialogTitle>{t("sidebar.newProject")}</DialogTitle>
           <DialogDescription>
             Group chats that share research, files, or context. Every chat
             in a project sees the same workspace folder.
@@ -558,7 +562,7 @@ function CreateProjectDialog({
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What this project is for…"
+              placeholder={t("sidebar.projectPlaceholder")}
               rows={3}
             />
           </div>
@@ -572,7 +576,7 @@ function CreateProjectDialog({
             Cancel
           </Button>
           <Button onClick={save} disabled={saving || !name.trim()}>
-            {saving ? "Creating…" : "Create"}
+            {saving ? t("sidebar.creating") : t("sidebar.createProject")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -591,6 +595,7 @@ function EditProjectDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -623,7 +628,7 @@ function EditProjectDialog({
     <Dialog open={!!target} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit project</DialogTitle>
+          <DialogTitle>{t("sidebar.editProject")}</DialogTitle>
           <DialogDescription>
             Rename or update the description. The workspace folder stays
             the same — files aren&apos;t moved.
@@ -654,7 +659,7 @@ function EditProjectDialog({
             Cancel
           </Button>
           <Button onClick={save} disabled={saving || !name.trim()}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("sidebar.saving") : t("sidebar.saveProject")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -673,6 +678,7 @@ function DeleteProjectDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const t = useT();
   const [error, setError] = React.useState<string>("");
   const [busy, setBusy] = React.useState(false);
 
@@ -708,7 +714,7 @@ function DeleteProjectDialog({
     <AlertDialog open={!!target} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete project</AlertDialogTitle>
+          <AlertDialogTitle>{t("sidebar.deleteProjectTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
             Delete <strong>{target?.name}</strong>? Chats inside the project
             must be removed first — this won&apos;t cascade. The workspace
@@ -721,13 +727,13 @@ function DeleteProjectDialog({
           </div>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>{t("sidebar.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={busy}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {busy ? "Deleting…" : "Delete"}
+            {busy ? t("sidebar.deleting") : t("sidebar.deleteProject")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

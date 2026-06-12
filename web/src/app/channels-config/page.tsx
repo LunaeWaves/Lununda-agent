@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -14,6 +15,7 @@ import { ScopePicker } from "@/components/scope-picker";
 const CHANNEL_TYPES = ["telegram", "discord", "slack"];
 
 export default function ChannelsConfigPage() {
+  const t = useT();
   const [scope, setScope] = useState<ScopeName>("system");
   const [scopeId, setScopeId] = useState<string>("");
   const [rows, setRows] = useState<ChannelRow[]>([]);

@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import RuntimeSettingsPage from "@/app/settings/runtime/page";
 const RUNTIME_ACTIVE = "__runtime__";
 
 export default function ToolsPage() {
+  const t = useT();
   const [cfg, setCfg] = useState<ToolsConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

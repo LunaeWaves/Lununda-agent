@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import {
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 
 export default function AgentKnowledgePage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
 
   const [sources, setSources] = useState<KBSource[]>([]);
@@ -135,13 +137,13 @@ export default function AgentKnowledgePage() {
     if (!agentId || !textContent.trim()) return;
     setSubmitting(true);
     try {
-      const res = await kbIngestText(agentId, textTitle || "Untitled", textContent);
+      const res = await kbIngestText(agentId, textTitle || t("knowledge.untitled"), textContent);
       if ("error" in res) { alert(res.error); } else {
         setTextDialogOpen(false); setTextTitle(""); setTextContent("");
         await loadData();
         if ("source_id" in res) generateWiki(agentId, [res.source_id]).catch(() => {});
       }
-    } catch { alert("Failed to add text"); }
+    } catch { alert(t("knowledge.failedAddText")); }
     setSubmitting(false);
   }, [agentId, textTitle, textContent, loadData]);
 
@@ -155,7 +157,7 @@ export default function AgentKnowledgePage() {
         await loadData();
         if ("source_id" in res) generateWiki(agentId, [res.source_id]).catch(() => {});
       }
-    } catch { alert("Failed to fetch URL"); }
+    } catch { alert(t("knowledge.failedFetchURL")); }
     setSubmitting(false);
   }, [agentId, urlValue, urlTitle, loadData]);
 
@@ -184,13 +186,13 @@ export default function AgentKnowledgePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Knowledge</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("knowledge.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure knowledge base search and response behavior
+            {t("knowledge.subtitle")}
           </p>
         </div>
         <Button size="sm" onClick={handleSaveConfig} disabled={saving || !configLoaded}>
-          {saving ? "Saving..." : "Save"}
+          {saving ? t("common.saving") : t("common.save")}
         </Button>
       </div>
 
@@ -198,9 +200,9 @@ export default function AgentKnowledgePage() {
       <div className="space-y-3 rounded-lg border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <Label className="text-sm font-medium">Auto-Query</Label>
+            <Label className="text-sm font-medium">{t("knowledge.autoQuery")}</Label>
             <p className="text-xs text-muted-foreground">
-              Automatically search the KB before each LLM call
+              {t("knowledge.autoQueryDesc")}
             </p>
           </div>
           <Switch checked={kbEnabled} onCheckedChange={setKbEnabled} disabled={!configLoaded} />
@@ -210,20 +212,20 @@ export default function AgentKnowledgePage() {
           <div className="space-y-3 pt-1">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs">Trigger Mode</Label>
+                <Label className="text-xs">{t("knowledge.triggerMode")}</Label>
                 <Select value={autoMode} onValueChange={(v) => v && setAutoMode(v)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="always">Every message</SelectItem>
-                    <SelectItem value="keyword">Keyword match</SelectItem>
-                    <SelectItem value="disabled">Disabled</SelectItem>
+                    <SelectItem value="always">{t("knowledge.modeAlways")}</SelectItem>
+                    <SelectItem value="keyword">{t("knowledge.modeKeyword")}</SelectItem>
+                    <SelectItem value="disabled">{t("knowledge.modeDisabled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Max Results</Label>
+                <Label className="text-xs">{t("knowledge.maxResults")}</Label>
                 <Input
                   type="number" min={1} max={20}
                   value={maxResults}
@@ -235,11 +237,11 @@ export default function AgentKnowledgePage() {
 
             {autoMode === "keyword" && (
               <div className="space-y-1.5">
-                <Label className="text-xs">Keywords (comma-separated)</Label>
+                <Label className="text-xs">{t("knowledge.keywords")}</Label>
                 <Input
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
-                  placeholder="e.g. help, question, search"
+                  placeholder={t("knowledge.keywordsPlaceholder")}
                   className="h-8 text-xs"
                 />
               </div>
@@ -247,40 +249,40 @@ export default function AgentKnowledgePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs">Search Mode</Label>
+                <Label className="text-xs">{t("knowledge.searchMode")}</Label>
                 <Select value={searchMode} onValueChange={(v) => v && setSearchMode(v)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="augment">Augment (LLM synthesis)</SelectItem>
-                    <SelectItem value="strict">Strict (direct return)</SelectItem>
+                    <SelectItem value="augment">{t("knowledge.searchAugment")}</SelectItem>
+                    <SelectItem value="strict">{t("knowledge.searchStrict")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">No Result Action</Label>
+                <Label className="text-xs">{t("knowledge.noResultAction")}</Label>
                 <Select value={emptyAction} onValueChange={(v) => v && setEmptyAction(v)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="llm">Continue to LLM</SelectItem>
-                    <SelectItem value="stop">Stop and notify</SelectItem>
+                    <SelectItem value="llm">{t("knowledge.actionLLM")}</SelectItem>
+                    <SelectItem value="stop">{t("knowledge.actionStop")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <Label className="text-xs">Show status indicator</Label>
+              <Label className="text-xs">{t("knowledge.showIndicator")}</Label>
               <Switch checked={showIndicator} onCheckedChange={setShowIndicator} />
             </div>
 
             {showIndicator && (
               <div className="space-y-2 pt-1">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Found indicator</Label>
+                  <Label className="text-xs">{t("knowledge.foundIndicator")}</Label>
                   <Input
                     value={indicatorFound}
                     onChange={(e) => setIndicatorFound(e.target.value)}
@@ -289,7 +291,7 @@ export default function AgentKnowledgePage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Not found indicator</Label>
+                  <Label className="text-xs">{t("knowledge.notFoundIndicator")}</Label>
                   <Input
                     value={indicatorNotFound}
                     onChange={(e) => setIndicatorNotFound(e.target.value)}
@@ -310,28 +312,28 @@ export default function AgentKnowledgePage() {
       <div className="rounded-lg border border-border bg-card p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <Label className="text-sm font-medium">Data Sources</Label>
+            <Label className="text-sm font-medium">{t("knowledge.dataSources")}</Label>
             {stats && (
               <p className="text-xs text-muted-foreground">
-                {stats.source_count} sources · {stats.entry_count} entries · {(stats.total_chars / 1024).toFixed(1)} KB
+                {stats.source_count} {t("knowledge.sources")} · {stats.entry_count} {t("knowledge.entries")} · {(stats.total_chars / 1024).toFixed(1)} KB
               </p>
             )}
           </div>
           <div className="flex gap-1.5">
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setTextDialogOpen(true)}>
-              <FileTextIcon className="h-3 w-3 mr-1" /> Text
+              <FileTextIcon className="h-3 w-3 mr-1" /> {t("knowledge.text")}
             </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setUrlDialogOpen(true)}>
-              <GlobeIcon className="h-3 w-3 mr-1" /> URL
+              <GlobeIcon className="h-3 w-3 mr-1" /> {t("knowledge.url")}
             </Button>
           </div>
         </div>
 
         {loading ? (
-          <p className="text-xs text-muted-foreground">Loading...</p>
+          <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
         ) : sources.length === 0 ? (
           <p className="text-xs text-muted-foreground py-1">
-            No data sources yet. Add text or a URL to get started.
+            {t("knowledge.noSources")}
           </p>
         ) : (
           <div className="space-y-1">
@@ -364,25 +366,25 @@ export default function AgentKnowledgePage() {
       {/* Text Ingest Dialog */}
       <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Text</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("knowledge.addText")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Title</Label>
-              <Input value={textTitle} onChange={(e) => setTextTitle(e.target.value)} placeholder="Source title" />
+              <Label>{t("knowledge.titleLabel")}</Label>
+              <Input value={textTitle} onChange={(e) => setTextTitle(e.target.value)} placeholder={t("knowledge.sourceTitlePlaceholder")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Content</Label>
+              <Label>{t("knowledge.contentLabel")}</Label>
               <textarea
                 className="flex min-h-[200px] w-full rounded-md border bg-transparent px-3 py-2 text-sm"
                 value={textContent} onChange={(e) => setTextContent(e.target.value)}
-                placeholder="Paste text content..."
+                placeholder={t("knowledge.contentPlaceholder")}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTextDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setTextDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleIngestText} disabled={submitting || !textContent.trim()}>
-              {submitting ? "Adding..." : "Add"}
+              {submitting ? t("knowledge.adding") : t("knowledge.add")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -391,21 +393,21 @@ export default function AgentKnowledgePage() {
       {/* URL Ingest Dialog */}
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add from URL</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("knowledge.addFromURL")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>URL</Label>
-              <Input value={urlValue} onChange={(e) => setUrlValue(e.target.value)} placeholder="https://..." />
+              <Label>{t("knowledge.urlLabel")}</Label>
+              <Input value={urlValue} onChange={(e) => setUrlValue(e.target.value)} placeholder={t("knowledge.urlPlaceholder")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Title (optional)</Label>
-              <Input value={urlTitle} onChange={(e) => setUrlTitle(e.target.value)} placeholder="Custom title" />
+              <Label>{t("knowledge.titleOptional")}</Label>
+              <Input value={urlTitle} onChange={(e) => setUrlTitle(e.target.value)} placeholder={t("knowledge.customTitlePlaceholder")} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUrlDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setUrlDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleIngestURL} disabled={submitting || !urlValue.trim()}>
-              {submitting ? "Fetching..." : "Add"}
+              {submitting ? t("knowledge.fetching") : t("knowledge.add")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -415,21 +417,21 @@ export default function AgentKnowledgePage() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{previewSource?.title || "Source Preview"}</DialogTitle>
+            <DialogTitle>{previewSource?.title || t("knowledge.sourcePreview")}</DialogTitle>
             <DialogDescription>
-              {previewSource?.entry_count} entries · {((previewSource?.total_chars ?? 0) / 1024).toFixed(1)} KB
+              {previewSource?.entry_count} {t("knowledge.entries")} · {((previewSource?.total_chars ?? 0) / 1024).toFixed(1)} KB
               {previewSource?.source_type && ` · ${previewSource.source_type}`}
             </DialogDescription>
           </DialogHeader>
           {previewLoading ? (
-            <p className="text-sm text-muted-foreground py-4">Loading...</p>
+            <p className="text-sm text-muted-foreground py-4">{t("common.loading")}</p>
           ) : previewEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No entries found.</p>
+            <p className="text-sm text-muted-foreground py-4">{t("knowledge.noEntries")}</p>
           ) : (
             <div className="space-y-3">
               {previewEntries.map((entry) => (
                 <div key={entry.id} className="rounded-md border bg-muted/30 p-3">
-                  <p className="text-[10px] text-muted-foreground mb-1">Chunk {entry.chunk_index}</p>
+                  <p className="text-[10px] text-muted-foreground mb-1">{t("knowledge.chunk")} {entry.chunk_index}</p>
                   <pre className="text-sm whitespace-pre-wrap font-sans">{entry.content}</pre>
                 </div>
               ))}

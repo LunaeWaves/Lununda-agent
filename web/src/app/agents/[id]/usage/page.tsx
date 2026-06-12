@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useMemo, useState } from "react";
 import { Coins, RefreshCcw } from "lucide-react";
@@ -40,6 +41,7 @@ function fmt(n: number): string {
 }
 
 export default function AgentUsagePage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const [range, setRange] = useState<TokenUsageRange>("7d");
   const [data, setData] = useState<AgentTokenUsage | null>(null);
@@ -84,7 +86,7 @@ export default function AgentUsagePage() {
       const d = await getAgentTokenUsage(agentId, r, 50);
       setData(d);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load usage");
+      setError(e instanceof Error ? e.message : t("usage.loadFailed"));
     } finally {
       setLoading(false);
     }

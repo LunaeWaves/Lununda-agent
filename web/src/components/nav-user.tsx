@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { logout as doLogout } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 export function NavUser({
   name = "Admin",
@@ -33,6 +34,7 @@ export function NavUser({
   subtitle?: string;
 }) {
   const { isMobile } = useSidebar();
+  const t = useT();
   const { resolvedTheme, toggleTheme } = useTheme();
 
   const initials = name.slice(0, 2).toUpperCase();
@@ -89,7 +91,7 @@ export function NavUser({
               }}
             >
               {resolvedTheme === "dark" ? <SunIcon /> : <MoonIcon />}
-              <span>{resolvedTheme === "dark" ? "Light mode" : "Dark mode"}</span>
+              <span>{t(resolvedTheme === "dark" ? "user.lightMode" : "user.darkMode")}</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -99,7 +101,7 @@ export function NavUser({
               }}
             >
               <LogOutIcon />
-              <span>Log out</span>
+              <span>{t("user.logout")}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import {
@@ -63,6 +64,7 @@ interface AgentMeta {
 }
 
 export default function ApikeysPage() {
+  const t = useT();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [agents, setAgents] = useState<AgentMeta[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -99,7 +101,7 @@ export default function ApikeysPage() {
     setError("");
     if (!createName.trim()) return;
     if (createType === "agent" && createAgents.length === 0) {
-      setError("Select at least one agent");
+      setError(t("apikeys.selectAgent"));
       return;
     }
     const res = await createApikey({
@@ -184,14 +186,14 @@ export default function ApikeysPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">API Keys</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("apikeys.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Issue programmatic credentials. Each key is scoped to a subset of your agents.
+            {t("apikeys.subtitle")}
           </p>
         </div>
         <Button onClick={openCreateDialog}>
           <Plus className="h-4 w-4 mr-2" />
-          Add API Key
+          {t("apikeys.addKey")}
         </Button>
       </div>
 
@@ -228,13 +230,13 @@ export default function ApikeysPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4">
               <KeyRound className="h-7 w-7 text-primary" />
             </div>
-            <p className="text-sm text-muted-foreground mb-1">No API keys yet</p>
+            <p className="text-sm text-muted-foreground mb-1">{t("apikeys.noKeys")}</p>
             <p className="text-xs text-muted-foreground/60 mb-4">
               Issue one to let an external client call your agents
             </p>
             <Button variant="outline" size="sm" onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />
-              Add API Key
+              {t("apikeys.addKey")}
             </Button>
           </div>
         </div>
@@ -281,7 +283,7 @@ export default function ApikeysPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setRotateTarget(k)} title="Rotate">
+                      <Button size="icon" variant="ghost" onClick={() => setRotateTarget(k)} title={t("apikeys.rotate")}>
                         <RotateCw className="size-4" />
                       </Button>
                       <Button
@@ -289,7 +291,7 @@ export default function ApikeysPage() {
                         variant="ghost"
                         className="text-destructive hover:text-destructive"
                         onClick={() => setDeleteTarget(k)}
-                        title="Delete"
+                        title={t("common.delete")}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -329,29 +331,29 @@ export default function ApikeysPage() {
                     value="admin"
                     selected={createType}
                     onSelect={setCreateType}
-                    title="Admin"
-                    description="Full platform — manage users, providers, models, skills."
+                    title={t("apikeys.admin")}
+                    description={t("apikeys.adminDesc")}
                   />
                 )}
                 <TypeOption
                   value="user"
                   selected={createType}
                   onSelect={setCreateType}
-                  title="User"
-                  description="Access all your agents (auto-includes future ones). Can create new agents."
+                  title={t("apikeys.user")}
+                  description={t("apikeys.userDesc")}
                 />
                 <TypeOption
                   value="agent"
                   selected={createType}
                   onSelect={setCreateType}
-                  title="Agent"
-                  description="Locked to specific agents. Cannot create new ones."
+                  title={t("apikeys.agentScope")}
+                  description={t("apikeys.agentDesc")}
                 />
               </div>
             </div>
             {createType === "agent" && (
               <div className="space-y-1.5">
-                <Label>Allowed agents</Label>
+                <Label>{t("apikeys.allowedAgents")}</Label>
                 {agents.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     No agents yet — create one from the Agents page first.
@@ -497,6 +499,7 @@ function ScopeChips({
   agents: AgentMeta[];
   onClick: () => void;
 }) {
+  const t = useT();
   const selected = selectedIds
     .map((id) => agents.find((a) => a.id === id))
     .filter((a): a is AgentMeta => !!a);
@@ -508,7 +511,7 @@ function ScopeChips({
       type="button"
       onClick={onClick}
       className="flex flex-wrap items-center gap-1.5 rounded-md p-1 -m-1 hover:bg-muted/60 transition"
-      title="Edit allowed agents"
+      title={t("apikeys.editAgents")}
     >
       {selected.length === 0 && (
         <span className="text-xs text-muted-foreground italic">no agents — click to add</span>

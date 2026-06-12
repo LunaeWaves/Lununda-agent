@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,7 @@ function typeIcon(type: string) {
 }
 
 export default function AgentSchedulerPage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
 
@@ -96,7 +98,7 @@ export default function AgentSchedulerPage() {
         setJobs(list);
         setError("");
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load jobs"))
+      .catch((e) => setError(e instanceof Error ? e.message : t("scheduler.loadFailed")))
       .finally(() => setLoading(false));
   }, [agentId]);
 
@@ -119,7 +121,7 @@ export default function AgentSchedulerPage() {
       return rest;
     });
     if (res.error || !res.ok) {
-      setError(res.error || "Failed to update job");
+      setError(res.error || t("scheduler.updateFailed"));
       // Revert by refetching the canonical state.
       refresh();
     }
@@ -140,10 +142,10 @@ export default function AgentSchedulerPage() {
         <div>
           <div className="flex items-center gap-2">
             <Clock className="size-5 text-muted-foreground" />
-            <h2 className="text-2xl font-semibold tracking-tight">Scheduler</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">{t("scheduler.title")}</h2>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Scheduled tasks for <strong>{agentName || "this agent"}</strong>.
+            {t("scheduler.tasksFor")} <strong>{agentName || t("scheduler.thisAgent")}</strong>.
           </p>
         </div>
       </div>
@@ -187,20 +189,19 @@ export default function AgentSchedulerPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete scheduled task</AlertDialogTitle>
+            <AlertDialogTitle>{t("scheduler.deleteTask")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <strong>{deleteTarget?.name || deleteTarget?.id}</strong>?
-              This stops future runs and can&apos;t be undone. Existing chat
-              history is preserved.
+              {t("scheduler.removeConfirm")} <strong>{deleteTarget?.name || deleteTarget?.id}</strong>?
+              {t("scheduler.removeWarning")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -220,6 +221,7 @@ function JobRow({
   onToggle: (enabled: boolean) => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -238,7 +240,7 @@ function JobRow({
             </code>
             {job.channel && (
               <span className="text-[11px] text-muted-foreground">
-                via {job.channel}
+                {t("scheduler.via")} {job.channel}
               </span>
             )}
           </div>
@@ -248,11 +250,11 @@ function JobRow({
           </div>
           <div className="flex gap-4 text-[11px] text-muted-foreground/80">
             <span>
-              Last run:{" "}
+              {t("scheduler.lastRun")}{" "}
               <span className="font-mono">{fmtRelative(job.lastRun)}</span>
             </span>
             <span>
-              Next run:{" "}
+              {t("scheduler.nextRun")}{" "}
               <span className="font-mono">{fmtRelative(job.nextRun)}</span>
             </span>
           </div>
@@ -262,14 +264,14 @@ function JobRow({
             checked={job.enabled}
             disabled={busy}
             onCheckedChange={(v) => onToggle(v)}
-            aria-label={job.enabled ? "Disable" : "Enable"}
+            aria-label={job.enabled ? t("scheduler.disable") : t("scheduler.enable")}
           />
           <Button
             size="icon"
             variant="ghost"
             className="text-destructive hover:text-destructive"
             onClick={onDelete}
-            title="Delete"
+            title={t("common.delete")}
           >
             <Trash2 className="size-4" />
           </Button>

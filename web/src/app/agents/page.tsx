@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,7 @@ function AgentAvatar({
 }
 
 export default function AgentsPage() {
+  const t = useT();
   const [agents, setAgents] = useState<AgentDetail[]>([]);
   const [otherAgents, setOtherAgents] = useState<OtherAgent[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -213,7 +215,7 @@ export default function AgentsPage() {
       description: newDescription.trim() || undefined,
     });
     if (resp && (resp.ok === false || resp.error)) {
-      setCreateError(resp.error || "Failed to create agent");
+      setCreateError(resp.error || t("agents.createFailed"));
       setSaving(false);
       return;
     }
@@ -241,7 +243,7 @@ export default function AgentsPage() {
       isPublic: editIsPublic,
     });
     if (resp && (resp.ok === false || resp.error)) {
-      setEditError(resp.error || "Failed to update agent");
+      setEditError(resp.error || t("agents.updateFailed"));
       setSaving(false);
       return;
     }
@@ -296,8 +298,8 @@ export default function AgentsPage() {
             </div>
             <p className="text-sm text-muted-foreground">
               {quotaLocked
-                ? "No agent has been provisioned for your account yet — contact your admin."
-                : "No agents configured yet"}
+                ? t("agents.noAgentsQuota")
+                : t("agents.noAgents")}
             </p>
             {!quotaLocked && (
               <Button
@@ -481,7 +483,7 @@ export default function AgentsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Agent</DialogTitle>
+            <DialogTitle>{t("agents.create")}</DialogTitle>
             <DialogDescription>
               The system generates a globally unique id (e.g.{" "}
               <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">agt_a1b2c3…</code>);
@@ -516,7 +518,7 @@ export default function AgentsPage() {
                 />
               </button>
               <div className="flex-1 space-y-2">
-                <Label htmlFor="agent-name">Name</Label>
+                <Label htmlFor="agent-name">{t("agents.name")}</Label>
                 <Input
                   id="agent-name"
                   value={newName}
@@ -524,18 +526,18 @@ export default function AgentsPage() {
                     setNewName(e.target.value);
                     setCreateError(null);
                   }}
-                  placeholder="My Helper"
+                  placeholder={t("agents.namePlaceholder")}
                   autoFocus
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-desc">Description (optional)</Label>
+              <Label htmlFor="agent-desc">{t("agents.description")}</Label>
               <Textarea
                 id="agent-desc"
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="What's this agent for? Shown in the agent list and on its profile."
+                placeholder={t("agents.descPlaceholder")}
                 rows={3}
               />
             </div>
@@ -548,7 +550,7 @@ export default function AgentsPage() {
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={!newName.trim() || saving}>
-              {saving ? "Creating..." : "Create Agent"}
+              {saving ? t("agents.creating") : t("agents.createButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -566,7 +568,7 @@ export default function AgentsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Agent</DialogTitle>
+            <DialogTitle>{t("agents.editAgent")}</DialogTitle>
             <DialogDescription>
               ID is locked —{" "}
               <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
@@ -602,7 +604,7 @@ export default function AgentsPage() {
                 />
               </button>
               <div className="flex-1 space-y-2">
-                <Label htmlFor="agent-edit-name">Name</Label>
+                <Label htmlFor="agent-edit-name">{t("agents.name")}</Label>
                 <Input
                   id="agent-edit-name"
                   value={editName}

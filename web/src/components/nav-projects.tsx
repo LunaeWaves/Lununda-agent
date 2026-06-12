@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -47,6 +48,7 @@ export function NavSessions({
   agentId: string | null;
   sessions: SessionItem[];
 }) {
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   // Drop-zone state for "drag a project chat back out into Chats".
@@ -115,7 +117,7 @@ export function NavSessions({
       // so a console error + alert keeps the user from silently losing
       // the action.
       console.error("move chat to loose failed:", res.error);
-      window.alert(`Failed to move chat: ${res.error}`);
+      window.alert(t("sidebar.moveFailed") + ": " + res.error);
       return;
     }
     broadcastChange();
@@ -129,7 +131,7 @@ export function NavSessions({
         onDragLeave={onChatsDragLeave}
         onDrop={onChatsDrop}
       >
-        <SidebarGroupLabel>Chats</SidebarGroupLabel>
+        <SidebarGroupLabel>{t("sidebar.chats")}</SidebarGroupLabel>
         <SidebarMenu
           className={
             chatsDropActive
@@ -161,11 +163,11 @@ export function NavSessions({
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => navigateOnce(`/agents/${agentId}/chats`)}
-                tooltip="See all chats"
+                tooltip={t("sidebar.seeAllChats")}
                 className="text-muted-foreground"
               >
                 <MoreHorizontal className="size-4" />
-                <span>More</span>
+                <span>{t("sidebar.more")}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}

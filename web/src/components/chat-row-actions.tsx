@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -61,6 +62,7 @@ export function ChatRowActions({
   onChanged: () => void;
   variant?: "menu-item" | "menu-sub-item";
 }) {
+  const t = useT();
   const router = useRouter();
   const { isMobile } = useSidebar();
   const [editOpen, setEditOpen] = React.useState(false);
@@ -118,7 +120,7 @@ export function ChatRowActions({
         >
           <DropdownMenuItem onClick={() => setEditOpen(true)}>
             <PencilIcon className="text-muted-foreground" />
-            <span>Edit</span>
+            <span>{t("sidebar.editProject")}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -126,7 +128,7 @@ export function ChatRowActions({
             className="text-destructive focus:text-destructive"
           >
             <Trash2Icon className="text-destructive" />
-            <span>Delete</span>
+            <span>{t("sidebar.deleteChat")}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -142,7 +144,7 @@ export function ChatRowActions({
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete chat</AlertDialogTitle>
+            <AlertDialogTitle>{t("sidebar.deleteChat")}</AlertDialogTitle>
             <AlertDialogDescription>
               Delete <strong>{session.title || session.id}</strong>? The full
               message history for this chat will be removed and cannot be
@@ -150,7 +152,7 @@ export function ChatRowActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("sidebar.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={onConfirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -177,6 +179,7 @@ function EditTitleDialog({
   session: ChatRowSession;
   onSaved: () => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
@@ -206,7 +209,7 @@ function EditTitleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit chat title</DialogTitle>
+          <DialogTitle>{t("sidebar.editTitle")}</DialogTitle>
           <DialogDescription>
             Rename this chat so it&apos;s easier to find in the sidebar.
           </DialogDescription>
@@ -225,7 +228,7 @@ function EditTitleDialog({
               save();
             }
           }}
-          placeholder="Chat title"
+          placeholder={t("sidebar.chatTitle")}
         />
         <DialogFooter>
           <Button
@@ -236,7 +239,7 @@ function EditTitleDialog({
             Cancel
           </Button>
           <Button onClick={save} disabled={saving || !draft.trim()}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("sidebar.saving") : t("sidebar.saveProject")}
           </Button>
         </DialogFooter>
       </DialogContent>

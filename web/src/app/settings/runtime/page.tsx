@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ import { Save, Check, Container } from "lucide-react";
 import { getConfig, updateConfig, getMe, type ConfigResponse } from "@/lib/api";
 
 export default function RuntimeSettingsPage() {
+  const t = useT();
   const router = useRouter();
   const [config, setConfig] = useState<ConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,7 +117,7 @@ export default function RuntimeSettingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-semibold tracking-tight">Runtime</h3>
+          <h3 className="text-xl font-semibold tracking-tight">{t("runtime.title")}</h3>
           <p className="text-sm text-muted-foreground mt-1">
             Gateway and sandbox configuration.
           </p>
@@ -134,7 +136,7 @@ export default function RuntimeSettingsPage() {
           ) : (
             <>
               <Save className="h-4 w-4 mr-2" />
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </>
           )}
         </Button>
@@ -160,7 +162,7 @@ export default function RuntimeSettingsPage() {
             <Separator />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Backend</Label>
+                <Label>{t("runtime.sandbox")}</Label>
                 <Select value={sandboxBackend} onValueChange={(v) => v && setSandboxBackend(v)}>
                   <SelectTrigger>
                     <SelectValue>
@@ -237,7 +239,7 @@ export default function RuntimeSettingsPage() {
                 </>
               ) : (
                 <div className="space-y-2">
-                  <Label>Docker Image</Label>
+                  <Label>{t("runtime.dockerImage")}</Label>
                   <Input
                     value={sandboxDockerImage}
                     onChange={(e) => setSandboxDockerImage(e.target.value)}

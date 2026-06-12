@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -57,48 +58,49 @@ import { useAgentName } from "@/hooks/use-agent-name";
 // the mental model simple (one bot per channel per agent). When we add
 // multi-bot management later, this card can expand to a list.
 
-const CATALOG: { type: string; label: string; description: string; available: boolean }[] = [
-  {
-    type: "telegram",
-    label: "Telegram",
-    description: "Connect a Telegram bot to relay messages to this agent.",
-    available: true,
-  },
-  {
-    type: "discord",
-    label: "Discord",
-    description: "Connect a Discord bot — works in DMs and servers it's invited to.",
-    available: true,
-  },
-  {
-    type: "slack",
-    label: "Slack",
-    description: "Connect a Slack app via Socket Mode (bot token + app token).",
-    available: true,
-  },
-  {
-    type: "line",
-    label: "LINE",
-    description: "Connect a LINE Messaging API channel via webhook (channel access token + channel secret).",
-    available: true,
-  },
-  {
-    type: "wechat",
-    label: "WeChat",
-    description: "Scan a QR code with the WeChat phone app to relay messages to this agent.",
-    available: true,
-  },
-  {
-    type: "feishu",
-    label: "Feishu",
-    description: "Connect a Feishu custom-app bot via webhook (App ID + App Secret).",
-    available: true,
-  },
-];
-
 export default function AgentChannelsPage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
+
+  const CATALOG: { type: string; label: string; description: string; available: boolean }[] = [
+    {
+      type: "telegram",
+      label: t("channels.telegram"),
+      description: t("channels.telegramDesc"),
+      available: true,
+    },
+    {
+      type: "discord",
+      label: t("channels.discord"),
+      description: t("channels.discordDesc"),
+      available: true,
+    },
+    {
+      type: "slack",
+      label: t("channels.slack"),
+      description: t("channels.slackDesc"),
+      available: true,
+    },
+    {
+      type: "line",
+      label: "LINE",
+      description: t("channels.lineDesc"),
+      available: true,
+    },
+    {
+      type: "wechat",
+      label: t("channels.wechat"),
+      description: t("channels.wechatDesc"),
+      available: true,
+    },
+    {
+      type: "feishu",
+      label: t("channels.feishu"),
+      description: t("channels.feishuDesc"),
+      available: true,
+    },
+  ];
 
   const [channels, setChannels] = useState<AgentChannel[]>([]);
   const [loading, setLoading] = useState(true);

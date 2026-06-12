@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const PAGE_TYPE_SECTIONS = [
 ];
 
 export default function WikiPage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
 
@@ -116,7 +118,7 @@ export default function WikiPage() {
         force,
       );
       if (res.status === "already_running") {
-        alert("Wiki 生成正在进行中，请等待完成后再试。");
+        alert(t("wiki.generating"));
         setGenerating(false);
         return;
       }

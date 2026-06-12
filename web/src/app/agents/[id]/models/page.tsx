@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -129,6 +130,7 @@ function presetModelRows(preset: string): ModelEntry[] {
 }
 
 export default function AgentModelsPage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
 
@@ -361,12 +363,12 @@ export default function AgentModelsPage() {
             ...prev,
             [idx]: result.ok
               ? { status: "success" }
-              : { status: "error", error: result.error || "Connection failed" },
+              : { status: "error", error: result.error || t("models.connectionFailed") },
           }));
         } catch {
           setModelTests((prev) => ({
             ...prev,
-            [idx]: { status: "error", error: "Connection failed" },
+            [idx]: { status: "error", error: t("models.connectionFailed") },
           }));
         }
       }),
@@ -574,7 +576,7 @@ export default function AgentModelsPage() {
             checked={shareModelConfig}
             onCheckedChange={handleShareToggle}
             disabled={saving}
-            aria-label="Share model config with chatters"
+            aria-label={t("models.shareConfig")}
           />
         </div>
       </div>
@@ -614,7 +616,7 @@ export default function AgentModelsPage() {
             disabled={saving}
           >
             <SelectTrigger className="font-mono text-sm max-w-md">
-              <SelectValue placeholder={inheriting ? `Inherit (${systemDefault || "no system default"})` : "Select a model"} />
+              <SelectValue placeholder={inheriting ? `Inherit (${systemDefault || t("models.noDefault")})` : t("models.selectModel")} />
             </SelectTrigger>
             <SelectContent className="!w-auto !min-w-[var(--anchor-width)] !overflow-x-visible">
               {allModelOptions.map((opt) => (
@@ -629,7 +631,7 @@ export default function AgentModelsPage() {
             value={model}
             onChange={(e) => setModel(e.target.value)}
             onBlur={() => handleModelChange(model)}
-            placeholder={systemDefault ? `Inherit (${systemDefault})` : "Add a provider with models below"}
+            placeholder={systemDefault ? `Inherit (${systemDefault})` : t("models.addProviderPlaceholder")}
             className="font-mono text-sm max-w-md"
           />
         )}
@@ -702,10 +704,10 @@ export default function AgentModelsPage() {
                 const editable = provider.scope === "agent";
                 const sourceLabel =
                   provider.scope === "agent"
-                    ? "Mine (agent)"
+                    ? t("models.mineAgent")
                     : provider.scope === "user"
-                    ? "Inherited from owner"
-                    : "Inherited from admin";
+                    ? t("models.inheritedFromOwner")
+                    : t("models.inheritedFromAdmin");
                 return (
                 <TableRow key={`${provider.scope}:${provider.id}`}>
                   <TableCell className="font-medium">
@@ -751,7 +753,7 @@ export default function AgentModelsPage() {
                         size="icon"
                         variant="ghost"
                         onClick={() => openEditDialog(provider)}
-                        title={editable ? "Edit" : "Read-only — inherited row"}
+                        title={editable ? t("common.edit") : "Read-only — inherited row"}
                         disabled={!editable}
                       >
                         <Pencil className="size-4" />
@@ -761,7 +763,7 @@ export default function AgentModelsPage() {
                         variant="ghost"
                         className="text-destructive hover:text-destructive"
                         onClick={() => handleDeleteProvider(provider)}
-                        title={editable ? "Remove" : "Read-only — inherited row"}
+                        title={editable ? t("common.delete") : "Read-only — inherited row"}
                         disabled={!editable}
                       >
                         <Trash2 className="size-4" />

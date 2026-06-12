@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { useAgentName } from "@/hooks/use-agent-name";
 // to THIS agent only. See registerHookPluginsForAgent in
 // internal/gateway/userspace.go for the opt-in semantics.
 export default function AgentPluginsPage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
   const [hookPlugins, setHookPlugins] = useState<HookPlugin[]>([]);

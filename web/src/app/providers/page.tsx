@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -12,6 +13,7 @@ import {
 import { ScopePicker } from "@/components/scope-picker";
 
 export default function ProvidersPage() {
+  const t = useT();
   const [scope, setScope] = useState<ScopeName>("system");
   const [scopeId, setScopeId] = useState<string>("");
   const [rows, setRows] = useState<ProviderRow[]>([]);

@@ -19,6 +19,7 @@ import {
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 import AgentProfilePanel from "@/components/agent-profile-panel";
 import AgentCustomizePage from "@/app/agents/[id]/customize/page";
@@ -52,28 +53,28 @@ export type AgentSettingsTab =
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
-const AGENT_TABS: Array<{ id: AgentSettingsTab; label: string; icon: TabIcon }> = [
-  { id: "profile", label: "Profile", icon: IdCardIcon },
-  { id: "customize", label: "Customize", icon: Wand2Icon },
-  { id: "models", label: "Models", icon: BrainIcon },
-  { id: "context", label: "Context", icon: LayersIcon },
-  { id: "skills", label: "Skills", icon: SparklesIcon },
-  { id: "plugins", label: "Plugins", icon: Plug },
-  { id: "channels", label: "Channels", icon: RadioIcon },
-  { id: "scheduler", label: "Scheduler", icon: ClockIcon },
-  { id: "regex-hooks", label: "Regex Hooks", icon: RegexIcon },
-  { id: "usage", label: "Token Usage", icon: CoinsIcon },
+const AGENT_TABS = (t: ReturnType<typeof useT>): Array<{ id: AgentSettingsTab; label: string; icon: TabIcon }> => [
+  { id: "profile", label: t("settings.profile"), icon: IdCardIcon },
+  { id: "customize", label: t("settings.customize"), icon: Wand2Icon },
+  { id: "models", label: t("settings.models"), icon: BrainIcon },
+  { id: "context", label: t("settings.context"), icon: LayersIcon },
+  { id: "skills", label: t("settings.skills"), icon: SparklesIcon },
+  { id: "plugins", label: t("settings.plugins"), icon: Plug },
+  { id: "channels", label: t("settings.channels"), icon: RadioIcon },
+  { id: "scheduler", label: t("settings.scheduler"), icon: ClockIcon },
+  { id: "regex-hooks", label: t("settings.regexHooks"), icon: RegexIcon },
+  { id: "usage", label: t("settings.usage"), icon: CoinsIcon },
 ];
 
 // Runtime intentionally lives only on the standalone /settings/runtime
 // page (super_admin-gated) — it's a deployment-wide knob, not the kind
 // of thing the average chatter wants in their per-agent dialog.
-const USER_TABS: Array<{ id: AgentSettingsTab; label: string; icon: TabIcon }> = [
-  { id: "account", label: "Account", icon: UserCog },
-  { id: "general", label: "General", icon: Palette },
+const USER_TABS = (t: ReturnType<typeof useT>): Array<{ id: AgentSettingsTab; label: string; icon: TabIcon }> => [
+  { id: "account", label: t("settings.account"), icon: UserCog },
+  { id: "general", label: t("settings.general"), icon: Palette },
   // About surfaces the gateway version + upgrade hint — only useful
   // to operators (super_admin), filtered out below for regular users.
-  { id: "about", label: "About", icon: InfoIcon },
+  { id: "about", label: t("settings.about"), icon: InfoIcon },
 ];
 
 // Tabbed configuration panel. Hosts both the per-agent pages
@@ -111,12 +112,13 @@ export function AgentSettingsDialog({
   // gateway version + upgrade hint is operator info, not end-user info).
   isAdmin?: boolean;
 }) {
+  const t = useT();
   const agentTabs = userOnly
     ? []
     : role === "viewer"
-      ? AGENT_TABS.filter((t) => t.id === "models" || t.id === "channels")
-      : AGENT_TABS;
-  const userTabs = isAdmin ? USER_TABS : USER_TABS.filter((t) => t.id !== "about");
+      ? AGENT_TABS(t).filter((tab) => tab.id === "models" || tab.id === "channels")
+      : AGENT_TABS(t);
+  const userTabs = isAdmin ? USER_TABS(t) : USER_TABS(t).filter((tab) => tab.id !== "about");
   // Pick the landing tab: userOnly opens on General (User section);
   // viewers land on Models (the first Agent tab they have); owners on
   // Profile.

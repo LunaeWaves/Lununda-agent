@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import * as React from "react";
 import { Bot, Check, Copy, Loader2, Save } from "lucide-react";
@@ -20,6 +21,7 @@ import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 // it through.
 
 export default function AgentProfilePanel() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const [agent, setAgent] = React.useState<AgentDetail | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -94,7 +96,7 @@ export default function AgentProfilePanel() {
   const onSave = async () => {
     if (!agentId || !agent || !isOwner) return;
     if (!name.trim()) {
-      setError("Name is required");
+      setError(t("profile.nameRequired"));
       return;
     }
     setSaving(true);
@@ -106,7 +108,7 @@ export default function AgentProfilePanel() {
         isPublic,
       });
       if (resp && (resp.ok === false || resp.error)) {
-        setError(resp.error || "Failed to update agent");
+        setError(resp.error || t("profile.updateFailed"));
         return;
       }
       if (avatar) {
@@ -163,8 +165,8 @@ export default function AgentProfilePanel() {
           <h2 className="text-2xl font-semibold tracking-tight">Profile</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isOwner
-              ? "Update your agent's name, description, and avatar."
-              : "Read-only — only the agent owner can edit these fields."}
+              ? t("profile.ownerDesc")
+              : t("profile.viewerDesc")}
           </p>
         </div>
         {isOwner && (
@@ -199,7 +201,7 @@ export default function AgentProfilePanel() {
             onClick={() => isOwner && fileInputRef.current?.click()}
             disabled={!isOwner}
             className="group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed bg-muted/40 transition hover:bg-muted disabled:cursor-not-allowed"
-            aria-label="Upload avatar"
+            aria-label={t("profile.uploadAvatar")}
           >
             <AgentAvatarImg src={avatarSrc} />
             <input
@@ -212,7 +214,7 @@ export default function AgentProfilePanel() {
             />
           </button>
           <div className="flex-1 space-y-2">
-            <Label htmlFor="agent-profile-name">Name</Label>
+            <Label htmlFor="agent-profile-name">{t("profile.name")}</Label>
             <Input
               id="agent-profile-name"
               value={name}
@@ -220,7 +222,7 @@ export default function AgentProfilePanel() {
                 setName(e.target.value);
                 setError(null);
               }}
-              placeholder="My Helper"
+              placeholder={t("profile.namePlaceholder")}
               disabled={!isOwner}
             />
             <p className="text-xs text-muted-foreground">
@@ -233,12 +235,12 @@ export default function AgentProfilePanel() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="agent-profile-desc">Description</Label>
+          <Label htmlFor="agent-profile-desc">{t("profile.description")}</Label>
           <Textarea
             id="agent-profile-desc"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What's this agent for?"
+            placeholder={t("profile.descPlaceholder")}
             rows={3}
             disabled={!isOwner}
           />
@@ -253,8 +255,8 @@ export default function AgentProfilePanel() {
             </Label>
             <p className="text-xs text-muted-foreground">
               {isPublic
-                ? "Anyone with the link can chat. Their history stays private to them."
-                : "Only you can use this agent."}
+                ? t("profile.shared")
+                : t("profile.private")}
             </p>
           </div>
           <Switch

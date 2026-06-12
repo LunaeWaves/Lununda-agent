@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,15 +10,15 @@ import { apiFetch } from "@/lib/api";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { useAgentName } from "@/hooks/use-agent-name";
 
-const CUSTOMIZE_FILES = [
-  { name: "SOUL.md", label: "Soul" },
-  { name: "IDENTITY.md", label: "Identity" },
-  { name: "USER.md", label: "User" },
-  { name: "TOOLS.md", label: "Tools" },
-  { name: "BOOTSTRAP.md", label: "Bootstrap" },
-  { name: "HEARTBEAT.md", label: "Heartbeat" },
-  { name: "MEMORY.md", label: "Memory" },
-  { name: "AGENTS.md", label: "Agents" },
+const CUSTOMIZE_FILE_NAMES = [
+  { name: "SOUL.md", labelKey: "customize.soul" },
+  { name: "IDENTITY.md", labelKey: "customize.identity" },
+  { name: "USER.md", labelKey: "customize.user" },
+  { name: "TOOLS.md", labelKey: "customize.tools" },
+  { name: "BOOTSTRAP.md", labelKey: "customize.bootstrap" },
+  { name: "HEARTBEAT.md", labelKey: "customize.heartbeat" },
+  { name: "MEMORY.md", labelKey: "customize.memory" },
+  { name: "AGENTS.md", labelKey: "customize.agents" },
 ];
 
 // FileState mirrors the backend's GET response: `content` is what's
@@ -36,6 +37,8 @@ type FileSource = "db" | "owner" | "fs" | "default";
 type FileState = { content: string; source: FileSource; baseContent?: string };
 
 export default function AgentCustomizePage() {
+  const t = useT();
+  const CUSTOMIZE_FILES = CUSTOMIZE_FILE_NAMES.map((f) => ({ ...f, label: t(f.labelKey) }));
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
   const [activeTab, setActiveTab] = useState("SOUL.md");

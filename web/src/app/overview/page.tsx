@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 
 export default function OverviewPage() {
+  const t = useT();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [chats, setChats] = useState<number | null>(null);
   const [tools, setTools] = useState<ToolsConfig | null>(null);
@@ -223,7 +225,7 @@ export default function OverviewPage() {
                   ? `${runtime.backend === "e2b" ? "E2B" : "Docker"}${
                       runtime.image ? ` (${runtime.image})` : ""
                     }`
-                  : "Disabled"}
+                  : t("overview.disabled")}
               </span>
             </div>
           </div>

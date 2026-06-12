@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ const emptyForm: FormData = {
 };
 
 export default function AgentRegexHooksPage() {
+  const t = useT();
   const agentId = useAgentIdFromURL();
   const agentName = useAgentName(agentId);
 
@@ -195,13 +197,11 @@ export default function AgentRegexHooksPage() {
           <div className="flex items-center gap-2">
             <RegexIcon className="size-5 text-muted-foreground" />
             <h2 className="text-2xl font-semibold tracking-tight">
-              Regex Hooks
+              {t("regexHooks.title")}
             </h2>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Message interception rules for{" "}
-            <strong>{agentName || "this agent"}</strong>. Matched messages
-            bypass the LLM and are handled by CLI commands.
+            {t("regexHooks.subtitle")}
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -226,7 +226,7 @@ export default function AgentRegexHooksPage() {
         <div className="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center">
           <Zap className="mx-auto size-8 text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground">
-            No regex hooks configured yet.
+            {t("regexHooks.noHooks")}
           </p>
           <p className="text-xs text-muted-foreground/70 mt-1">
             Add a hook to intercept messages matching a pattern and process them
@@ -256,7 +256,7 @@ export default function AgentRegexHooksPage() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Terminal className="size-5 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">Hook Scripts</h3>
+            <h3 className="text-lg font-semibold">{t("regexHooks.scripts")}</h3>
           </div>
           <label className="cursor-pointer">
             <input
@@ -286,7 +286,7 @@ export default function AgentRegexHooksPage() {
         {scripts.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-card/50 p-6 text-center">
             <Terminal className="mx-auto size-6 text-muted-foreground/50 mb-2" />
-            <p className="text-xs text-muted-foreground">No scripts uploaded yet.</p>
+            <p className="text-xs text-muted-foreground">{t("regexHooks.noScripts")}</p>
           </div>
         ) : (
           <div className="grid gap-2">
@@ -332,12 +332,12 @@ export default function AgentRegexHooksPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {form.id ? "Edit Regex Hook" : "New Regex Hook"}
+              {form.id ? t("regexHooks.editHook") : t("regexHooks.createHook")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">{t("regexHooks.hookName")}</label>
               <Input
                 value={form.name}
                 onChange={(e) =>
@@ -347,7 +347,7 @@ export default function AgentRegexHooksPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Pattern (regex)</label>
+              <label className="text-sm font-medium">{t("regexHooks.patternLabel")}</label>
               <Input
                 value={form.pattern}
                 onChange={(e) =>
@@ -361,7 +361,7 @@ export default function AgentRegexHooksPage() {
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium">CLI Command</label>
+              <label className="text-sm font-medium">{t("regexHooks.cliCommandLabel")}</label>
               <Input
                 value={form.cliCommand}
                 onChange={(e) =>
@@ -383,7 +383,7 @@ export default function AgentRegexHooksPage() {
                     setForm((f) => ({ ...f, continueOnMatch: !!v }))
                   }
                 />
-                <label className="text-sm">Continue matching</label>
+                <label className="text-sm">{t("regexHooks.continueMatch")}</label>
               </div>
               <div className="flex items-center gap-2">
                 <Switch
@@ -392,7 +392,7 @@ export default function AgentRegexHooksPage() {
                     setForm((f) => ({ ...f, enabled: !!v }))
                   }
                 />
-                <label className="text-sm">Enabled</label>
+                <label className="text-sm">{t("regexHooks.enabled")}</label>
               </div>
             </div>
             <div className="flex items-center gap-6">
@@ -403,13 +403,13 @@ export default function AgentRegexHooksPage() {
                     setForm((f) => ({ ...f, showError: !!v }))
                   }
                 />
-                <label className="text-sm">Show error on failure</label>
+                <label className="text-sm">{t("regexHooks.showError")}</label>
               </div>
             </div>
             {form.showError && (
               <div>
                 <label className="text-sm font-medium">
-                  Custom Error Message (optional)
+                  {t("regexHooks.errorMessage")}
                 </label>
                 <Textarea
                   value={form.errorMessage}
@@ -430,7 +430,7 @@ export default function AgentRegexHooksPage() {
               onClick={handleSave}
               disabled={saving || !form.name || !form.pattern || !form.cliCommand}
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -443,7 +443,7 @@ export default function AgentRegexHooksPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete regex hook</AlertDialogTitle>
+            <AlertDialogTitle>{t("regexHooks.deleteHook")}</AlertDialogTitle>
             <AlertDialogDescription>
               Remove <strong>{deleteTarget?.name || deleteTarget?.id}</strong>?
               Messages matching this pattern will go through the LLM instead.
@@ -481,6 +481,7 @@ function HookRow({
   onDragOver: (e: React.DragEvent) => void;
   onDragEnd: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className="rounded-lg border border-border bg-card p-4 cursor-default"
@@ -534,7 +535,7 @@ function HookRow({
             size="icon"
             variant="ghost"
             onClick={onEdit}
-            title="Edit"
+            title={t("common.edit")}
           >
             <Pencil className="size-4" />
           </Button>
@@ -543,7 +544,7 @@ function HookRow({
             variant="ghost"
             className="text-destructive hover:text-destructive"
             onClick={onDelete}
-            title="Delete"
+            title={t("common.delete")}
           >
             <Trash2 className="size-4" />
           </Button>

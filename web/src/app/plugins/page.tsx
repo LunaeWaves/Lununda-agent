@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { Puzzle, Download, Settings } from "lucide-react";
 import { getPlugins, updatePlugin, type PluginInfo } from "@/lib/api";
 
 export default function PluginsPage() {
+  const t = useT();
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editPlugin, setEditPlugin] = useState<PluginInfo | null>(null);
