@@ -6,7 +6,7 @@ import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getAgent, getChatHistoryWithCursor, getChatSessions, getChatTodo, getMe, listAgentFiles, listProjects, renameChatSession, revealAgentWorkspace, sendChatStream, steerChat, uploadAgentFiles, getSkills, type ChatHistoryMessage, type ChatStreamEvent, type SkillInfo, type TodoItem, type ToolResultMetadata, type WorkspaceFile } from "@/lib/api";
-import { Bot, Send, Copy, Check, Pencil, Wrench, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal } from "lucide-react";
+import { Bot, Send, Copy, Check, Pencil, Wrench, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal, Zap } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1495,29 +1495,12 @@ export function ChatScreen() {
             }
             // Store as thinking content (may become part of next tool-group, or stay as final answer)
             curContent = content;
+            const rhMeta = evt.data?.regexHook
+              ? { ...meta, regexHook: evt.data.regexHook as string }
+              : meta;
             setMessages((prev) => [
               ...prev,
-              { id: `a-${Date.now()}`, role: "agent", content, timestamp: Date.now(), metadata: meta },
-            ]);
-            break;
-          }
-          case "regex_hook": {
-            const hookName = evt.data?.name || "hook";
-            const ts = Date.now();
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `rh-${ts}`,
-                role: "tool-group" as const,
-                content: "",
-                timestamp: ts,
-                toolCalls: [{
-                  id: `rh-call-${ts}`,
-                  name: `Regex: ${hookName}`,
-                  arguments: "",
-                  result: "matched",
-                }],
-              },
+              { id: `a-${Date.now()}`, role: "agent", content, timestamp: Date.now(), metadata: rhMeta },
             ]);
             break;
           }
@@ -2221,6 +2204,15 @@ export function ChatScreen() {
                           <span className="font-medium">Plan only — review before executing.</span>
                           <span className="opacity-80">
                             Tools were disabled for this turn. Reply with &quot;go&quot; (or edits) to run it.
+                          </span>
+                        </div>
+                      )}
+                      {msg.role === "agent" && msg.metadata?.regexHook && (
+                        <div className="mt-2 flex items-center gap-1.5 rounded-md border border-blue-500/40 bg-blue-500/10 px-2.5 py-1.5 text-xs text-blue-900 dark:text-blue-200">
+                          <Zap className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-medium">Regex Hook:</span>
+                          <span className="opacity-80">
+                            {msg.metadata.regexHook}
                           </span>
                         </div>
                       )}

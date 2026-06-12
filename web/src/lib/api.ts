@@ -1017,6 +1017,7 @@ export interface ToolResultMetadata {
   // The bubble is a plan, not an execution result — UI shows a distinct
   // badge so the user knows to review it and reply with "go" (or edits).
   planMode?: boolean;
+  regexHook?: string;
 }
 
 export interface ChatStreamEvent {
@@ -1058,6 +1059,7 @@ export interface ChatStreamEvent {
     phase?: "thinking" | "running" | "final-delivery" | "done";
     tools?: string[];
     text?: string;
+    regexHook?: string;
   };
 }
 
