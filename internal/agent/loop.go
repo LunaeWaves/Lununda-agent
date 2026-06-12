@@ -1717,6 +1717,8 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		sess.SetChatter(chatterUID)
 		sess.BeginTurn()
 		sess.Append(buildUserMessage(msg))
+		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: msg.Text}}}, Timestamp: time.Now().UnixMilli()})
+		sess.Append(provider.Message{Role: "tool", ToolCallID: "regex-hook-0", Content: "matched"})
 		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
 		sess.EndTurn()
 		emitEvent(ctx, ChatEvent{Type: "tool_call", Data: map[string]any{"id": "regex-hook-0", "name": "regex_hook: " + hookName, "arguments": msg.Text}})
