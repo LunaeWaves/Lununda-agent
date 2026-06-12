@@ -1501,6 +1501,26 @@ export function ChatScreen() {
             ]);
             break;
           }
+          case "regex_hook": {
+            const hookName = evt.data?.name || "hook";
+            const ts = Date.now();
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `rh-${ts}`,
+                role: "tool-group" as const,
+                content: "",
+                timestamp: ts,
+                toolCalls: [{
+                  id: `rh-call-${ts}`,
+                  name: `Regex: ${hookName}`,
+                  arguments: "",
+                  result: "matched",
+                }],
+              },
+            ]);
+            break;
+          }
           case "tool_call": {
             // The in-flight streamed bubble (if any) is about to be
             // converted into a tool-group by the existing "replace

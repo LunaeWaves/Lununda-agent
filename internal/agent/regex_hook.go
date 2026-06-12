@@ -22,21 +22,21 @@ type regexHookResult struct {
 }
 
 // matchRegexHooks evaluates all enabled regex hooks for this agent against
-// the message text. Returns ("", false) when no hook matches — the caller
-// should proceed to the normal ReAct loop. Returns (reply, true) when at
+// the message text. Returns ("", "", false) when no hook matches — the caller
+// should proceed to the normal ReAct loop. Returns (reply, hookName, true) when at
 // least one hook matched; the reply is ready to send back to the user.
-func (a *Agent) matchRegexHooks(ctx context.Context, text string) (string, bool) {
+func (a *Agent) matchRegexHooks(ctx context.Context, text string) (string, string, bool) {
 	if a.dataStore == nil || text == "" {
-		return "", false
+		return "", "", false
 	}
 
 	hooks, err := a.dataStore.ListRegexHooks(ctx, a.agentID)
 	if err != nil {
 		slog.Warn("regex hooks: list failed", "agent", a.agentID, "error", err)
-		return "", false
+		return "", "", false
 	}
 	if len(hooks) == 0 {
-		return "", false
+		return "", "", false
 	}
 
 	var results []regexHookResult
@@ -79,21 +79,23 @@ func (a *Agent) matchRegexHooks(ctx context.Context, text string) (string, bool)
 	}
 
 	if len(results) == 0 {
-		return "", false
+		return "", "", false
 	}
 
 	if len(results) == 1 {
-		return results[0].text, true
+		return results[0].text, results[0].name, true
 	}
 
+	var names []string
 	var buf strings.Builder
 	for i, r := range results {
+		names = append(names, r.name)
 		if i > 0 {
 			buf.WriteString("\n\n")
 		}
 		fmt.Fprintf(&buf, "---%s---\n\n%s", r.name, r.text)
 	}
-	return buf.String(), true
+	return buf.String(), strings.Join(names, ", "), true
 }
 
 // executeCLI runs cmdString with text piped via stdin. Returns stdout.

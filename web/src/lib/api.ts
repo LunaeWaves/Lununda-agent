@@ -1029,7 +1029,8 @@ export interface ChatStreamEvent {
     | "error"
     | "done"
     | "subagent_progress"
-    | "indicator";
+    | "indicator"
+    | "regex_hook";
   // Per-session monotonic sequence assigned by chat_events. Lets the
   // chat page dedupe events arriving on both the active POST stream
   // and the parallel /api/chat/subscribe SSE connection. -1 means

@@ -1710,7 +1710,16 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// Regex hooks: intercept messages matching a pattern and execute CLI
 	// instead of the LLM. Evaluated before slash commands so fixed-format
 	// messages (e.g. "翻译 xxx") bypass the agent loop entirely.
-	if reply, matched := a.matchRegexHooks(ctx, msg.Text); matched {
+	if reply, hookName, matched := a.matchRegexHooks(ctx, msg.Text); matched {
+		chatterUID := a.chatterUserID(msg)
+		ctx = store.WithChatterUserID(ctx, chatterUID)
+		sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
+		sess.SetChatter(chatterUID)
+		sess.BeginTurn()
+		sess.Append(buildUserMessage(msg))
+		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
+		sess.EndTurn()
+		emitEvent(ctx, ChatEvent{Type: "regex_hook", Data: map[string]any{"name": hookName}})
 		emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": reply}})
 		emitEvent(ctx, ChatEvent{Type: "done"})
 		return reply
@@ -2530,7 +2539,16 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage) *provider.StreamReader {
 	// Regex hooks: intercept messages matching a pattern and execute CLI
 	// instead of the LLM.
-	if reply, matched := a.matchRegexHooks(ctx, msg.Text); matched {
+	if reply, hookName, matched := a.matchRegexHooks(ctx, msg.Text); matched {
+		chatterUID := a.chatterUserID(msg)
+		ctx = store.WithChatterUserID(ctx, chatterUID)
+		sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
+		sess.SetChatter(chatterUID)
+		sess.BeginTurn()
+		sess.Append(buildUserMessage(msg))
+		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
+		sess.EndTurn()
+		_ = hookName
 		ch := make(chan provider.StreamChunk, 2)
 		go func() {
 			ch <- provider.StreamChunk{Content: reply, Done: true}
