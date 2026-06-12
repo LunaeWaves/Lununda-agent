@@ -95,7 +95,7 @@ func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) fu
 			// Results found — apply searchMode.
 			hc.IndicatorText = formatIndicatorFoundV2(cfg, results, query)
 			hc.SyntheticToolCalls = []SyntheticToolCall{{
-				Name:   "kb_search",
+				Name:   "knowledgebase_search",
 				Args:   fmt.Sprintf(`{"query":"%s","limit":%d}`, query, maxResults),
 				Result: hc.IndicatorText + "\n\n" + buildToolResultSummary(results),
 			}}
@@ -112,8 +112,8 @@ func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) fu
 		}
 
 		// No results — apply emptyAction.
-		hc.IndicatorText = formatIndicatorNotFound(cfg)
 		if cfg.EmptyAction == "stop" {
+			hc.IndicatorText = formatIndicatorNotFound(cfg)
 			content := indicatorNotFoundMsg(cfg)
 			hc.PrebuiltContent = content
 			hc.SkipLLM = true

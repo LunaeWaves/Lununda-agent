@@ -76,7 +76,7 @@ type HookContext struct {
 // emitted as real tool_call/tool_result events so it appears in the chat UI
 // and persists to session history. Used e.g. by KB auto-query.
 type SyntheticToolCall struct {
-	Name   string // e.g. "kb_search"
+	Name   string // e.g. "knowledgebase_search"
 	Args   string // JSON string of arguments
 	Result string // the tool result text
 }

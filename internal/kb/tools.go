@@ -24,7 +24,7 @@ func RegisterKBTools(r *tools.Registry, store *KBStore, agentID string) {
 }
 
 func registerKBSearch(r *tools.Registry, store *KBStore, agentID string) {
-	r.Register("kb_search", "Search the agent's knowledge base for relevant information. Returns matching text chunks with source references. Use this when the user's question might be answered from previously stored knowledge.", map[string]interface{}{
+	r.Register("knowledgebase_search", "Search the agent's knowledge base for relevant information. Returns matching text chunks with source references. Use this when the user's question might be answered from previously stored knowledge.", map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
 			"query": map[string]interface{}{
@@ -64,7 +64,7 @@ func registerKBSearch(r *tools.Registry, store *KBStore, agentID string) {
 }
 
 func registerKBAdd(r *tools.Registry, store *KBStore, agentID string) {
-	r.Register("kb_add", "Add text content to the agent's knowledge base. The content will be automatically chunked and indexed for future retrieval. Use when the user explicitly asks to save or remember something in the knowledge base.", map[string]interface{}{
+	r.Register("knowledgebase_add", "Add text content to the agent's knowledge base. The content will be automatically chunked and indexed for future retrieval. Use when the user explicitly asks to save or remember something in the knowledge base.", map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
 			"title": map[string]interface{}{
@@ -101,7 +101,7 @@ func registerKBAdd(r *tools.Registry, store *KBStore, agentID string) {
 }
 
 func registerKBIngestURL(r *tools.Registry, store *KBStore, agentID string) {
-	r.Register("kb_ingest_url", "Fetch a URL and add its text content to the knowledge base. The page will be extracted, chunked, and indexed for future retrieval.", map[string]interface{}{
+	r.Register("knowledgebase_ingest_url", "Fetch a URL and add its text content to the knowledge base. The page will be extracted, chunked, and indexed for future retrieval.", map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
 			"url": map[string]interface{}{
@@ -148,7 +148,7 @@ func registerKBIngestURL(r *tools.Registry, store *KBStore, agentID string) {
 }
 
 func registerKBList(r *tools.Registry, store *KBStore, agentID string) {
-	r.Register("kb_list", "List all sources in the agent's knowledge base.", map[string]interface{}{
+	r.Register("knowledgebase_list", "List all sources in the agent's knowledge base.", map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
 			"limit": map[string]interface{}{
@@ -183,7 +183,7 @@ func registerKBList(r *tools.Registry, store *KBStore, agentID string) {
 }
 
 func registerKBDelete(r *tools.Registry, store *KBStore, agentID string) {
-	r.Register("kb_delete", "Delete a source and all its entries from the knowledge base.", map[string]interface{}{
+	r.Register("knowledgebase_delete", "Delete a source and all its entries from the knowledge base.", map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
 			"source_id": map[string]interface{}{

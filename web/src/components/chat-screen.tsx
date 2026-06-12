@@ -173,6 +173,9 @@ interface ChatMessage {
   toolCalls?: { id: string; name: string; arguments: string; result?: string; metadata?: ToolResultMetadata }[];
   files?: ProducedFile[];
   attachments?: UserAttachment[];
+  // True when this tool-group represents a regex hook match (blue lightning)
+  // rather than a normal tool call (orange wrench).
+  isRegexHook?: boolean;
   // Optimistically-rendered steer bubble awaiting the server's persisted
   // "steer" echo. Used only to dedup against that echo (cleared on
   // match) — not rendered differently.
@@ -337,6 +340,7 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
         content: "",
         timestamp: 0,
         toolCalls: calls,
+        isRegexHook: calls.some((tc) => tc.name.startsWith("regex_hook:")),
       });
       // If next is assistant with ONLY content and no tool calls (final
       // answer), add it. Must skip when the next assistant also has tool
@@ -1528,13 +1532,14 @@ export function ChatScreen() {
             });
             const groupId = curGroupId;
             const calls = [...curCalls];
+            const isRH = calls.some((c) => c.name.startsWith("regex_hook:"));
             setMessages((prev) => {
               // Update existing tool-group for this round (additional
               // tool_call within the same assistant turn).
               const idx = prev.findIndex((m) => m.id === groupId);
               if (idx >= 0) {
                 const updated = [...prev];
-                updated[idx] = { ...updated[idx], toolCalls: calls };
+                updated[idx] = { ...updated[idx], toolCalls: calls, isRegexHook: isRH };
                 return updated;
               }
               // Leave any streamed agent bubble in place — don't fold
@@ -1543,7 +1548,7 @@ export function ChatScreen() {
               // reloaded views stay consistent.
               return [
                 ...prev,
-                { id: groupId, role: "tool-group" as const, content: "", timestamp: Date.now(), toolCalls: calls },
+                { id: groupId, role: "tool-group" as const, content: "", timestamp: Date.now(), toolCalls: calls, isRegexHook: isRH },
               ];
             });
             break;
@@ -2739,6 +2744,12 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
   const toggleTool = (id: string) =>
     setExpandedTool((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  const isRH = !!msg.isRegexHook;
+  const iconColor = isRH ? "text-blue-500" : "text-amber-500";
+  const spinBorderColor = isRH ? "border-blue-500" : "border-amber-500";
+  const spinDotColor = isRH ? "border-blue-500/60" : "border-amber-500/60";
+  const checkColor = isRH ? "text-blue-500" : "text-emerald-500";
+
   const inner = (
     <>
       {/* Content before tools */}
@@ -2754,13 +2765,13 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
         </div>
       )}
       {/* Collapsed tool group summary */}
-      <div className="rounded-lg border border-border bg-card/50 overflow-hidden">
+      <div className={`rounded-lg border overflow-hidden ${isRH ? "border-blue-500/40 bg-blue-500/5" : "border-border bg-card/50"}`}>
           <button
             onClick={() => setGroupOpen(!groupOpen)}
             className="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
           >
             {!allDone ? (
-              <div className="h-5 w-5 shrink-0 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+              <div className={`h-5 w-5 shrink-0 rounded-full border-2 ${spinBorderColor} border-t-transparent animate-spin`} />
             ) : roundIndex !== undefined ? (
               // When this group is a round inside a bundle, the leading
               // glyph carries the round number — gives the bundle's
@@ -2769,16 +2780,18 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
               <span className="h-5 w-5 shrink-0 inline-flex items-center justify-center rounded-full bg-amber-500/10 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                 {roundIndex}
               </span>
+            ) : isRH ? (
+              <Zap className={`h-3.5 w-3.5 ${iconColor} shrink-0`} />
             ) : (
-              <Wrench className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <Wrench className={`h-3.5 w-3.5 ${iconColor} shrink-0`} />
             )}
             <span className="font-medium text-foreground">
-              {allDone
-                ? `Executed ${tools.length} tool${tools.length > 1 ? "s" : ""}`
-                : `Running tools (${doneCount}/${tools.length})...`}
+              {isRH
+                ? (allDone ? `Regex Hook matched` : `Regex Hook running...`)
+                : (allDone ? `Executed ${tools.length} tool${tools.length > 1 ? "s" : ""}` : `Running tools (${doneCount}/${tools.length})...`)}
             </span>
             <span className="text-muted-foreground/60 text-[11px] flex-1 text-left truncate">
-              {tools.map((tc) => tc.name).join(", ")}
+              {tools.map((tc) => isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name).join(", ")}
             </span>
             {groupOpen ? (
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -2796,11 +2809,11 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/30 transition-colors"
                   >
                     {tc.result === undefined ? (
-                      <div className="h-3 w-3 shrink-0 rounded-full border-2 border-amber-500/60 border-t-transparent animate-spin" />
+                      <div className={`h-3 w-3 shrink-0 rounded-full border-2 ${spinDotColor} border-t-transparent animate-spin`} />
                     ) : (
-                      <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                      <Check className={`h-3 w-3 ${checkColor} shrink-0`} />
                     )}
-                    <span className="font-medium text-foreground">{tc.name}</span>
+                    <span className="font-medium text-foreground">{isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name}</span>
                     {tc.metadata?.sandbox && (
                       <span
                         className="flex items-center gap-0.5 rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"

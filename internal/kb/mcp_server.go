@@ -48,7 +48,7 @@ type mcpToolResult struct {
 
 var mcpKBTools = []mcpToolDef{
 	{
-		Name:        "kb_search",
+		Name:        "knowledgebase_search",
 		Description: "Search the knowledge base for relevant information",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -66,7 +66,7 @@ var mcpKBTools = []mcpToolDef{
 		},
 	},
 	{
-		Name:        "kb_ingest_text",
+		Name:        "knowledgebase_ingest_text",
 		Description: "Add text content to the knowledge base",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -84,7 +84,7 @@ var mcpKBTools = []mcpToolDef{
 		},
 	},
 	{
-		Name:        "kb_ingest_url",
+		Name:        "knowledgebase_ingest_url",
 		Description: "Fetch a URL and add its content to the knowledge base",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -102,7 +102,7 @@ var mcpKBTools = []mcpToolDef{
 		},
 	},
 	{
-		Name:        "kb_list_sources",
+		Name:        "knowledgebase_list_sources",
 		Description: "List all sources in the knowledge base",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -115,7 +115,7 @@ var mcpKBTools = []mcpToolDef{
 		},
 	},
 	{
-		Name:        "kb_delete_source",
+		Name:        "knowledgebase_delete_source",
 		Description: "Delete a source and all its entries from the knowledge base",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -203,15 +203,15 @@ func handleToolsCall(ctx context.Context, store *KBStore, agentID string, req js
 	var err error
 
 	switch params.Name {
-	case "kb_search":
+	case "knowledgebase_search":
 		text, err = mcpExecSearch(ctx, store, agentID, params.Arguments)
-	case "kb_ingest_text":
+	case "knowledgebase_ingest_text":
 		text, err = mcpExecIngestText(ctx, store, agentID, params.Arguments)
-	case "kb_ingest_url":
+	case "knowledgebase_ingest_url":
 		text, err = mcpExecIngestURL(ctx, store, agentID, params.Arguments)
-	case "kb_list_sources":
+	case "knowledgebase_list_sources":
 		text, err = mcpExecListSources(ctx, store, agentID, params.Arguments)
-	case "kb_delete_source":
+	case "knowledgebase_delete_source":
 		text, err = mcpExecDeleteSource(ctx, store, agentID, params.Arguments)
 	default:
 		return jsonRPCResponse{

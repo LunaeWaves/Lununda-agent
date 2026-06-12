@@ -1717,7 +1717,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		sess.SetChatter(chatterUID)
 		sess.BeginTurn()
 		sess.Append(buildUserMessage(msg))
-		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: msg.Text}}}, Timestamp: time.Now().UnixMilli()})
+		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Type: "function", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: msg.Text}}}, Timestamp: time.Now().UnixMilli()})
 		sess.Append(provider.Message{Role: "tool", ToolCallID: "regex-hook-0", Content: "matched"})
 		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
 		sess.EndTurn()
@@ -1950,7 +1950,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			tcID := "synth-" + stc.Name
 			emitEvent(ctx, ChatEvent{Type: "tool_call", Data: map[string]any{"id": tcID, "name": stc.Name, "arguments": stc.Args}})
 			emitEvent(ctx, ChatEvent{Type: "tool_result", Data: map[string]any{"id": tcID, "name": stc.Name, "result": stc.Result}})
-			asstMsg := provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: tcID, Function: provider.FunctionCall{Name: stc.Name, Arguments: stc.Args}}}, Timestamp: time.Now().UnixMilli()}
+			asstMsg := provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: tcID, Type: "function", Function: provider.FunctionCall{Name: stc.Name, Arguments: stc.Args}}}, Timestamp: time.Now().UnixMilli()}
 			sess.Append(asstMsg)
 			toolMsg := provider.Message{Role: "tool", ToolCallID: tcID, Content: stc.Result}
 			sess.Append(toolMsg)
@@ -2549,8 +2549,14 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		sess.SetChatter(chatterUID)
 		sess.BeginTurn()
 		sess.Append(buildUserMessage(msg))
+		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Type: "function", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: msg.Text}}}, Timestamp: time.Now().UnixMilli()})
+		sess.Append(provider.Message{Role: "tool", ToolCallID: "regex-hook-0", Content: "matched"})
 		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
 		sess.EndTurn()
+		emitEvent(ctx, ChatEvent{Type: "tool_call", Data: map[string]any{"id": "regex-hook-0", "name": "regex_hook: " + hookName, "arguments": msg.Text}})
+		emitEvent(ctx, ChatEvent{Type: "tool_result", Data: map[string]any{"id": "regex-hook-0", "name": "regex_hook: " + hookName, "result": "matched"}})
+		emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": reply}})
+		emitEvent(ctx, ChatEvent{Type: "done"})
 		_ = hookName
 		ch := make(chan provider.StreamChunk, 2)
 		go func() {
