@@ -1,0 +1,46 @@
+[     151ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[   23501ms] [LOG] [chat] post-turn files diff {agent: agt_a44e3ee59747b57528b4, sessionId: s-1781145255784-qi3v9x, preSnapSize: 0, postTurnCount: 0, postTurnPaths: Array(0)} @ http://localhost:18953/_next/static/chunks/bab48e053ce82ceb.js:1
+[   77302ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[   82659ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[   88028ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[   92452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/status:0
+[   92713ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[   98049ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[  103404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[  107468ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/status:0
+[  107686ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[  113037ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[  118382ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=-1:0
+[  532827ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  536501ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  550606ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  553861ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  587779ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[  593111ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[  595126ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  596394ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  614987ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  655466ms] [LOG] [chat] post-turn files diff {agent: agt_a44e3ee59747b57528b4, sessionId: s-1781145892579-0vw60n, preSnapSize: 0, postTurnCount: 0, postTurnPaths: Array(0)} @ http://localhost:18953/_next/static/chunks/bab48e053ce82ceb.js:1
+[  664913ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  694426ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  700924ms] [VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/agents/agt_a44e3ee59747b57528b4/chat/s-1781145892579-0vw60n/:0
+[  717278ms] [LOG] [chat] post-turn files diff {agent: agt_a44e3ee59747b57528b4, sessionId: s-1781145892579-0vw60n, preSnapSize: 0, postTurnCount: 0, postTurnPaths: Array(0)} @ http://localhost:18953/_next/static/chunks/bab48e053ce82ceb.js:1
+[  746071ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  752787ms] [LOG] [chat] post-turn files diff {agent: agt_a44e3ee59747b57528b4, sessionId: s-1781145892579-0vw60n, preSnapSize: 0, postTurnCount: 0, postTurnPaths: Array(0)} @ http://localhost:18953/_next/static/chunks/bab48e053ce82ceb.js:1
+[  851875ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145892579-0vw60n&since=7:0
+[  857219ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145892579-0vw60n&since=7:0
+[  916432ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145892579-0vw60n&since=7:0
+[  935927ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  977333ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[  982676ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[  982926ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18953/api/status:0
+[ 1018149ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1077073ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1387248ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1503384ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1515749ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1523507ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[ 1626488ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1690160ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 1740463ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781145255784-qi3v9x&since=1:0
+[ 2021127ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0

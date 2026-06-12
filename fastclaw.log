@@ -1,0 +1,34 @@
+time=2026-06-11T11:38:37.813+08:00 level=INFO msg="using database storage" dialect=sqlite dsn=file:C:\Us***ys(1)
+time=2026-06-11T11:38:37.834+08:00 level=INFO msg="running database migrations"
+time=2026-06-11T11:38:37.836+08:00 level=INFO msg="object store" type=local
+time=2026-06-11T11:38:37.836+08:00 level=INFO msg="gateway holder id" id=7a6d9c6c-b3ee-48e9-a695-56cbd19552fd
+time=2026-06-11T11:38:37.836+08:00 level=INFO msg="gateway starting" port=18953 bind=loopback
+time=2026-06-11T11:38:37.836+08:00 level=INFO msg="web UI available" url=http://localhost:18953
+time=2026-06-11T11:38:37.837+08:00 level=INFO msg="gateway started"
+time=2026-06-11T11:38:37.837+08:00 level=INFO msg="cron scheduler started" jobs=0 store_backed=true
+time=2026-06-11T11:38:37.837+08:00 level=INFO msg="starting channel" key=web: singleton=false
+time=2026-06-11T11:38:37.838+08:00 level=INFO msg="web UI running" url=http://localhost:18953
+time=2026-06-11T11:38:37.965+08:00 level=INFO msg="provider selected" key=openai apiBase=https://apideepseek.com/v1 apiType=openai-chat defaultModel=openai/deepseek-v4-pro
+time=2026-06-11T11:38:37.980+08:00 level=INFO msg="loaded skills" agent=agt_a44e3ee59747b57528b4 count=3
+time=2026-06-11T11:38:37.994+08:00 level=INFO msg="loaded agent" id=agt_a44e3ee59747b57528b4 model=dgbmc/openai/gpt-oss-120b home=C:\Users\mumu\.fastclaw\agents\agt_a44e3ee59747b57528b4\agent workspace=C:\Users\mumu\.fastclaw\workspaces\agt_a44e3ee59747b57528b4
+time=2026-06-11T11:38:37.994+08:00 level=INFO msg="path sandbox enabled (no system pool configured)" user=u_bbf6c76e815dd85f34d1
+time=2026-06-11T11:38:37.994+08:00 level=INFO msg="loaded user space" user=u_bbf6c76e815dd85f34d1 agents=[agt_a44e3ee59747b57528b4]
+time=2026-06-11T11:40:44.853+08:00 level=INFO msg="turn: refreshing skills" agent=agt_a44e3ee59747b57528b4 channel=web chat_id=s-1781149237832-vw10r2 user=u_bbf6c76e815dd85f34d1
+time=2026-06-11T11:40:44.872+08:00 level=INFO msg="skills summary refreshed" agent=agt_a44e3ee59747b57528b4 agentID=agt_a44e3ee59747b57528b4 user=u_bbf6c76e815dd85f34d1 count=3 summary_bytes=2940 names="[camoufox-cli find-skills skill-creator]"
+time=2026-06-11T11:40:44.874+08:00 level=INFO msg="system prompt assembled" agent=agt_a44e3ee59747b57528b4 channel=web chat_id=s-1781149237832-vw10r2 user=u_bbf6c76e815dd85f34d1 mode=agent bytes=19293 skill_blocks=0 has_user_md=true has_memory=true has_soul=false has_identity=false has_persistence_instr=false has_feedback_to_feishu=false
+time=2026-06-11T11:40:44.904+08:00 level=INFO msg="agent loop iteration" agent=agt_a44e3ee59747b57528b4 iteration=1 channel=web chat_id=s-1781149237832-vw10r2
+time=2026-06-11T11:40:44.904+08:00 level=INFO msg="hook: before model call" agent=agt_a44e3ee59747b57528b4
+time=2026-06-11T11:40:44.928+08:00 level=INFO msg="kb auto-query search" agent=agt_a44e3ee59747b57528b4 query=什么是富兰克林效应？ results=0 err=<nil>
+time=2026-06-11T11:41:48.291+08:00 level=INFO msg="turn: refreshing skills" agent=agt_a44e3ee59747b57528b4 channel=web chat_id=s-1781149237832-vw10r2 user=u_bbf6c76e815dd85f34d1
+time=2026-06-11T11:41:48.307+08:00 level=INFO msg="skills summary refreshed" agent=agt_a44e3ee59747b57528b4 agentID=agt_a44e3ee59747b57528b4 user=u_bbf6c76e815dd85f34d1 count=3 summary_bytes=2940 names="[camoufox-cli find-skills skill-creator]"
+time=2026-06-11T11:41:48.308+08:00 level=INFO msg="system prompt assembled" agent=agt_a44e3ee59747b57528b4 channel=web chat_id=s-1781149237832-vw10r2 user=u_bbf6c76e815dd85f34d1 mode=agent bytes=19293 skill_blocks=0 has_user_md=true has_memory=true has_soul=false has_identity=false has_persistence_instr=false has_feedback_to_feishu=false
+time=2026-06-11T11:41:48.309+08:00 level=INFO msg="agent loop iteration" agent=agt_a44e3ee59747b57528b4 iteration=1 channel=web chat_id=s-1781149237832-vw10r2
+time=2026-06-11T11:41:48.309+08:00 level=INFO msg="hook: before model call" agent=agt_a44e3ee59747b57528b4
+time=2026-06-11T11:41:48.325+08:00 level=INFO msg="kb auto-query search" agent=agt_a44e3ee59747b57528b4 query=什么是富兰克林效应？ results=0 err=<nil>
+time=2026-06-11T13:18:37.838+08:00 level=INFO msg="evicted idle user space" user=u_bbf6c76e815dd85f34d1 idle=35m48s
+time=2026-06-11T13:18:37.838+08:00 level=INFO msg="user space eviction sweep" evicted=1 remaining=0
+time=2026-06-11T14:17:14.379+08:00 level=INFO msg="provider selected" key=openai apiBase=https://apideepseek.com/v1 apiType=openai-chat defaultModel=openai/deepseek-v4-pro
+time=2026-06-11T14:17:14.394+08:00 level=INFO msg="loaded skills" agent=agt_a44e3ee59747b57528b4 count=3
+time=2026-06-11T14:17:14.408+08:00 level=INFO msg="loaded agent" id=agt_a44e3ee59747b57528b4 model=dgbmc/openai/gpt-oss-120b home=C:\Users\mumu\.fastclaw\agents\agt_a44e3ee59747b57528b4\agent workspace=C:\Users\mumu\.fastclaw\workspaces\agt_a44e3ee59747b57528b4
+time=2026-06-11T14:17:14.408+08:00 level=INFO msg="path sandbox enabled (no system pool configured)" user=u_bbf6c76e815dd85f34d1
+time=2026-06-11T14:17:14.408+08:00 level=INFO msg="loaded user space" user=u_bbf6c76e815dd85f34d1 agents=[agt_a44e3ee59747b57528b4]

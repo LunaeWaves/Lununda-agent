@@ -1,0 +1,14 @@
+[     187ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[   67750ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[   71085ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[   71936ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[   74196ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[   86034ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[   88616ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[   89593ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[   90928ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[   92531ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[   98894ms] [VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/apikeys/:0
+[  110566ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
+[  114589ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0
+[  119072ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:18953/tools/:0

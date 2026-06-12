@@ -111,9 +111,9 @@ export default function AgentUsagePage() {
     <div className="p-6 space-y-6 max-w-3xl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Token Usage</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("usage.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Token consumption per chat session for this agent.
+            {t("usage.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -153,12 +153,12 @@ export default function AgentUsagePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Session</TableHead>
-                  <TableHead className="text-right">Input</TableHead>
-                  <TableHead className="text-right">Output</TableHead>
-                  <TableHead className="text-right">Cache</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Requests</TableHead>
+                  <TableHead>{t("usage.session")}</TableHead>
+                  <TableHead className="text-right">{t("usage.input")}</TableHead>
+                  <TableHead className="text-right">{t("usage.output")}</TableHead>
+                  <TableHead className="text-right">{t("usage.cache")}</TableHead>
+                  <TableHead className="text-right">{t("usage.total")}</TableHead>
+                  <TableHead className="text-right">{t("usage.requests")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

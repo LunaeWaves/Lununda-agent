@@ -1,0 +1,145 @@
+- generic [ref=e1]:
+  - alert [ref=e4]
+  - generic [ref=e5]:
+    - generic [ref=e8]:
+      - list [ref=e10]:
+        - listitem [ref=e11]:
+          - button [ref=e99]:
+            - img [ref=e14]
+            - generic [ref=e18]: 小拙拙
+            - img [ref=e19]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Agent
+          - list [ref=e25]:
+            - listitem [ref=e26]:
+              - button [ref=e100]:
+                - img [ref=e28]
+                - generic [ref=e29]: New chat
+        - generic [ref=e30]:
+          - generic [ref=e31]: Projects
+          - button [ref=e101]:
+            - img [ref=e33]
+          - list [ref=e34]:
+            - listitem [ref=e35]:
+              - generic [ref=e36]: No projects yet
+        - generic [ref=e37]:
+          - generic [ref=e38]: Chats
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - button [ref=e102]:
+                - generic [ref=e42]: 你好，你能帮我干点啥？
+              - button [ref=e103]:
+                - img [ref=e44]
+                - generic [ref=e48]: Chat actions
+      - generic [ref=e49]:
+        - list [ref=e50]:
+          - listitem [ref=e51]:
+            - button [ref=e104]:
+              - img [ref=e53]
+              - generic [ref=e56]: Settings
+        - list [ref=e57]:
+          - listitem [ref=e58]:
+            - button [ref=e105]:
+              - generic [ref=e60]: 拙不
+              - generic [ref=e61]:
+                - generic [ref=e62]: 拙不滞
+                - generic [ref=e63]: super_admin
+              - img [ref=e64]
+      - button [ref=e106]
+    - main [ref=e68]:
+      - generic [ref=e69]:
+        - button [ref=e107]:
+          - img
+          - generic [ref=e71]: Toggle Sidebar
+        - generic [ref=e72]:
+          - button [ref=e108]:
+            - generic [ref=e74]: Chat with 小拙拙
+            - img [ref=e75]
+          - button [ref=e109]:
+            - img [ref=e79]
+            - generic [ref=e81]: Toggle workspace
+      - generic [ref=e84]:
+        - heading [level=1] [ref=e110]: What can I do for you?
+        - generic [ref=e91]:
+          - textbox [ref=e111]:
+            - /placeholder: Message 小拙拙... ("/" to pick a skill)
+          - generic [ref=e93]:
+            - generic [ref=e112] [cursor=pointer]:
+              - img [ref=e96]
+              - button [ref=e113]
+            - button [disabled]:
+              - img
+  - dialog [ref=e117]:
+    - complementary [ref=e118]:
+      - generic [ref=e119]: Agent
+      - button "Profile" [active] [ref=e120]:
+        - img [ref=e121]
+        - generic [ref=e125]: Profile
+      - button "Customize" [ref=e126]:
+        - img [ref=e127]
+        - generic [ref=e130]: Customize
+      - button "Models" [ref=e131]:
+        - img [ref=e132]
+        - generic [ref=e140]: Models
+      - button "Context" [ref=e141]:
+        - img [ref=e142]
+        - generic [ref=e146]: Context
+      - button "Skills" [ref=e147]:
+        - img [ref=e148]
+        - generic [ref=e151]: Skills
+      - button "Plugins" [ref=e152]:
+        - img [ref=e153]
+        - generic [ref=e155]: Plugins
+      - button "Channels" [ref=e156]:
+        - img [ref=e157]
+        - generic [ref=e163]: Channels
+      - button "Scheduler" [ref=e164]:
+        - img [ref=e165]
+        - generic [ref=e168]: Scheduler
+      - button "Token Usage" [ref=e169]:
+        - img [ref=e170]
+        - generic [ref=e175]: Token Usage
+      - generic [ref=e176]: User
+      - button "Account" [ref=e177]:
+        - img [ref=e178]
+        - generic [ref=e190]: Account
+      - button "General" [ref=e191]:
+        - img [ref=e192]
+        - generic [ref=e198]: General
+      - button "About" [ref=e199]:
+        - img [ref=e200]
+        - generic [ref=e202]: About
+    - generic [ref=e204]:
+      - generic [ref=e205]:
+        - generic [ref=e206]:
+          - heading "Profile" [level=2] [ref=e207]
+          - paragraph [ref=e208]: Update your agent's name, description, and avatar.
+        - button "Save" [disabled]:
+          - img
+          - text: Save
+      - generic [ref=e209]:
+        - generic [ref=e210]:
+          - button "Upload avatar" [ref=e211]:
+            - img [ref=e213]
+          - generic [ref=e216]:
+            - generic [ref=e217]: Name
+            - textbox "Name" [ref=e218]:
+              - /placeholder: My Helper
+              - text: 小拙拙
+            - paragraph [ref=e219]:
+              - text: "ID:"
+              - code [ref=e220]: agt_a44e3ee59747b57528b4
+        - generic [ref=e221]:
+          - generic [ref=e222]: Description
+          - textbox "Description" [ref=e223]:
+            - /placeholder: What's this agent for?
+      - generic [ref=e225]:
+        - generic [ref=e226]:
+          - generic [ref=e227]: Public access
+          - paragraph [ref=e228]: Only you can use this agent.
+        - switch "Public access" [ref=e229]
+        - checkbox [ref=e230]
+    - button "Close" [ref=e231]:
+      - img
+      - generic [ref=e232]: Close

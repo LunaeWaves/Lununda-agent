@@ -1,0 +1,125 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - button [ref=e138]:
+            - img [ref=e139]
+            - generic [ref=e13]: FastClaw
+            - img [ref=e14]
+      - generic [ref=e17]:
+        - list [ref=e19]:
+          - listitem [ref=e20]:
+            - button [ref=e140]:
+              - img [ref=e22]
+              - generic [ref=e27]: Overview
+        - generic [ref=e28]:
+          - generic [ref=e29]: Agent
+          - list [ref=e30]:
+            - listitem [ref=e31]:
+              - button [ref=e141]:
+                - img [ref=e33]
+                - generic [ref=e36]: Agents
+            - listitem [ref=e37]:
+              - button [ref=e142]:
+                - img [ref=e39]
+                - generic [ref=e47]: Models
+            - listitem [ref=e91]:
+              - button [ref=e143]:
+                - img [ref=e93]
+                - generic [ref=e96]: Skills
+            - listitem [ref=e97]:
+              - button [ref=e144]:
+                - img [ref=e99]
+                - generic [ref=e101]: Tools
+        - generic [ref=e48]:
+          - generic [ref=e49]: User
+          - list [ref=e50]:
+            - listitem [ref=e102]:
+              - button [ref=e145]:
+                - img [ref=e104]
+                - generic [ref=e109]: Users
+            - listitem [ref=e110]:
+              - button [ref=e146]:
+                - img [ref=e112]
+                - generic [ref=e115]: Chats
+            - listitem [ref=e116]:
+              - button [ref=e147]:
+                - img [ref=e118]
+                - generic [ref=e123]: Token Usage
+            - listitem [ref=e51]:
+              - button [ref=e148]:
+                - img [ref=e53]
+                - generic [ref=e56]: API Keys
+      - generic [ref=e57]:
+        - list [ref=e58]:
+          - listitem [ref=e59]:
+            - button [ref=e149]:
+              - img [ref=e61]
+              - generic [ref=e64]: Settings
+        - list [ref=e65]:
+          - listitem [ref=e66]:
+            - button [ref=e150]:
+              - generic [ref=e68]: 拙不
+              - generic [ref=e69]:
+                - generic [ref=e70]: 拙不滞
+                - generic [ref=e71]: super_admin
+              - img [ref=e72]
+      - button [ref=e151]
+    - main [ref=e76]:
+      - button [ref=e152]:
+        - img
+        - generic [ref=e79]: Toggle Sidebar
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - heading [level=2] [ref=e153]: Agents
+            - paragraph [ref=e85]: Manage your AI agents and their configurations
+          - button [ref=e154]:
+            - img
+            - text: New Agent
+        - generic [ref=e126] [cursor=pointer]:
+          - generic [ref=e127]:
+            - img [ref=e129]
+            - generic [ref=e132]: Private
+          - paragraph [ref=e133]: 小拙拙
+          - paragraph [ref=e134]: agt_a44e3ee59747b57528b4
+          - generic [ref=e135]:
+            - button [ref=e155]:
+              - img
+              - text: Edit
+            - button [ref=e156]:
+              - img
+              - text: Remove
+  - dialog "Edit Agent" [ref=e160]:
+    - generic [ref=e161]:
+      - heading "Edit Agent" [level=2] [ref=e162]
+      - paragraph [ref=e163]:
+        - text: ID is locked —
+        - code [ref=e164]: agt_a44e3ee59747b57528b4
+    - generic [ref=e165]:
+      - generic [ref=e166]:
+        - button "Upload avatar" [active] [ref=e167]:
+          - img [ref=e169]
+        - generic [ref=e172]:
+          - generic [ref=e173]: Name
+          - textbox "Name" [ref=e174]:
+            - /placeholder: My Helper
+            - text: 小拙拙
+      - generic [ref=e175]:
+        - generic [ref=e176]: Description
+        - textbox "Description" [ref=e177]:
+          - /placeholder: What's this agent for?
+      - generic [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]: Public access
+          - paragraph [ref=e182]: Only you can use this agent.
+        - switch "Public access" [ref=e183]
+        - checkbox [ref=e184]
+    - generic [ref=e185]:
+      - button "Cancel" [ref=e186]
+      - button "Save" [ref=e187]
+    - button "Close" [ref=e188]:
+      - img
+      - generic [ref=e189]: Close

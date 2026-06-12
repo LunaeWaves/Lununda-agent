@@ -1,0 +1,22 @@
+time=2026-06-12T00:51:55.035+08:00 level=INFO msg="using database storage" dialect=sqlite dsn=file:C:\Us***ys(1)
+time=2026-06-12T00:51:55.076+08:00 level=INFO msg="running database migrations"
+time=2026-06-12T00:51:55.079+08:00 level=INFO msg="object store" type=local
+time=2026-06-12T00:51:55.079+08:00 level=INFO msg="gateway holder id" id=a639a8b1-b045-4df2-9632-bc3beba978df
+time=2026-06-12T00:51:55.080+08:00 level=INFO msg="wechat bot authorized" account=9f459fc140c3@im.bot
+time=2026-06-12T00:51:55.081+08:00 level=INFO msg="gateway starting" port=18953 bind=loopback
+time=2026-06-12T00:51:55.082+08:00 level=INFO msg="web UI available" url=http://localhost:18953
+time=2026-06-12T00:51:55.083+08:00 level=INFO msg="gateway started"
+time=2026-06-12T00:51:55.083+08:00 level=INFO msg="cron scheduler started" jobs=0 store_backed=true
+time=2026-06-12T00:51:55.083+08:00 level=INFO msg="starting channel" key=web: singleton=false
+time=2026-06-12T00:51:55.083+08:00 level=INFO msg="starting channel" key=wechat:9f459fc140c3@im.bot singleton=true
+time=2026-06-12T00:51:55.084+08:00 level=INFO msg="web UI running" url=http://localhost:18953
+time=2026-06-12T00:51:55.148+08:00 level=INFO msg="provider selected" key=openai apiBase=https://apideepseek.com/v1 apiType=openai-chat defaultModel=openai/deepseek-v4-pro
+time=2026-06-12T00:51:55.165+08:00 level=INFO msg="loaded skills" agent=agt_a44e3ee59747b57528b4 count=3
+time=2026-06-12T00:51:55.181+08:00 level=INFO msg="loaded agent" id=agt_a44e3ee59747b57528b4 model=dgbmc/openai/gpt-oss-120b home=C:\Users\mumu\.fastclaw\agents\agt_a44e3ee59747b57528b4\agent workspace=C:\Users\mumu\.fastclaw\workspaces\agt_a44e3ee59747b57528b4
+time=2026-06-12T00:51:55.183+08:00 level=INFO msg="path sandbox enabled (no system pool configured)" user=u_bbf6c76e815dd85f34d1
+time=2026-06-12T00:51:55.184+08:00 level=INFO msg="loaded user space" user=u_bbf6c76e815dd85f34d1 agents=[agt_a44e3ee59747b57528b4]
+time=2026-06-12T00:52:25.087+08:00 level=INFO msg="channel lease acquired, starting adapter" channel=wechat account=9f459fc140c3@im.bot holder=a639a8b1-b045-4df2-9632-bc3beba978df
+time=2026-06-12T00:52:25.088+08:00 level=INFO msg="wechat loaded persisted sync buf" account=9f459fc140c3@im.bot path=C:\Users\mumu\.fastclaw\state\wechat\9f459fc140c3@im.bot.json
+time=2026-06-12T00:52:25.089+08:00 level=INFO msg="wechat long-poll loop starting" account=9f459fc140c3@im.bot buf_present=true
+time=2026-06-12T01:31:55.083+08:00 level=INFO msg="evicted idle user space" user=u_bbf6c76e815dd85f34d1 idle=35m32s
+time=2026-06-12T01:31:55.084+08:00 level=INFO msg="user space eviction sweep" evicted=1 remaining=0

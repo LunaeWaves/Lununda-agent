@@ -1,0 +1,177 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - button [ref=e104]:
+            - img [ref=e65]
+            - generic [ref=e13]: 小拙拙
+            - img [ref=e14]
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Agent
+          - list [ref=e20]:
+            - listitem [ref=e21]:
+              - button [ref=e105]:
+                - img [ref=e23]
+                - generic [ref=e24]: New chat
+        - generic [ref=e25]:
+          - generic [ref=e26]: Projects
+          - button [ref=e106]:
+            - img [ref=e28]
+          - list [ref=e29]:
+            - listitem [ref=e30]:
+              - generic [ref=e31]: No projects yet
+        - generic [ref=e32]:
+          - generic [ref=e33]: Chats
+          - list [ref=e34]:
+            - listitem [ref=e68]:
+              - button [ref=e107]:
+                - generic [ref=e70]: 你好，你能帮我干点啥？
+              - button [ref=e108]:
+                - img [ref=e72]
+                - generic [ref=e76]: Chat actions
+      - generic [ref=e37]:
+        - list [ref=e38]:
+          - listitem [ref=e39]:
+            - button [ref=e109]:
+              - img [ref=e41]
+              - generic [ref=e44]: Settings
+        - list [ref=e45]:
+          - listitem [ref=e46]:
+            - button [ref=e110]:
+              - generic [ref=e48]: 拙不
+              - generic [ref=e49]:
+                - generic [ref=e50]: 拙不滞
+                - generic [ref=e51]: super_admin
+              - img [ref=e52]
+      - button [ref=e111]
+    - main [ref=e56]:
+      - generic [ref=e57]:
+        - button [ref=e112]:
+          - img
+          - generic [ref=e59]: Toggle Sidebar
+        - generic [ref=e78]:
+          - button [ref=e113]:
+            - generic [ref=e80]: Chat with 小拙拙
+            - img [ref=e81]
+          - button [ref=e114]:
+            - img [ref=e85]
+            - generic [ref=e87]: Toggle workspace
+      - generic [ref=e89]:
+        - heading [level=1] [ref=e115]: What can I do for you?
+        - generic [ref=e96]:
+          - textbox [ref=e116]:
+            - /placeholder: Message 小拙拙... ("/" to pick a skill)
+          - generic [ref=e98]:
+            - generic [ref=e117] [cursor=pointer]:
+              - img [ref=e101]
+              - button [ref=e118]
+            - button [disabled]:
+              - img
+  - dialog [active] [ref=e122]:
+    - complementary [ref=e123]:
+      - generic [ref=e124]: Agent
+      - button "Profile" [ref=e125]:
+        - img [ref=e126]
+        - generic [ref=e130]: Profile
+      - button "Customize" [ref=e131]:
+        - img [ref=e132]
+        - generic [ref=e135]: Customize
+      - button "Models" [ref=e136]:
+        - img [ref=e137]
+        - generic [ref=e145]: Models
+      - button "Context" [ref=e146]:
+        - img [ref=e147]
+        - generic [ref=e151]: Context
+      - button "Skills" [ref=e152]:
+        - img [ref=e153]
+        - generic [ref=e156]: Skills
+      - button "Plugins" [ref=e157]:
+        - img [ref=e158]
+        - generic [ref=e160]: Plugins
+      - button "Channels" [ref=e161]:
+        - img [ref=e162]
+        - generic [ref=e168]: Channels
+      - button "Knowledge" [ref=e169]:
+        - img [ref=e170]
+        - generic [ref=e172]: Knowledge
+      - button "Scheduler" [ref=e173]:
+        - img [ref=e174]
+        - generic [ref=e177]: Scheduler
+      - button "Token Usage" [ref=e178]:
+        - img [ref=e179]
+        - generic [ref=e184]: Token Usage
+      - generic [ref=e185]: User
+      - button "Account" [ref=e186]:
+        - img [ref=e187]
+        - generic [ref=e199]: Account
+      - button "General" [ref=e200]:
+        - img [ref=e201]
+        - generic [ref=e207]: General
+      - button "About" [ref=e208]:
+        - img [ref=e209]
+        - generic [ref=e211]: About
+    - generic [ref=e243]:
+      - generic [ref=e244]:
+        - generic [ref=e245]:
+          - generic [ref=e246]:
+            - img [ref=e247]
+            - heading "Knowledge Base" [level=2] [ref=e249]
+          - paragraph [ref=e250]:
+            - text: Manage knowledge sources for
+            - strong [ref=e251]: 小拙拙
+            - text: .
+        - generic [ref=e252]:
+          - button "Text" [ref=e253]:
+            - img
+            - text: Text
+          - button "URL" [ref=e254]:
+            - img
+            - text: URL
+      - generic [ref=e255]:
+        - generic [ref=e256]:
+          - generic [ref=e257]:
+            - img [ref=e258]
+            - generic [ref=e260]: Sources
+          - paragraph [ref=e261]: "1"
+        - generic [ref=e262]:
+          - generic [ref=e263]:
+            - img [ref=e264]
+            - generic [ref=e267]: Entries
+          - paragraph [ref=e268]: "1"
+        - generic [ref=e269]:
+          - generic [ref=e270]:
+            - img [ref=e271]
+            - generic [ref=e274]: Characters
+          - paragraph [ref=e275]: "286"
+      - generic [ref=e276]:
+        - textbox "Search knowledge base..." [ref=e277]: 简介
+        - button "Search" [ref=e278]:
+          - img
+          - text: Search
+      - generic [ref=e306]:
+        - heading "1 result" [level=3] [ref=e307]
+        - generic [ref=e308]:
+          - generic [ref=e309]:
+            - generic [ref=e310]: FastClaw 简介
+            - generic [ref=e311]: chunk 0
+          - paragraph [ref=e312]: FastClaw 是一个多用户 AI Agent 运行时，使用 Go 语言编写。它支持创建、管理和运行 AI Agent，每个 Agent 有自己的 SOUL.md、记忆、技能和工具。单个二进制文件同时提供网关 HTTP API、Web 控制台、IM 通道桥接和 Agent 运行时。
+      - generic [ref=e281]:
+        - generic [ref=e282]:
+          - generic [ref=e283]:
+            - generic [ref=e284]: FastClaw 简介
+            - generic [ref=e285]:
+              - img
+              - text: text
+            - generic [ref=e286]: api
+          - generic [ref=e287]:
+            - generic [ref=e288]: 1 entries
+            - generic [ref=e289]: 286 chars
+            - generic [ref=e290]: 2026/6/10
+        - button "Delete" [ref=e291]:
+          - img
+    - button "Close" [ref=e240]:
+      - img
+      - generic [ref=e241]: Close

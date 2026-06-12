@@ -1,0 +1,94 @@
+- generic [ref=e1]:
+  - alert [ref=e4]
+  - generic [ref=e14]:
+    - generic [ref=e17]:
+      - list [ref=e19]:
+        - listitem [ref=e20]:
+          - button "FastClaw FastClaw" [ref=e21]:
+            - img "FastClaw" [ref=e22]
+            - generic [ref=e24]: FastClaw
+            - img [ref=e25]
+      - generic [ref=e28]:
+        - list [ref=e30]:
+          - listitem [ref=e31]:
+            - button "Overview" [ref=e32]:
+              - img [ref=e33]
+              - generic [ref=e38]: Overview
+        - generic [ref=e39]:
+          - generic [ref=e40]: Agent
+          - list [ref=e41]:
+            - listitem [ref=e42]:
+              - button "Agents" [active] [ref=e43]:
+                - img [ref=e44]
+                - generic [ref=e47]: Agents
+            - listitem [ref=e48]:
+              - button "Models" [ref=e49]:
+                - img [ref=e50]
+                - generic [ref=e58]: Models
+            - listitem [ref=e59]:
+              - button "Skills" [ref=e60]:
+                - img [ref=e61]
+                - generic [ref=e64]: Skills
+            - listitem [ref=e65]:
+              - button "Tools" [ref=e66]:
+                - img [ref=e67]
+                - generic [ref=e69]: Tools
+        - generic [ref=e70]:
+          - generic [ref=e71]: User
+          - list [ref=e72]:
+            - listitem [ref=e73]:
+              - button "Users" [ref=e74]:
+                - img [ref=e75]
+                - generic [ref=e80]: Users
+            - listitem [ref=e81]:
+              - button "Chats" [ref=e82]:
+                - img [ref=e83]
+                - generic [ref=e86]: Chats
+            - listitem [ref=e87]:
+              - button "Token Usage" [ref=e88]:
+                - img [ref=e89]
+                - generic [ref=e94]: Token Usage
+            - listitem [ref=e95]:
+              - button "API Keys" [ref=e96]:
+                - img [ref=e97]
+                - generic [ref=e100]: API Keys
+      - generic [ref=e101]:
+        - list [ref=e102]:
+          - listitem [ref=e103]:
+            - button "Settings" [ref=e104]:
+              - img [ref=e105]
+              - generic [ref=e108]: Settings
+        - list [ref=e109]:
+          - listitem [ref=e110]:
+            - button "拙不 拙不滞 super_admin" [ref=e111]:
+              - generic [ref=e112]: 拙不
+              - generic [ref=e113]:
+                - generic [ref=e114]: 拙不滞
+                - generic [ref=e115]: super_admin
+              - img [ref=e116]
+      - button "Toggle Sidebar" [ref=e119]
+    - main [ref=e120]:
+      - button "Toggle Sidebar" [ref=e122]:
+        - img
+        - generic [ref=e123]: Toggle Sidebar
+      - generic [ref=e184]:
+        - generic [ref=e185]:
+          - generic [ref=e186]:
+            - heading "Agents" [level=2] [ref=e187]
+            - paragraph [ref=e188]: Manage your AI agents and their configurations
+          - button "New Agent" [ref=e189]:
+            - img
+            - text: New Agent
+        - generic [ref=e191] [cursor=pointer]:
+          - generic [ref=e192]:
+            - img [ref=e194]
+            - generic [ref=e197]: Private
+          - paragraph [ref=e198]: 小拙拙
+          - paragraph [ref=e199]: agt_a44e3ee59747b57528b4
+          - generic [ref=e200]:
+            - button "Edit" [ref=e201]:
+              - img
+              - text: Edit
+            - button "Remove" [ref=e202]:
+              - img
+              - text: Remove

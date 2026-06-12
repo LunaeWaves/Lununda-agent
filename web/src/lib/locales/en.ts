@@ -159,6 +159,8 @@ const en: Record<string, string> = {
   "sidebar.editTitle": "Edit chat title",
   "sidebar.chatTitle": "Chat title",
   "sidebar.deleteChat": "Delete chat",
+  "sidebar.noProjects": "No projects yet",
+  "sidebar.noChats": "No chats yet",
 
   // Agent profile panel
   "profile.nameRequired": "Name is required",
@@ -251,12 +253,17 @@ const en: Record<string, string> = {
   "customize.heartbeat": "Heartbeat",
   "customize.memory": "Memory",
   "customize.agents": "Agents",
+  "customize.title": "Customize",
+  "customize.subtitle": "Personality, memory, and behavior files for {name}",
   "customize.overrideActive": "Override active — repo base is {count} chars.",
   "customize.loadedFrom": "Loaded from",
   "customize.editingCreatesOverride": "Editing creates a per-agent override.",
   "customize.discardOverride": "Discard your edits and revert to the file shipped in the repo",
   "customize.discardNoBase": "Discard your edits (no repo base — tab will become empty)",
   "customize.revertConfirm": "Revert {tab} to the repo base? Your edits will be discarded.",
+  "customize.revert": "Revert",
+  "customize.edited": "Edited",
+  "customize.fromRepo": "From repo",
 
   // Configure skill dialog
   "skill.configureTitle": "Configure {name}",
@@ -466,12 +473,52 @@ const en: Record<string, string> = {
   "sessions.noSessions": "No sessions yet.",
 
   // Usage
+    "usage.input": "Input",
+  "usage.output": "Output",
+  "usage.cache": "Cache",
+  "usage.total": "Total",
+  "usage.requests": "Requests",
+  "usage.session": "Session",
+  "usage.subtitle": "Token consumption per chat session for this agent.",
   "usage.title": "Token Usage",
   "usage.loadFailed": "Failed to load usage",
 
   // Wiki
   "wiki.title": "Wiki",
   "wiki.generating": "Wiki generation is in progress, please wait.",
+
+  // Admin
+  "admin.loadChatsFailed": "Failed to load chats",
+  "admin.refreshChats": "Refresh chats",
+  "admin.openReadOnly": "Open in new tab (read-only)",
+  "admin.updateFailed": "Failed to update registration setting",
+  "admin.toggleRegistration": "Toggle public registration",
+  "admin.resetPassword": "Reset password",
+  "admin.confirmResetPw": "Reset password for this user?",
+  "admin.usage24h": "Last 24 hours",
+  "admin.usage7d": "Last 7 days",
+  "admin.usage30d": "Last 30 days",
+
+  // Onboard
+  "onboard.welcome": "Welcome",
+  "onboard.admin": "Admin",
+  "onboard.provider": "Provider",
+
+  // Channels
+  "channels.connected": "Connected",
+  "channels.disconnected": "Disconnected",
+  "channels.clickToConfigure": "Click to configure",
+  "channels.connectFailed": "Failed to connect",
+
+  // Common extras
+  "common.saved": "Saved",
+  "common.show": "Show",
+  "common.hide": "Hide",
+
+  // Chat
+  "chat.unknownError": "Unknown error",
+  "chat.clearHistory": "Clear session history",
+  "chat.undoTurn": "Undo last turn",
 };
 
 export default en;

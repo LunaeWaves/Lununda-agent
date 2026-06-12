@@ -1,0 +1,164 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - button "小拙拙" [ref=e78]:
+            - img [ref=e80]
+            - generic [ref=e13]: 小拙拙
+            - img [ref=e14]
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Agent
+          - list [ref=e20]:
+            - listitem [ref=e21]:
+              - button "New chat" [ref=e22]:
+                - img [ref=e23]
+                - generic [ref=e24]: New chat
+        - generic [ref=e25]:
+          - generic [ref=e26]: Knowledge
+          - list [ref=e27]:
+            - listitem [ref=e28]:
+              - button "Wiki" [ref=e29]:
+                - img [ref=e30]
+                - generic [ref=e32]: Wiki
+            - listitem [ref=e33]:
+              - button "Knowledge Base" [ref=e34]:
+                - img [ref=e35]
+                - generic [ref=e39]: Knowledge Base
+        - generic [ref=e40]:
+          - generic [ref=e41]: Projects
+          - button "New project" [ref=e42]:
+            - img [ref=e43]
+          - list [ref=e44]:
+            - listitem [ref=e45]:
+              - generic [ref=e46]: No projects yet
+        - generic [ref=e47]:
+          - generic [ref=e48]: Chats
+          - list [ref=e49]:
+            - listitem [ref=e155]:
+              - button "FastClaw是什么东西" [ref=e156]:
+                - generic [ref=e157]: FastClaw是什么东西
+              - button "Chat actions" [ref=e158]:
+                - img [ref=e159]
+                - generic [ref=e163]: Chat actions
+            - listitem [ref=e83]:
+              - button "社会潜规则有哪些" [ref=e84]:
+                - generic [ref=e85]: 社会潜规则有哪些
+              - button "Chat actions" [ref=e86]:
+                - img [ref=e87]
+                - generic [ref=e91]: Chat actions
+            - listitem [ref=e92]:
+              - button "介绍一下FastClaw" [ref=e93]:
+                - generic [ref=e94]: 介绍一下FastClaw
+              - button "Chat actions" [ref=e95]:
+                - img [ref=e96]
+                - generic [ref=e100]: Chat actions
+            - listitem [ref=e101]:
+              - button "FastClaw是什么" [ref=e102]:
+                - generic [ref=e103]: FastClaw是什么
+              - button "Chat actions" [ref=e104]:
+                - img [ref=e105]
+                - generic [ref=e109]: Chat actions
+            - listitem [ref=e110]:
+              - button "FastClaw是什么" [ref=e111]:
+                - generic [ref=e112]: FastClaw是什么
+              - button "Chat actions" [ref=e113]:
+                - img [ref=e114]
+                - generic [ref=e118]: Chat actions
+            - listitem [ref=e119]:
+              - button "什么是富兰克林效应？" [ref=e120]:
+                - generic [ref=e121]: 什么是富兰克林效应？
+              - button "Chat actions" [ref=e122]:
+                - img [ref=e123]
+                - generic [ref=e127]: Chat actions
+      - generic [ref=e52]:
+        - list [ref=e53]:
+          - listitem [ref=e54]:
+            - button "Settings" [ref=e55]:
+              - img [ref=e56]
+              - generic [ref=e59]: Settings
+        - list [ref=e60]:
+          - listitem [ref=e61]:
+            - button "拙不 拙不滞 super_admin" [ref=e128]:
+              - generic [ref=e63]: 拙不
+              - generic [ref=e64]:
+                - generic [ref=e65]: 拙不滞
+                - generic [ref=e66]: super_admin
+              - img [ref=e67]
+      - button "Toggle Sidebar" [ref=e70]
+    - main [ref=e71]:
+      - generic [ref=e72]:
+        - button "Toggle Sidebar" [ref=e73]:
+          - img
+          - generic [ref=e74]: Toggle Sidebar
+        - generic [ref=e129]:
+          - button "FastClaw是什么东西" [ref=e164]:
+            - generic [ref=e131]: FastClaw是什么东西
+            - img [ref=e132]
+          - button "Toggle workspace" [ref=e135]:
+            - img [ref=e136]
+            - generic [ref=e138]: Toggle workspace
+      - generic [ref=e140]:
+        - generic [ref=e142]:
+          - generic [ref=e166]:
+            - paragraph [ref=e169]: FastClaw是什么东西
+            - generic [ref=e170]:
+              - generic [ref=e171]: 17:31
+              - button "Copy" [ref=e172]:
+                - img [ref=e173]
+              - button "Resend (refills the composer)" [ref=e176]:
+                - img [ref=e177]
+          - generic [ref=e181]:
+            - generic [ref=e183]:
+              - paragraph [ref=e184]:
+                - text: FastClaw 是一款用
+                - strong [ref=e185]: Go 语言
+                - text: 编写的
+                - strong [ref=e186]: 多用户 AI Agent 运行时
+                - text: 。它提供了一个统一的底座，帮助开发者在多租户环境下
+                - strong [ref=e187]: 创建、管理、运行
+                - text: 各种 AI Agent。每个 Agent 都拥有独立的：
+              - list [ref=e188]:
+                - listitem [ref=e189]:
+                  - strong [ref=e190]: SOUL.md
+                  - text: – 描述 Agent 的角色、人格、行为准则
+                - listitem [ref=e191]:
+                  - strong [ref=e192]: 记忆（Memory）
+                  - text: – 持久化的知识和对话上下文
+                - listitem [ref=e193]:
+                  - strong [ref=e194]: 技能（Skills）
+                  - text: – 可调用的工具集，如网页抓取、代码执行等
+                - listitem [ref=e195]:
+                  - strong [ref=e196]: 工具（Tools）
+                  - text: – 与外部系统交互的接口
+              - paragraph [ref=e197]:
+                - text: FastClaw 只需部署一个
+                - strong [ref=e198]: 单体二进制文件
+                - text: ，即同时提供：
+              - list [ref=e199]:
+                - listitem [ref=e200]:
+                  - strong [ref=e201]: HTTP API 网关
+                  - text: – 供其他系统通过 REST 调用 Agent
+                - listitem [ref=e202]:
+                  - strong [ref=e203]: Web UI
+                  - text: – 直观管理和调试 Agent 的界面
+              - paragraph [ref=e204]:
+                - text: 因此，它特别适合需要
+                - strong [ref=e205]: 大规模管理多个 AI 助手
+                - text: 的企业或平台，既能保证每个 Agent 的独立性，又能统一监控、配置和扩展。简而言之，FastClaw 就是让多用户 AI Agent 的整个生命周期（创建 → 配置 → 运行 → 维护）变得方便、可控的一站式平台。
+            - generic [ref=e206]:
+              - generic [ref=e207]: 17:31
+              - button "Copy" [ref=e208]:
+                - img [ref=e209]
+              - button "Files" [ref=e212]:
+                - img [ref=e213]
+                - generic [ref=e215]: Files
+        - generic [ref=e216]:
+          - generic "Attach files" [ref=e217] [cursor=pointer]:
+            - img [ref=e218]
+            - button "Attach files" [ref=e220]
+          - textbox "Message 小拙拙... (\"/\" to pick a skill)" [active] [ref=e221]
+          - button "Send message" [disabled]:
+            - img

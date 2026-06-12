@@ -1,0 +1,10 @@
+- generic [ref=e1]:
+  - alert [ref=e4]
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - heading "FastClaw" [level=1] [ref=e8]
+      - paragraph [ref=e9]: Sign in with your username or email
+    - generic [ref=e10]:
+      - textbox "username or email" [active] [ref=e11]: after11
+      - textbox "password" [ref=e12]
+      - button "Sign in" [disabled] [ref=e13]

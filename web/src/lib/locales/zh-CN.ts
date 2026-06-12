@@ -158,6 +158,8 @@ const zhCN: Record<string, string> = {
   "sidebar.editTitle": "编辑对话标题",
   "sidebar.chatTitle": "对话标题",
   "sidebar.deleteChat": "删除对话",
+  "sidebar.noProjects": "暂无项目",
+  "sidebar.noChats": "暂无对话",
 
   // Agent profile panel
   "profile.nameRequired": "名称不能为空",
@@ -250,12 +252,17 @@ const zhCN: Record<string, string> = {
   "customize.heartbeat": "心跳",
   "customize.memory": "记忆",
   "customize.agents": "智能体",
+  "customize.title": "自定义",
+  "customize.subtitle": "{name} 的性格、记忆与行为文件",
   "customize.overrideActive": "已覆盖 — 原始内容 {count} 字符。",
   "customize.loadedFrom": "加载自",
   "customize.editingCreatesOverride": "编辑后将创建智能体级别的覆盖。",
-  "customize.discardOverride": "放弃编辑并恢复为原始文件",
+  "customize.discardOverride": "放弃编辑并恢复为仓库中的原始文件",
   "customize.discardNoBase": "放弃编辑（无原始文件 — 标签页将变为空）",
   "customize.revertConfirm": "将 {tab} 恢复为原始内容？你的编辑将被丢弃。",
+  "customize.revert": "恢复",
+  "customize.edited": "已修改",
+  "customize.fromRepo": "来自仓库",
 
   // Configure skill dialog
   "skill.configureTitle": "配置 {name}",
@@ -465,12 +472,52 @@ const zhCN: Record<string, string> = {
   "sessions.noSessions": "暂无对话记录。",
 
   // Usage
+    "usage.input": "输入",
+  "usage.output": "输出",
+  "usage.cache": "缓存",
+  "usage.total": "合计",
+  "usage.requests": "请求次数",
+  "usage.session": "会话",
+  "usage.subtitle": "该智能体的会话 Token 消耗统计。",
   "usage.title": "Token 用量",
   "usage.loadFailed": "加载用量数据失败",
 
   // Wiki
   "wiki.title": "知识维基",
   "wiki.generating": "Wiki 生成正在进行中，请等待完成后再试。",
+
+  // Admin
+  "admin.loadChatsFailed": "加载对话失败",
+  "admin.refreshChats": "刷新对话",
+  "admin.openReadOnly": "在新标签页中打开（只读）",
+  "admin.updateFailed": "更新注册设置失败",
+  "admin.toggleRegistration": "切换公开注册",
+  "admin.resetPassword": "重置密码",
+  "admin.confirmResetPw": "确定要重置此用户的密码？",
+  "admin.usage24h": "最近 24 小时",
+  "admin.usage7d": "最近 7 天",
+  "admin.usage30d": "最近 30 天",
+
+  // Onboard
+  "onboard.welcome": "欢迎",
+  "onboard.admin": "管理员",
+  "onboard.provider": "提供商",
+
+  // Channels
+  "channels.connected": "已连接",
+  "channels.disconnected": "已断开",
+  "channels.clickToConfigure": "点击配置",
+  "channels.connectFailed": "连接失败",
+
+  // Common extras
+  "common.saved": "已保存",
+  "common.show": "显示",
+  "common.hide": "隐藏",
+
+  // Chat
+  "chat.unknownError": "未知错误",
+  "chat.clearHistory": "清除对话历史",
+  "chat.undoTurn": "撤销上一轮",
 };
 
 export default zhCN;

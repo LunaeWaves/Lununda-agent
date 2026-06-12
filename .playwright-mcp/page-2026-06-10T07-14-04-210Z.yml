@@ -1,0 +1,170 @@
+- generic [ref=e1]:
+  - alert [ref=e4]
+  - generic [ref=e5]:
+    - generic [ref=e8]:
+      - list [ref=e10]:
+        - listitem [ref=e11]:
+          - button [ref=e99]:
+            - img [ref=e14]
+            - generic [ref=e18]: 小拙拙
+            - img [ref=e19]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Agent
+          - list [ref=e25]:
+            - listitem [ref=e26]:
+              - button [ref=e100]:
+                - img [ref=e28]
+                - generic [ref=e29]: New chat
+        - generic [ref=e30]:
+          - generic [ref=e31]: Projects
+          - button [ref=e101]:
+            - img [ref=e33]
+          - list [ref=e34]:
+            - listitem [ref=e35]:
+              - generic [ref=e36]: No projects yet
+        - generic [ref=e37]:
+          - generic [ref=e38]: Chats
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - button [ref=e102]:
+                - generic [ref=e42]: 你好，你能帮我干点啥？
+              - button [ref=e103]:
+                - img [ref=e44]
+                - generic [ref=e48]: Chat actions
+      - generic [ref=e49]:
+        - list [ref=e50]:
+          - listitem [ref=e51]:
+            - button [ref=e104]:
+              - img [ref=e53]
+              - generic [ref=e56]: Settings
+        - list [ref=e57]:
+          - listitem [ref=e58]:
+            - button [ref=e105]:
+              - generic [ref=e60]: 拙不
+              - generic [ref=e61]:
+                - generic [ref=e62]: 拙不滞
+                - generic [ref=e63]: super_admin
+              - img [ref=e64]
+      - button [ref=e106]
+    - main [ref=e68]:
+      - generic [ref=e69]:
+        - button [ref=e107]:
+          - img
+          - generic [ref=e71]: Toggle Sidebar
+        - generic [ref=e72]:
+          - button [ref=e108]:
+            - generic [ref=e74]: Chat with 小拙拙
+            - img [ref=e75]
+          - button [ref=e109]:
+            - img [ref=e79]
+            - generic [ref=e81]: Toggle workspace
+      - generic [ref=e84]:
+        - heading [level=1] [ref=e110]: What can I do for you?
+        - generic [ref=e91]:
+          - textbox [ref=e111]:
+            - /placeholder: Message 小拙拙... ("/" to pick a skill)
+          - generic [ref=e93]:
+            - generic [ref=e112] [cursor=pointer]:
+              - img [ref=e96]
+              - button [ref=e113]
+            - button [disabled]:
+              - img
+  - dialog [ref=e117]:
+    - complementary [ref=e118]:
+      - generic [ref=e119]: Agent
+      - button "Profile" [ref=e316]:
+        - img [ref=e121]
+        - generic [ref=e125]: Profile
+      - button "Customize" [ref=e317]:
+        - img [ref=e127]
+        - generic [ref=e130]: Customize
+      - button "Models" [ref=e318]:
+        - img [ref=e132]
+        - generic [ref=e140]: Models
+      - button "Context" [ref=e319]:
+        - img [ref=e142]
+        - generic [ref=e146]: Context
+      - button "Skills" [ref=e320]:
+        - img [ref=e148]
+        - generic [ref=e151]: Skills
+      - button "Plugins" [ref=e321]:
+        - img [ref=e153]
+        - generic [ref=e155]: Plugins
+      - button "Channels" [ref=e322]:
+        - img [ref=e157]
+        - generic [ref=e163]: Channels
+      - button "Knowledge" [ref=e323]:
+        - img [ref=e165]
+        - generic [ref=e167]: Knowledge
+      - button "Scheduler" [ref=e324]:
+        - img [ref=e169]
+        - generic [ref=e172]: Scheduler
+      - button "Token Usage" [ref=e325]:
+        - img [ref=e174]
+        - generic [ref=e179]: Token Usage
+      - generic [ref=e180]: User
+      - button "Account" [ref=e326]:
+        - img [ref=e182]
+        - generic [ref=e194]: Account
+      - button "General" [ref=e327]:
+        - img [ref=e196]
+        - generic [ref=e202]: General
+      - button "About" [ref=e328]:
+        - img [ref=e204]
+        - generic [ref=e206]: About
+    - generic [ref=e238]:
+      - generic [ref=e239]:
+        - generic [ref=e240]:
+          - generic [ref=e241]:
+            - img [ref=e242]
+            - heading "Knowledge Base" [level=2] [ref=e329]
+          - paragraph [ref=e245]:
+            - text: Manage knowledge sources for
+            - strong [ref=e246]: 小拙拙
+            - text: .
+        - generic [ref=e247]:
+          - button "Text" [active] [ref=e330]:
+            - img
+            - text: Text
+          - button "URL" [ref=e331]:
+            - img
+            - text: URL
+      - generic [ref=e332]:
+        - generic [ref=e333]:
+          - generic [ref=e334]:
+            - img [ref=e335]
+            - generic [ref=e337]: Sources
+          - paragraph [ref=e338]: "1"
+        - generic [ref=e339]:
+          - generic [ref=e340]:
+            - img [ref=e341]
+            - generic [ref=e344]: Entries
+          - paragraph [ref=e345]: "1"
+        - generic [ref=e346]:
+          - generic [ref=e347]:
+            - img [ref=e348]
+            - generic [ref=e351]: Characters
+          - paragraph [ref=e352]: "286"
+      - generic [ref=e271]:
+        - textbox "Search knowledge base..." [ref=e353]
+        - button "Search" [ref=e354]:
+          - img
+          - text: Search
+      - generic [ref=e356]:
+        - generic [ref=e357]:
+          - generic [ref=e358]:
+            - generic [ref=e359]: FastClaw 简介
+            - generic [ref=e360]:
+              - img
+              - text: text
+            - generic [ref=e361]: api
+          - generic [ref=e362]:
+            - generic [ref=e363]: 1 entries
+            - generic [ref=e364]: 286 chars
+            - generic [ref=e365]: 2026/6/10
+        - button "Delete" [ref=e366]:
+          - img
+    - button "Close" [ref=e367]:
+      - img
+      - generic [ref=e236]: Close

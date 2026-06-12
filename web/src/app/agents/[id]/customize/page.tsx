@@ -98,7 +98,7 @@ export default function AgentCustomizePage() {
   // AND a baseContent exists (otherwise the tab just becomes empty).
   const handleRevert = async () => {
     if (!active || active.source !== "db") return;
-    if (!confirm(`Revert ${activeTab} to the repo base? Your edits will be discarded.`)) return;
+    if (!confirm(t("customize.revertConfirm", { tab: activeTab }))) return;
     setSaving(true);
     try {
       await apiFetch(`/api/agents/${agentId}/system-files/${activeTab}`, {
@@ -140,7 +140,7 @@ export default function AgentCustomizePage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Customize</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("customize.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Personality, memory, and behavior files for <strong>{agentName}</strong>
           </p>
@@ -153,8 +153,8 @@ export default function AgentCustomizePage() {
               variant="outline"
               title={
                 active.baseContent
-                  ? "Discard your edits and revert to the file shipped in the repo"
-                  : "Discard your edits (no repo base for this file — tab will become empty)"
+                  ? t("customize.discardOverride")
+                  : t("customize.discardNoBase")
               }
             >
               <RotateCcw className="h-4 w-4 mr-2" /> Revert

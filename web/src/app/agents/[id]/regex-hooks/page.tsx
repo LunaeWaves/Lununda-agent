@@ -206,7 +206,7 @@ export default function AgentRegexHooksPage() {
         </div>
         <Button onClick={openCreate} size="sm">
           <Plus className="size-4 mr-1" />
-          Add Hook
+          {t("regexHooks.create")}
         </Button>
       </div>
 

@@ -1,0 +1,51 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: Knowledge Console
+        - generic [ref=e7]:
+          - generic [ref=e8]: Wiki 知识图谱
+          - generic [ref=e10]: LLM 持续维护的二级索引：实体 / 概念 / 来源页面 + 关系图
+      - generic [ref=e11]:
+        - button "检查后端连接状态" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: 在线 · 1.0.0
+          - text: 后端在线：
+        - button "切换主题" [active] [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+          - text: 切换主题
+        - button "Agent 控制台" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+          - text: Agent 控制台
+    - generic [ref=e23]:
+      - complementary [ref=e24]:
+        - navigation [ref=e25]:
+          - button "上传" [ref=e26] [cursor=pointer]:
+            - img [ref=e27]
+            - generic [ref=e30]: 上传
+          - button "对话" [ref=e31] [cursor=pointer]:
+            - img [ref=e32]
+            - generic [ref=e34]: 对话
+          - button "知识库" [ref=e35] [cursor=pointer]:
+            - img [ref=e36]
+            - generic [ref=e40]: 知识库
+          - button "Wiki" [ref=e41] [cursor=pointer]:
+            - img [ref=e42]
+            - generic [ref=e44]: Wiki
+          - button "问答管理" [ref=e45] [cursor=pointer]:
+            - img [ref=e46]
+            - generic [ref=e51]: 问答管理
+          - button "设置" [ref=e52] [cursor=pointer]:
+            - img [ref=e53]
+            - generic [ref=e56]: 设置
+        - button "折叠侧栏" [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: 来源
+            - generic [ref=e64]: 1 来源
+          - generic [ref=e65]:
+            - generic [ref=e66]: Wiki 页
+            - generic [ref=e67]: 0 Wiki 页
+          - paragraph [ref=e68]: Wiki 知识图谱 · Agent 采集 · MCP 出口
+      - main [ref=e69]
+  - generic [ref=e74] [cursor=pointer]: ▾

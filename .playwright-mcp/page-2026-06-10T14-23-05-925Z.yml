@@ -1,0 +1,252 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - button "小拙拙" [ref=e71]:
+            - img [ref=e73]
+            - generic [ref=e13]: 小拙拙
+            - img [ref=e14]
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Agent
+          - list [ref=e20]:
+            - listitem [ref=e21]:
+              - button "New chat" [ref=e22]:
+                - img [ref=e23]
+                - generic [ref=e24]: New chat
+        - generic [ref=e25]:
+          - generic [ref=e26]: Knowledge
+          - list [ref=e27]:
+            - listitem [ref=e28]:
+              - button "Browse KB" [active] [ref=e29]:
+                - img [ref=e30]
+                - generic [ref=e32]: Browse KB
+        - generic [ref=e33]:
+          - generic [ref=e34]: Projects
+          - button "New project" [ref=e35]:
+            - img [ref=e36]
+          - list [ref=e37]:
+            - listitem [ref=e38]:
+              - generic [ref=e39]: No projects yet
+        - generic [ref=e40]:
+          - generic [ref=e41]: Chats
+          - list [ref=e42]:
+            - listitem [ref=e76]:
+              - button "什么是fastclaw？" [ref=e77]:
+                - generic [ref=e78]: 什么是fastclaw？
+              - button "Chat actions" [ref=e79]:
+                - img [ref=e80]
+                - generic [ref=e84]: Chat actions
+            - listitem [ref=e85]:
+              - button "什么是fastclaw" [ref=e86]:
+                - generic [ref=e87]: 什么是fastclaw
+              - button "Chat actions" [ref=e88]:
+                - img [ref=e89]
+                - generic [ref=e93]: Chat actions
+            - listitem [ref=e94]:
+              - button "你好，你能帮我干点啥？" [ref=e95]:
+                - generic [ref=e96]: 你好，你能帮我干点啥？
+              - button "Chat actions" [ref=e97]:
+                - img [ref=e98]
+                - generic [ref=e102]: Chat actions
+      - generic [ref=e45]:
+        - list [ref=e46]:
+          - listitem [ref=e47]:
+            - button "Settings" [ref=e48]:
+              - img [ref=e49]
+              - generic [ref=e52]: Settings
+        - list [ref=e53]:
+          - listitem [ref=e54]:
+            - button "拙不 拙不滞 super_admin" [ref=e103]:
+              - generic [ref=e56]: 拙不
+              - generic [ref=e57]:
+                - generic [ref=e58]: 拙不滞
+                - generic [ref=e59]: super_admin
+              - img [ref=e60]
+      - button "Toggle Sidebar" [ref=e63]
+    - main [ref=e64]:
+      - generic [ref=e65]:
+        - button "Toggle Sidebar" [ref=e66]:
+          - img
+          - generic [ref=e67]: Toggle Sidebar
+        - generic [ref=e104]:
+          - button "什么是fastclaw？" [ref=e130]:
+            - generic [ref=e106]: 什么是fastclaw？
+            - img [ref=e107]
+          - button "Toggle workspace" [ref=e110]:
+            - img [ref=e111]
+            - generic [ref=e113]: Toggle workspace
+      - generic [ref=e115]:
+        - generic [ref=e117]:
+          - generic [ref=e132]:
+            - paragraph [ref=e135]: 什么是fastclaw？
+            - generic [ref=e136]:
+              - button "Copy" [ref=e137]:
+                - img [ref=e138]
+              - button "Resend (refills the composer)" [ref=e141]:
+                - img [ref=e142]
+          - generic [ref=e146]:
+            - generic [ref=e148]:
+              - paragraph [ref=e149]:
+                - text: FastClaw 是一个
+                - strong [ref=e150]: AI Agent 运行时（Runtime）平台
+                - text: 。简单来说，它是我运行的那个"身体"——负责把我的推理能力连接到工具、文件系统、网络、定时任务等等。
+              - paragraph [ref=e151]: 从我做 agent 的视角来看，它有这几个特点：
+              - list [ref=e152]:
+                - listitem [ref=e153]:
+                  - strong [ref=e154]: 自托管（Self-hosted）
+                  - text: — 你作为 operator 在自己的机器（Windows）上本地部署，数据和执行环境都在你自己的控制下，不需要依赖第三方云服务。
+                - listitem [ref=e155]:
+                  - strong [ref=e156]: Agent 运行时
+                  - text: — 它管理 agent 的完整生命周期：身份配置（IDENTITY.md / SOUL.md）、工具调用、文件读写、子任务委派、定时任务调度等。
+                - listitem [ref=e157]:
+                  - strong [ref=e158]: 工具生态
+                  - text: — 内置了浏览器自动化（camoufox-cli）、脚本执行、知识库、文件编辑等工具，我可以通过这些工具帮你完成真实世界的事情。
+                - listitem [ref=e159]:
+                  - strong [ref=e160]: 基于会话的工作区
+                  - text: — 每个对话有独立的工作目录和上下文文件（USER.md / MEMORY.md 等），可以跨会话记忆。
+              - paragraph [ref=e161]:
+                - text: 一句话总结：
+                - strong [ref=e162]: FastClaw 是你自己搭建的 AI Agent 平台，我是跑在上面的 agent
+                - text: 。它让我不只是聊天，还能真正帮你查信息、写文件、跑脚本、做研究。
+              - paragraph [ref=e163]:
+                - text: 如果你需要了解具体版本或升级，可以在终端里运行
+                - code [ref=e164]: "`fastclaw version`"
+                - text: 和
+                - code [ref=e165]: "`fastclaw upgrade`"
+                - text: 来操作。有什么想进一步了解的吗？
+            - generic [ref=e166]:
+              - button "Copy" [ref=e167]:
+                - img [ref=e168]
+              - button "Files" [ref=e171]:
+                - img [ref=e172]
+                - generic [ref=e174]: Files
+          - generic [ref=e176]:
+            - paragraph [ref=e179]: 你使用了知识库查询的吗？
+            - generic [ref=e180]:
+              - button "Copy" [ref=e181]:
+                - img [ref=e182]
+              - button "Resend (refills the composer)" [ref=e185]:
+                - img [ref=e186]
+          - generic [ref=e190]:
+            - generic [ref=e192]:
+              - paragraph [ref=e193]: 没有，刚才关于 FastClaw 的回答我没有使用知识库查询——我的系统提示（system prompt）本身就包含了运行时的信息（Runtime info 那段），比如它是自托管的、你作为 operator 在 Windows 上运行、工作目录路径等等，所以我直接从上下文里回答了。
+              - paragraph [ref=e194]: 不过既然你问了，我可以查一下知识库里有没有关于 FastClaw 的更多资料：
+            - generic [ref=e195]:
+              - button "Copy" [ref=e196]:
+                - img [ref=e197]
+              - button "Files" [ref=e200]:
+                - img [ref=e201]
+                - generic [ref=e203]: Files
+          - button "Executed 1 tool kb_search" [ref=e208]:
+            - img [ref=e209]
+            - generic [ref=e211]: Executed 1 tool
+            - generic [ref=e212]: kb_search
+            - img [ref=e213]
+          - generic [ref=e216]:
+            - generic [ref=e218]:
+              - paragraph [ref=e219]: 有意思！知识库里还真有一条关于 FastClaw 的记录，补充了刚才我没提到的信息：
+              - separator [ref=e220]
+              - paragraph [ref=e221]:
+                - strong [ref=e222]: FastClaw 知识库记录：
+                - text: 它是一个
+                - strong [ref=e223]: 多用户 AI Agent 运行时
+                - text: ，使用
+                - strong [ref=e224]: Go 语言
+                - text: 编写。单个二进制文件同时提供了：
+              - list [ref=e225]:
+                - listitem [ref=e226]:
+                  - strong [ref=e227]: 网关 HTTP API
+                - listitem [ref=e228]:
+                  - strong [ref=e229]: Web 控制台
+                - listitem [ref=e230]:
+                  - strong [ref=e231]: IM 通道桥接
+                  - text: （比如接 Telegram 等即时通讯）
+                - listitem [ref=e232]:
+                  - strong [ref=e233]: Agent 运行时
+              - paragraph [ref=e234]: 每个 Agent 都拥有自己的 SOUL.md、记忆、技能和工具，彼此隔离。
+              - separator [ref=e235]
+              - paragraph [ref=e236]:
+                - text: 所以总结一下，我直接从系统提示获得的是"你作为 operator 的本地部署实例"视角，而知识库补充的是 FastClaw 项目作为
+                - strong [ref=e237]: 多用户平台
+                - text: 的架构全貌。有需要的话我可以把更多资料索引进知识库，比如官网或文档？
+            - generic [ref=e238]:
+              - button "Copy" [ref=e239]:
+                - img [ref=e240]
+              - button "Files" [ref=e243]:
+                - img [ref=e244]
+                - generic [ref=e246]: Files
+          - generic [ref=e248]:
+            - paragraph [ref=e251]:
+              - text: 帮我把这篇文章添加到知识库里面：
+              - link "https://mp.weixin.qq.com/s/_2yREAsjmdisQZ71LpuvNA" [ref=e252] [cursor=pointer]:
+                - /url: https://mp.weixin.qq.com/s/_2yREAsjmdisQZ71LpuvNA
+            - generic [ref=e253]:
+              - button "Copy" [ref=e254]:
+                - img [ref=e255]
+              - button "Resend (refills the composer)" [ref=e258]:
+                - img [ref=e259]
+          - generic [ref=e263]:
+            - paragraph [ref=e266]: 好的，我来把这篇文章添加到知识库。
+            - generic [ref=e267]:
+              - button "Copy" [ref=e268]:
+                - img [ref=e269]
+              - button "Files" [ref=e272]:
+                - img [ref=e273]
+                - generic [ref=e275]: Files
+          - button "Executed 1 tool kb_ingest_url" [ref=e280]:
+            - img [ref=e281]
+            - generic [ref=e283]: Executed 1 tool
+            - generic [ref=e284]: kb_ingest_url
+            - img [ref=e285]
+          - generic [ref=e288]:
+            - generic [ref=e290]:
+              - paragraph [ref=e291]:
+                - text: 已添加成功！不过我看到只提取到了
+                - strong [ref=e292]: 217 个字符
+                - text: ，可能是因为微信公众号文章的页面需要登录或动态加载，普通抓取只拿到了很少的内容。
+              - paragraph [ref=e293]: 让我看看实际抓到了什么：
+            - generic [ref=e294]:
+              - button "Copy" [ref=e295]:
+                - img [ref=e296]
+              - button "Files" [ref=e299]:
+                - img [ref=e300]
+                - generic [ref=e302]: Files
+          - button "Used 2 tools across 2 rounds" [ref=e307]:
+            - img [ref=e308]
+            - generic [ref=e310]: Used 2 tools across 2 rounds
+            - img [ref=e311]
+          - generic [ref=e314]:
+            - paragraph [ref=e317]: 果然，微信公众号文章有反爬验证（"环境异常，完成验证后即可继续访问"），普通的抓取拿不到正文。我试试用反检测浏览器来抓取。
+            - generic [ref=e318]:
+              - button "Copy" [ref=e319]:
+                - img [ref=e320]
+              - button "Files" [ref=e323]:
+                - img [ref=e324]
+                - generic [ref=e326]: Files
+          - button "Executed 1 tool load_skill" [ref=e331]:
+            - img [ref=e332]
+            - generic [ref=e334]: Executed 1 tool
+            - generic [ref=e335]: load_skill
+            - img [ref=e336]
+          - generic [ref=e339]:
+            - paragraph [ref=e342]: 好的，我试试用反检测浏览器来抓取这篇文章。
+            - generic [ref=e343]:
+              - button "Copy" [ref=e344]:
+                - img [ref=e345]
+              - button "Files" [ref=e348]:
+                - img [ref=e349]
+                - generic [ref=e351]: Files
+          - button "Used 4 tools across 4 rounds" [ref=e356]:
+            - img [ref=e357]
+            - generic [ref=e359]: Used 4 tools across 4 rounds
+            - img [ref=e360]
+        - generic [ref=e362]:
+          - generic "Attach files" [ref=e363] [cursor=pointer]:
+            - img [ref=e364]
+            - button "Attach files" [ref=e366]
+          - textbox "Message 小拙拙... (\"/\" to pick a skill)" [ref=e367]
+          - button "Send message" [disabled]:
+            - img

@@ -1,0 +1,149 @@
+- generic [ref=e1]:
+  - alert [ref=e4]
+  - generic [ref=e5]:
+    - generic [ref=e8]:
+      - list [ref=e10]:
+        - listitem [ref=e11]:
+          - button "小拙拙" [ref=e12]:
+            - img [ref=e14]
+            - generic [ref=e18]: 小拙拙
+            - img [ref=e19]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Agent
+          - list [ref=e25]:
+            - listitem [ref=e26]:
+              - button "New chat" [ref=e27]:
+                - img [ref=e28]
+                - generic [ref=e29]: New chat
+        - generic [ref=e30]:
+          - generic [ref=e31]: Knowledge
+          - list [ref=e32]:
+            - listitem [ref=e33]:
+              - button "Wiki" [ref=e34]:
+                - img [ref=e35]
+                - generic [ref=e37]: Wiki
+            - listitem [ref=e38]:
+              - button "Knowledge Base" [ref=e39]:
+                - img [ref=e40]
+                - generic [ref=e44]: Knowledge Base
+        - generic [ref=e45]:
+          - generic [ref=e46]: Projects
+          - button "New project" [ref=e47]:
+            - img [ref=e48]
+          - list [ref=e49]:
+            - listitem [ref=e50]:
+              - generic [ref=e51]: No projects yet
+        - generic [ref=e52]:
+          - generic [ref=e53]: Chats
+          - list [ref=e54]:
+            - listitem [ref=e55]:
+              - button "FastClaw是什么" [ref=e56]:
+                - generic [ref=e57]: FastClaw是什么
+              - button "Chat actions" [ref=e58]:
+                - img [ref=e59]
+                - generic [ref=e63]: Chat actions
+            - listitem [ref=e64]:
+              - button "wechat 定调权在职场中下属应该怎么利用？" [ref=e65]:
+                - img "wechat" [ref=e66]
+                - generic [ref=e67]: 定调权在职场中下属应该怎么利用？
+              - button "Chat actions" [ref=e68]:
+                - img [ref=e69]
+                - generic [ref=e73]: Chat actions
+            - listitem [ref=e74]:
+              - button "什么是定调权？" [ref=e75]:
+                - generic [ref=e76]: 什么是定调权？
+              - button "Chat actions" [ref=e77]:
+                - img [ref=e78]
+                - generic [ref=e82]: Chat actions
+      - generic [ref=e83]:
+        - list [ref=e84]:
+          - listitem [ref=e85]:
+            - button "Settings" [ref=e86]:
+              - img [ref=e87]
+              - generic [ref=e90]: Settings
+        - list [ref=e91]:
+          - listitem [ref=e92]:
+            - button "拙不 拙不滞 super_admin" [ref=e93]:
+              - generic [ref=e94]: 拙不
+              - generic [ref=e95]:
+                - generic [ref=e96]: 拙不滞
+                - generic [ref=e97]: super_admin
+              - img [ref=e98]
+      - button "Toggle Sidebar" [ref=e101]
+    - main [ref=e102]:
+      - generic [ref=e103]:
+        - button "Toggle Sidebar" [ref=e104]:
+          - img
+          - generic [ref=e105]: Toggle Sidebar
+        - generic [ref=e106]:
+          - button "FastClaw是什么" [ref=e107]:
+            - generic [ref=e108]: FastClaw是什么
+            - img [ref=e109]
+          - button "Toggle workspace" [ref=e112]:
+            - img [ref=e113]
+            - generic [ref=e115]: Toggle workspace
+      - generic [ref=e118]:
+        - generic [ref=e120]:
+          - generic [ref=e122]:
+            - paragraph [ref=e125]: FastClaw是什么
+            - generic [ref=e126]:
+              - generic [ref=e127]: 00:45
+              - button "Copy" [ref=e128]:
+                - img [ref=e129]
+              - button "Resend (refills the composer)" [ref=e132]:
+                - img [ref=e133]
+          - generic [ref=e137]:
+            - generic [ref=e139]:
+              - paragraph [ref=e140]:
+                - text: FastClaw 是一款
+                - strong [ref=e141]: 自托管的 AI 代理平台
+                - text: ，它让你可以在自己的机器或私有服务器上运行、管理和定制 AI 助手。主要特点包括：
+              - list [ref=e142]:
+                - listitem [ref=e143]:
+                  - strong [ref=e144]: 本地部署
+                  - text: ：所有模型和数据都保存在本地，避免了对第三方云服务的依赖，提升了隐私和安全性。
+                - listitem [ref=e145]:
+                  - strong [ref=e146]: 插件化扩展
+                  - text: ：通过内置的工具链（如
+                  - code [ref=e147]: "`camoufox-cli`"
+                  - text: 、
+                  - code [ref=e148]: "`find‑skills`"
+                  - text: 、
+                  - code [ref=e149]: "`skill‑creator`"
+                  - text: 等），可以让代理轻松调用浏览器、文件系统、网络请求等功能，甚至自行创建新技能。
+                - listitem [ref=e150]:
+                  - strong [ref=e151]: 多语言支持
+                  - text: ：界面和交互都可以使用中文、英文等多种语言，方便不同地区的用户使用。
+                - listitem [ref=e152]:
+                  - strong [ref=e153]: 可编排的工作流
+                  - text: ：支持计划任务、定时提醒、子代理并行（
+                  - code [ref=e154]: "`delegate_task`"
+                  - text: ）等高级调度，适合复杂的业务流程。
+                - listitem [ref=e155]:
+                  - strong [ref=e156]: 灵活的身份与记忆管理
+                  - text: ：通过
+                  - code [ref=e157]: "`IDENTITY.md`"
+                  - text: 、
+                  - code [ref=e158]: "`SOUL.md`"
+                  - text: 、
+                  - code [ref=e159]: "`MEMORY.md`"
+                  - text: 等文件，让每个代理拥有独立的角色设定和长期记忆。
+              - paragraph [ref=e160]:
+                - text: 简而言之，FastClaw 为开发者和企业提供了一套
+                - strong [ref=e161]: 可自行控制、可高度定制
+                - text: 的 AI 助手解决方案，既能满足日常问答、信息检索等轻量需求，也能通过插件和脚本实现高级自动化任务。希望这个介绍能帮你快速了解 FastClaw！如果还有其他想了解的细节，随时告诉我。
+            - generic [ref=e162]:
+              - generic [ref=e163]: 00:46
+              - button "Copy" [ref=e164]:
+                - img [ref=e165]
+              - button "Files" [ref=e168]:
+                - img [ref=e169]
+                - generic [ref=e171]: Files
+        - generic [ref=e175]:
+          - generic "Attach files" [ref=e176] [cursor=pointer]:
+            - img [ref=e177]
+            - button "Attach files" [ref=e179]
+          - textbox "Message 小拙拙... (\"/\" to pick a skill)" [active] [ref=e180]
+          - button "Send message" [disabled]:
+            - img
