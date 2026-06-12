@@ -1719,7 +1719,9 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		sess.Append(buildUserMessage(msg))
 		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
 		sess.EndTurn()
-		emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": reply, "metadata": map[string]any{"regexHook": hookName}}})
+		emitEvent(ctx, ChatEvent{Type: "tool_call", Data: map[string]any{"id": "regex-hook-0", "name": "regex_hook: " + hookName, "arguments": msg.Text}})
+		emitEvent(ctx, ChatEvent{Type: "tool_result", Data: map[string]any{"id": "regex-hook-0", "name": "regex_hook: " + hookName, "result": "matched"}})
+		emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": reply}})
 		emitEvent(ctx, ChatEvent{Type: "done"})
 		return reply
 	}
