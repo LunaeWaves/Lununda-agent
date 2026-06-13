@@ -13,6 +13,7 @@ const zhCN: Record<string, string> = {
   "nav.knowledgeBase": "知识库",
   "nav.newChat": "新对话",
   "nav.settings": "设置",
+  "nav.manageAgents": "管理智能体",
   "nav.group.agent": "智能体",
   "nav.group.user": "用户",
   "nav.group.knowledge": "知识",

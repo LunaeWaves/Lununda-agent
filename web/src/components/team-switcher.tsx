@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,6 +104,7 @@ export function AgentSwitcher({
   // don't see a switcher full of agents that aren't actually theirs.
   locked?: boolean;
 }) {
+  const t = useT();
   const { isMobile } = useSidebar();
   const router = useRouter();
 
@@ -188,7 +190,7 @@ export function AgentSwitcher({
                   <PlusIcon className="size-4" />
                 </div>
                 <div className="font-medium text-muted-foreground">
-                  Manage agents
+                  {t("nav.manageAgents")}
                 </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>

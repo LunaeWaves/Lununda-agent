@@ -13,6 +13,7 @@ const en: Record<string, string> = {
   "nav.knowledgeBase": "Knowledge Base",
   "nav.newChat": "New chat",
   "nav.settings": "Settings",
+  "nav.manageAgents": "Manage agents",
   "nav.group.agent": "Agent",
   "nav.group.user": "User",
   "nav.group.knowledge": "Knowledge",
