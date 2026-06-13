@@ -60,7 +60,8 @@ func (g *Generator) Generate(ctx context.Context, agentID, sourceID string) *Gen
 
 	// Step 1: Analysis — LLM reads source text + existing index, outputs structured plan
 	indexExcerpt := g.buildIndexExcerpt(ctx, agentID)
-	analysisPrompt := buildAnalysisPrompt(sourceID, "", sourceText, indexExcerpt)
+	sourceTitle := g.readSourceTitle(ctx, agentID, sourceID)
+	analysisPrompt := buildAnalysisPrompt(sourceID, sourceTitle, sourceText, indexExcerpt)
 	analysisText, err := g.invoke(ctx, []provider.Message{
 		{Role: "system", Content: analysisSystemPrompt},
 		{Role: "user", Content: analysisPrompt},
@@ -214,6 +215,25 @@ func (g *Generator) readSourceText(ctx context.Context, agentID, sourceID string
 		}
 	}
 	return strings.Join(chunks, "\n\n")
+}
+
+// readSourceTitle returns the human-readable title the user gave the KB
+// source, so the LLM doesn't fall back to the raw source UUID when titling
+// the generated source page.
+func (g *Generator) readSourceTitle(ctx context.Context, agentID, sourceID string) string {
+	if g.kbStore == nil {
+		return ""
+	}
+	sources, err := g.kbStore.ListSources(ctx, agentID, 200, 0)
+	if err != nil {
+		return ""
+	}
+	for _, s := range sources {
+		if s.ID == sourceID {
+			return s.Title
+		}
+	}
+	return ""
 }
 
 // buildIndexExcerpt creates a summary of existing wiki pages for context.
