@@ -34,8 +34,9 @@ import {
   PartyPopper,
   Sparkles,
   UserPlus,
+  Download,
 } from "lucide-react";
-import { getStatus, onboard, testProvider } from "@/lib/api";
+import { getStatus, onboard, testProvider, listProviderModels } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
 const STEP_KEYS = [
@@ -585,6 +586,32 @@ function ProviderStep(props: {
 }) {
   const preset = PROVIDERS[props.providerKey];
   const t = useT();
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [fetchedModels, setFetchedModels] = useState<string[] | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const handleFetchModels = async () => {
+    setFetchingModels(true);
+    setFetchError(null);
+    setFetchedModels(null);
+    try {
+      const res = await listProviderModels({
+        apiBase: props.apiBase,
+        apiKey: props.apiKey,
+        apiType: props.apiType,
+        authType: props.authType,
+      });
+      if (!res.ok || !res.models) {
+        setFetchError(res.error || t("models.fetchModelsFailed"));
+      } else {
+        setFetchedModels(res.models);
+      }
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : t("models.fetchModelsFailed"));
+    } finally {
+      setFetchingModels(false);
+    }
+  };
   return (
     <Card>
       <CardHeader>
@@ -659,6 +686,48 @@ function ProviderStep(props: {
             placeholder={preset?.models[0] || "model-id"}
             className="font-mono text-sm"
           />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleFetchModels}
+              disabled={fetchingModels || !props.apiBase || !props.apiKey}
+            >
+              {fetchingModels ? (
+                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3 mr-1.5" />
+              )}
+              {fetchingModels ? t("models.fetchingModels") : t("models.fetchFromServer")}
+            </Button>
+          </div>
+          {fetchError && (
+            <p className="text-xs text-destructive break-all">{fetchError}</p>
+          )}
+          {fetchedModels && (
+            <div className="rounded-lg border border-border bg-muted/20 p-2 max-h-48 overflow-y-auto space-y-0.5">
+              {fetchedModels.length === 0 ? (
+                <p className="text-sm text-muted-foreground/60 text-center py-2">
+                  {t("models.noModelsReturned")}
+                </p>
+              ) : (
+                fetchedModels.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      props.setModel(id);
+                      setFetchedModels(null);
+                    }}
+                    className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-accent ${props.model === id ? "bg-accent" : ""}`}
+                  >
+                    <code className="font-mono text-xs break-all">{id}</code>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>{t("onboard.provider.apiBase")}</Label>

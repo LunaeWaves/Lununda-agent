@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Brain, Plus, Pencil, Trash2, Check, Cpu, Loader2, Share2 } from "lucide-react";
+import { Brain, Plus, Pencil, Trash2, Check, Cpu, Loader2, Share2, Download } from "lucide-react";
 import {
   getAgent,
   getConfig,
@@ -41,6 +41,8 @@ import {
   deleteProvider,
   testProvider,
   testStoredProvider,
+  listProviderModels,
+  listStoredProviderModels,
   updateAgent,
   type ModelEntry,
   type ProviderRow,
@@ -160,6 +162,62 @@ export default function AgentModelsPage() {
   const [formApiType, setFormApi] = useState("openai-chat");
   const [formAuthType, setFormAuthType] = useState("api-key");
   const [formModels, setFormModels] = useState<ModelEntry[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [fetchedModels, setFetchedModels] = useState<string[] | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [selectedFetched, setSelectedFetched] = useState<Set<string>>(new Set());
+
+  const handleFetchModels = async () => {
+    setFetchingModels(true);
+    setFetchError(null);
+    setFetchedModels(null);
+    try {
+      const res =
+        editingName && editingId
+          ? await listStoredProviderModels(editingId, {
+              apiBase: formApiBase,
+              apiType: formApiType,
+              authType: formAuthType,
+            })
+          : await listProviderModels({
+              apiBase: formApiBase,
+              apiKey: formApiKey,
+              apiType: formApiType,
+              authType: formAuthType,
+            });
+      if (!res.ok || !res.models) {
+        setFetchError(res.error || t("models.fetchModelsFailed"));
+      } else {
+        setFetchedModels(res.models);
+        setSelectedFetched(new Set(res.models));
+      }
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : t("models.fetchModelsFailed"));
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const toggleFetched = (id: string) => {
+    setSelectedFetched((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAddFetched = () => {
+    const existing = new Set(formModels.map((m) => m.id));
+    const toAdd = (fetchedModels ?? []).filter(
+      (id) => selectedFetched.has(id) && !existing.has(id),
+    );
+    if (toAdd.length) {
+      setFormModels([...formModels, ...toAdd.map((id) => ({ ...emptyModel(), id, name: id }))]);
+    }
+    setFetchedModels(null);
+    setSelectedFetched(new Set());
+  };
   type ModelTestResult = { status: "idle" | "testing" | "success" | "error"; error?: string };
   const [modelTests, setModelTests] = useState<Record<number, ModelTestResult>>({});
   const [batchTesting, setBatchTesting] = useState(false);
@@ -880,11 +938,81 @@ export default function AgentModelsPage() {
             <div className="space-y-3 pt-2 border-t border-border">
               <div className="flex items-center justify-between">
                 <Label className="text-base">{t("models.modelsLabel")}</Label>
-                <Button variant="outline" size="sm" onClick={handleAddModel}>
-                  <Plus className="h-3 w-3 mr-1.5" />
-                  Add Model
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFetchModels}
+                    disabled={fetchingModels || !formApiBase || (!editingName && !formApiKey)}
+                  >
+                    {fetchingModels ? (
+                      <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3 w-3 mr-1.5" />
+                    )}
+                    {fetchingModels ? t("models.fetchingModels") : t("models.fetchFromServer")}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleAddModel}>
+                    <Plus className="h-3 w-3 mr-1.5" />
+                    {t("models.addModel")}
+                  </Button>
+                </div>
               </div>
+
+              {fetchError && (
+                <p className="text-xs text-destructive break-all">{fetchError}</p>
+              )}
+
+              {fetchedModels && (
+                <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {t("models.modelsCount", { count: fetchedModels.length })}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-xs"
+                      onClick={() =>
+                        setSelectedFetched(
+                          selectedFetched.size === fetchedModels.length
+                            ? new Set()
+                            : new Set(fetchedModels),
+                        )
+                      }
+                    >
+                      {t("models.selectAll")}
+                    </Button>
+                  </div>
+                  {fetchedModels.length === 0 ? (
+                    <p className="text-sm text-muted-foreground/60 text-center py-2">
+                      {t("models.noModelsReturned")}
+                    </p>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto space-y-1">
+                      {fetchedModels.map((id) => (
+                        <label key={id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedFetched.has(id)}
+                            onChange={() => toggleFetched(id)}
+                            className="size-3.5"
+                          />
+                          <code className="font-mono text-xs break-all">{id}</code>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button size="sm" variant="ghost" onClick={() => setFetchedModels(null)}>
+                      {t("common.close")}
+                    </Button>
+                    <Button size="sm" onClick={handleAddFetched} disabled={selectedFetched.size === 0}>
+                      {t("models.addSelected")} ({selectedFetched.size})
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {formModels.length === 0 && (
                 <p className="text-sm text-muted-foreground/60 text-center py-4">
