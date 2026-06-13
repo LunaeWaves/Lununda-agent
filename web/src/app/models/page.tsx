@@ -586,7 +586,7 @@ export default function ModelsPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Models</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("models.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {inAgentContext ? (
               <>
@@ -595,14 +595,14 @@ export default function ModelsPage() {
                 over the agent&apos;s default.
               </>
             ) : (
-              <>Manage LLM providers and default model</>
+              <>{t("models.manageProviders")}</>
             )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={openAddDialog}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Provider
+            {t("models.addProvider")}
           </Button>
           <Button
             onClick={handleSaveAll}
@@ -647,7 +647,7 @@ export default function ModelsPage() {
           <div className="flex items-center gap-2">
             <Cpu className="h-4 w-4 text-primary" />
             <h3 className="font-medium">
-              {inAgentContext ? "Active Model" : "Default Model"}
+              {inAgentContext ? t("models.activeModel") : t("models.defaultModelLabel")}
             </h3>
             {!isSuperAdmin && (inheriting ? (
               <Badge variant="outline" className="text-[10px]">Inheriting</Badge>
@@ -695,7 +695,7 @@ export default function ModelsPage() {
         )}
         <p className="text-xs text-muted-foreground mt-2">
           {isSuperAdmin ? (
-            <>Used by agents unless overridden in agent config.</>
+            <>{t("models.usedByAgents")}</>
           ) : inheriting ? (
             <>
               {fallbackSource === "agent" ? (
@@ -741,7 +741,7 @@ export default function ModelsPage() {
             </p>
             <Button variant="outline" size="sm" onClick={openAddDialog}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Provider
+              {t("models.addProvider")}
             </Button>
           </div>
         </div>
@@ -750,12 +750,12 @@ export default function ModelsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>API Base</TableHead>
-                <TableHead>API Key</TableHead>
-                <TableHead>Models</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("models.colName")}</TableHead>
+                <TableHead>{t("models.colApiBase")}</TableHead>
+                <TableHead>{t("models.colApiKey")}</TableHead>
+                <TableHead>{t("models.colModels")}</TableHead>
+                <TableHead>{t("models.colSource")}</TableHead>
+                <TableHead className="text-right">{t("models.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -844,7 +844,7 @@ export default function ModelsPage() {
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingName ? "Edit Provider" : "Add Provider"}
+              {editingName ? t("models.editProvider") : t("models.addProvider")}
             </DialogTitle>
             <DialogDescription>
               Configure LLM provider connection and models
@@ -854,7 +854,7 @@ export default function ModelsPage() {
             {/* Provider + Provider Name (mirrors onboard's 2-col grid). */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Provider</Label>
+                <Label>{t("models.providerLabel")}</Label>
                 <Select
                   value={formPreset}
                   onValueChange={(v: string | null) => v && handlePresetChange(v)}
@@ -875,7 +875,7 @@ export default function ModelsPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Provider Name</Label>
+                <Label>{t("models.providerNameLabel")}</Label>
                 <Input
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
@@ -903,7 +903,7 @@ export default function ModelsPage() {
                 empty so they can type a replacement; Test connection
                 falls back to the stored key when the field is blank. */}
             <div className="space-y-1.5">
-              <Label>API Key</Label>
+              <Label>{t("models.apiKeyLabel")}</Label>
               <Input
                 type={editingName && !formApiKey ? "text" : "password"}
                 value={formApiKey}
@@ -928,7 +928,7 @@ export default function ModelsPage() {
             {/* API Type & Auth Type */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>API Type</Label>
+                <Label>{t("models.apiTypeLabel")}</Label>
                 <Select value={formApiType} onValueChange={(v: string | null) => v && setFormApi(v)}>
                   <SelectTrigger className="w-full">
                     <SelectValue>
@@ -942,7 +942,7 @@ export default function ModelsPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Auth Type</Label>
+                <Label>{t("models.authTypeLabel")}</Label>
                 <Select value={formAuthType} onValueChange={(v: string | null) => v && setFormAuthType(v)}>
                   <SelectTrigger className="w-full">
                     <SelectValue>
@@ -960,7 +960,7 @@ export default function ModelsPage() {
             {/* Models Section */}
             <div className="space-y-3 pt-2 border-t border-border">
               <div className="flex items-center justify-between">
-                <Label className="text-base">Models</Label>
+                <Label className="text-base">{t("models.colModels")}</Label>
                 <Button variant="outline" size="sm" onClick={handleAddModel}>
                   <Plus className="h-3 w-3 mr-1.5" />
                   Add Model
@@ -1054,7 +1054,7 @@ export default function ModelsPage() {
                         <Loader2 className="mr-1 size-4 animate-spin" /> Testing
                       </>
                     ) : (
-                      "Test connection"
+                      t("models.testConnection")
                     )}
                   </Button>
                   <span className="text-xs text-muted-foreground">
@@ -1092,7 +1092,7 @@ export default function ModelsPage() {
               onClick={handleSaveProvider}
               disabled={!formName.trim() || saving || !allModelsPassed}
             >
-              {editingName ? "Update" : "Add"}
+              {editingName ? t("models.updateBtn") : t("models.addBtn")}
             </Button>
           </DialogFooter>
         </DialogContent>

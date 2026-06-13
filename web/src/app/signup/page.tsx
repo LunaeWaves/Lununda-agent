@@ -4,16 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { register, getStatus } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 export default function SignupPage() {
   const router = useRouter();
+  const t = useT();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  // null = still loading the toggle, true/false = resolved
   const [open, setOpen] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -28,29 +29,28 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     if (!username.trim() || !email.trim() || !password) {
-      setError("All fields are required");
+      setError(t("signup.allFieldsRequired"));
       return;
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(t("signup.passwordMin"));
       return;
     }
     if (password !== confirm) {
-      setError("Passwords don't match");
+      setError(t("signup.passwordMismatch"));
       return;
     }
     setLoading(true);
     try {
       const res = await register({ username: username.trim(), email: email.trim(), password });
       if (!res.ok) {
-        setError(res.error || "Could not create account");
+        setError(res.error || t("signup.createFailed"));
         setLoading(false);
         return;
       }
-      // Server set the session cookie on us; head to the app.
       router.replace("/overview/");
     } catch {
-      setError("Cannot reach server");
+      setError(t("login.cannotReach"));
       setLoading(false);
     }
   }
@@ -67,16 +67,15 @@ export default function SignupPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
         <div className="w-full max-w-sm space-y-4 text-center">
-          <h1 className="text-2xl font-bold text-zinc-100">Registration closed</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">{t("signup.registrationClosed")}</h1>
           <p className="text-sm text-zinc-500">
-            New accounts can&apos;t be created right now. Ask the operator to enable
-            registration, or sign in if you already have an account.
+            {t("signup.registrationClosedDesc")}
           </p>
           <Link
             href="/"
             className="inline-block rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
           >
-            Back to sign in
+            {t("signup.backToSignIn")}
           </Link>
         </div>
       </div>
@@ -87,15 +86,15 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-zinc-100">Create your account</h1>
-          <p className="text-sm text-zinc-500">Sign up to start using FastClaw</p>
+          <h1 className="text-2xl font-bold text-zinc-100">{t("signup.title")}</h1>
+          <p className="text-sm text-zinc-500">{t("signup.subtitle")}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="username"
+            placeholder={t("signup.usernamePlaceholder")}
             autoFocus
             autoComplete="username"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
@@ -104,7 +103,7 @@ export default function SignupPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="email"
+            placeholder={t("signup.emailPlaceholder")}
             autoComplete="email"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
           />
@@ -112,7 +111,7 @@ export default function SignupPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="password (min 8 chars)"
+            placeholder={t("signup.passwordPlaceholder")}
             autoComplete="new-password"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
           />
@@ -120,7 +119,7 @@ export default function SignupPage() {
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="confirm password"
+            placeholder={t("signup.confirmPlaceholder")}
             autoComplete="new-password"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
           />
@@ -130,13 +129,13 @@ export default function SignupPage() {
             disabled={loading || !username.trim() || !email.trim() || !password || !confirm}
             className="w-full rounded-lg bg-violet-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? t("signup.submitting") : t("signup.submit")}
           </button>
         </form>
         <p className="text-center text-sm text-zinc-500">
-          Already have an account?{" "}
+          {t("signup.hasAccount")}{" "}
           <Link href="/" className="text-violet-400 hover:text-violet-300">
-            Sign in
+            {t("signup.signIn")}
           </Link>
         </p>
       </div>

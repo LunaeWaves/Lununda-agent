@@ -12,6 +12,7 @@ import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { ExternalAnchor } from "@/components/markdown-link";
+import { useT } from "@/lib/i18n";
 
 // react-markdown's default urlTransform strips any protocol not in the
 // safe-list (http, https, mailto, ircs, xmpp) — including `data:`. We want
@@ -407,6 +408,7 @@ function isPendingPlanContent(content: string): boolean {
 // dumb-component pure).
 function TodoPanel({ items, active }: { items: TodoItem[]; active: boolean }) {
   const [open, setOpen] = useState(true);
+  const t = useT();
   const total = items.length;
   const doneCount = items.filter((i) => i.done).length;
   const allDone = doneCount === total;
@@ -443,7 +445,7 @@ function TodoPanel({ items, active }: { items: TodoItem[]; active: boolean }) {
               {doneCount}/{total}
             </span>
             <span className="truncate flex-1">
-              {current ? current.text : "Plan checklist"}
+              {current ? current.text : t("chatScreen.planChecklist")}
             </span>
             {open ? (
               <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -519,6 +521,7 @@ export function ChatScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useT();
   // When `?actAs=<uid>` is in the URL, this chat is being opened by a
   // super_admin viewing another user's session (read-only by middleware).
   // Forces the composer into a disabled state and surfaces a banner so
@@ -1091,7 +1094,7 @@ export function ChatScreen() {
       <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
         <ChatHeaderTitle
           title={sessionTitle}
-          fallback={`Chat with ${agentName || selectedAgent}`}
+          fallback={t("chatScreen.chatWith", { name: agentName || selectedAgent })}
           onSave={handleRenameTitle}
         />
         <button
@@ -1102,11 +1105,11 @@ export function ChatScreen() {
               ? "bg-muted text-foreground"
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
           }`}
-          title={filesSheetOpen ? "Hide workspace" : "Show workspace"}
+          title={filesSheetOpen ? t("chatScreen.hideWorkspace") : t("chatScreen.showWorkspace")}
           aria-pressed={filesSheetOpen}
         >
           <FolderOpen className="h-4 w-4" />
-          <span className="sr-only">Toggle workspace</span>
+          <span className="sr-only">{t("chatScreen.toggleWorkspace")}</span>
         </button>
       </div>
     ),
@@ -1950,7 +1953,7 @@ export function ChatScreen() {
   // render a small info card UNDER the hero (folder + name + meta)
   // instead of taking over the headline, so users always know which
   // agent they're chatting with first.
-  const heroTitle = "What can I do for you?";
+  const heroTitle = t("chat.greeting");
 
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-row">
@@ -2197,25 +2200,25 @@ export function ChatScreen() {
                       )}
                       {msg.role === "agent" && msg.metadata?.iterationCapReached && (
                         <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-900 dark:text-amber-200">
-                          <span className="font-medium">Iteration limit reached</span>
+                          <span className="font-medium">{t("chatScreen.iterationLimit")}</span>
                           <span className="opacity-80">
-                            Agent hit the {msg.metadata.iterationCapValue ?? ""} tool-call budget before finishing. The answer above was synthesized from partial results — fields may be marked unknown / partial. Continue the conversation to push further.
+                            {t("chatScreen.iterationLimitDesc", { count: msg.metadata.iterationCapValue ?? "" })}
                           </span>
                         </div>
                       )}
                       {msg.role === "agent" && msg.metadata?.planMode && (
                         <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-900 dark:text-amber-200">
                           <ListChecks className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                          <span className="font-medium">Plan only — review before executing.</span>
+                          <span className="font-medium">{t("chatScreen.planOnly")}</span>
                           <span className="opacity-80">
-                            Tools were disabled for this turn. Reply with &quot;go&quot; (or edits) to run it.
+                            {t("chatScreen.planOnlyDesc")}
                           </span>
                         </div>
                       )}
                       {msg.role === "agent" && msg.metadata?.regexHook && (
                         <div className="mt-2 flex items-center gap-1.5 rounded-md border border-blue-500/40 bg-blue-500/10 px-2.5 py-1.5 text-xs text-blue-900 dark:text-blue-200">
                           <Zap className="h-3.5 w-3.5 shrink-0" />
-                          <span className="font-medium">Regex Hook:</span>
+                          <span className="font-medium">{t("chat.regexHook.matched")}:</span>
                           <span className="opacity-80">
                             {msg.metadata.regexHook}
                           </span>
@@ -2248,10 +2251,10 @@ export function ChatScreen() {
                             className="h-8 gap-1.5"
                           >
                             <X className="h-3.5 w-3.5" />
-                            Edit
+                            {t("common.edit")}
                           </Button>
                           <span className="text-xs text-muted-foreground">
-                            Run plan to authorize the agent end-to-end, or Edit to revise below.
+                            {t("chatScreen.runPlanDesc")}
                           </span>
                         </div>
                       )}
@@ -2364,12 +2367,11 @@ export function ChatScreen() {
               // Block the input outright and tell the user where to
               // reply.
               <div className="mb-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                This conversation lives on{" "}
+                {t("chatScreen.conversationLivesOn")}{" "}
                 <span className="font-medium text-foreground">
                   {channelLabel(currentChannel)}
                 </span>
-                . Reply from there — messages typed here won't reach the user on
-                the other side.
+                {t("chatScreen.replyFromThere")}
               </div>
             )}
             {isActAsView && !isReadOnlyChannel && (
@@ -2378,8 +2380,8 @@ export function ChatScreen() {
               // read-only for the whole request, so any send would 403
               // — disable the composer and surface why.
               <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                Read-only — you&apos;re viewing another user&apos;s chat.
-                Sending messages here is disabled.
+                {t("chatScreen.readOnlyAdmin")}
+                {t("chatScreen.sendingDisabled")}
               </div>
             )}
             {slashOpen && filteredItems.length > 0 && (
@@ -2464,12 +2466,12 @@ export function ChatScreen() {
                     onBlur={() => setTimeout(() => setSlashOpen(false), 120)}
                     placeholder={
                       isActAsView
-                        ? "Read-only — viewing another user's chat"
+                        ? t("chatScreen.readOnlyViewing")
                         : isReadOnlyChannel
-                          ? `Read-only — reply from ${channelLabel(currentChannel)}`
+                          ? t("chatScreen.readOnlyReplyFrom", { channel: channelLabel(currentChannel) })
                           : selectedAgent
-                            ? `Message ${agentName || selectedAgent}... ("/" to pick a skill)`
-                            : "Select an agent first"
+                            ? t("chatScreen.messageAgentSlash", { name: agentName || selectedAgent })
+                            : t("chat.selectAgentFirst")
                     }
                     disabled={!selectedAgent || isReadOnlyView}
                     rows={3}
@@ -2484,7 +2486,7 @@ export function ChatScreen() {
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-muted hover:text-foreground cursor-pointer"
                         }`}
-                        aria-label="Attach files"
+                        aria-label={t("chat.attachFiles")}
                       >
                         <Paperclip className="h-4 w-4" />
                         <input
@@ -2513,7 +2515,7 @@ export function ChatScreen() {
                         onClick={handleStop}
                         size="icon"
                         className="h-9 w-9 shrink-0 rounded-full"
-                        aria-label="Stop generating"
+                        aria-label={t("chat.stopGenerating")}
                       >
                         <Square className="h-3.5 w-3.5 fill-current" />
                       </Button>
@@ -2523,7 +2525,7 @@ export function ChatScreen() {
                         disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView}
                         size="icon"
                         className="h-9 w-9 shrink-0 rounded-full"
-                        aria-label="Send message"
+                        aria-label={t("chat.send")}
                       >
                         <Send className="h-4 w-4" />
                       </Button>
@@ -2558,12 +2560,12 @@ export function ChatScreen() {
                     onBlur={() => setTimeout(() => setSlashOpen(false), 120)}
                     placeholder={
                       isActAsView
-                        ? "Read-only — viewing another user's chat"
+                        ? t("chatScreen.readOnlyViewing")
                         : isReadOnlyChannel
-                          ? `Read-only — reply from ${channelLabel(currentChannel)}`
+                          ? t("chatScreen.readOnlyReplyFrom", { channel: channelLabel(currentChannel) })
                           : selectedAgent
-                            ? `Message ${agentName || selectedAgent}... ("/" to pick a skill)`
-                            : "Select an agent first"
+                            ? t("chatScreen.messageAgentSlash", { name: agentName || selectedAgent })
+                            : t("chat.selectAgentFirst")
                     }
                     disabled={!selectedAgent || isReadOnlyView}
                     rows={1}
@@ -2585,7 +2587,7 @@ export function ChatScreen() {
                       disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView}
                       size="icon"
                       className="h-8 w-8 shrink-0 rounded-lg"
-                      aria-label="Send message"
+                      aria-label={t("chat.sendMessage")}
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -2723,6 +2725,7 @@ function ChatHeaderTitle({ title, fallback, onSave }: ChatHeaderTitleProps) {
 function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, roundIndex, subagentProgress }: { msg: ChatMessage; surfacedSrcs?: ReadonlySet<string>; agentId: string; sessionId: string; nested?: boolean; roundIndex?: number; subagentProgress?: { iteration?: number; max?: number; phase?: "thinking" | "running" | "final-delivery" | "done"; tools?: string[] } | null }) {
   const [groupOpen, setGroupOpen] = useState(false);
   const [expandedTool, setExpandedTool] = useState<Record<string, boolean>>({});
+  const t = useT();
 
   const tools = msg.toolCalls || [];
   const doneCount = tools.filter((tc) => tc.result != null).length;
@@ -2787,8 +2790,8 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
             )}
             <span className="font-medium text-foreground">
               {isRH
-                ? (allDone ? `Regex Hook matched` : `Regex Hook running...`)
-                : (allDone ? `Executed ${tools.length} tool${tools.length > 1 ? "s" : ""}` : `Running tools (${doneCount}/${tools.length})...`)}
+                ? (allDone ? t("chat.regexHook.matched") : t("chat.regexHook.running"))
+                : (allDone ? t("chatScreen.executedN", { count: tools.length }) : t("chatScreen.runningN", { done: doneCount, total: tools.length }))}
             </span>
             <span className="text-muted-foreground/60 text-[11px] flex-1 text-left truncate">
               {tools.map((tc) => isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name).join(", ")}
@@ -2817,10 +2820,10 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                     {tc.metadata?.sandbox && (
                       <span
                         className="flex items-center gap-0.5 rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
-                        title="Executed inside a sandboxed container"
+                        title={t("chatScreen.sandboxExecTitle")}
                       >
                         <ShieldCheck className="h-2.5 w-2.5" />
-                        sandbox
+                        {t("chatScreen.sandboxExec")}
                       </span>
                     )}
                     <span className="text-muted-foreground/50 font-mono truncate flex-1 text-left text-[11px]">
@@ -2855,7 +2858,7 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                   {expandedTool[tc.id] && (
                     <div className="px-3 py-2 space-y-2 bg-muted/20">
                       <div>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Input</p>
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">{t("chatScreen.inputLabel")}</p>
                         <pre className="text-xs font-mono bg-muted/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-40">
                           {(() => {
                             try { return JSON.stringify(JSON.parse(tc.arguments), null, 2); }
@@ -2865,7 +2868,7 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                       </div>
                       {tc.result != null ? (
                         <div>
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Output</p>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">{t("chatScreen.outputLabel")}</p>
                           <pre className="text-xs font-mono bg-muted/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-60">
                             {tc.result.length > 2000 ? tc.result.slice(0, 2000) + "..." : tc.result}
                           </pre>
@@ -2877,18 +2880,18 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                             const mx = subagentProgress.max;
                             const phase = subagentProgress.phase;
                             const tools = subagentProgress.tools;
-                            const counter = it && mx ? `Iteration ${it}/${mx}` : "Sub-agent running";
+                            const counter = it && mx ? `${t("chatScreen.iteration")} ${it}/${mx}` : t("chatScreen.subagentRunning");
                             let detail = "";
-                            if (phase === "thinking") detail = "thinking";
-                            else if (phase === "running" && tools?.length) detail = `running ${tools.join(", ")}`;
-                            else if (phase === "final-delivery") detail = "synthesizing final answer";
+                            if (phase === "thinking") detail = t("chatScreen.phaseThinking");
+                            else if (phase === "running" && tools?.length) detail = `${t("chatScreen.phaseRunning")} ${tools.join(", ")}`;
+                            else if (phase === "final-delivery") detail = t("chatScreen.phaseFinalDelivery");
                             return detail ? `${counter} · ${detail}` : counter;
                           })()}
                         </div>
                       ) : tc.name === "delegate_task" && tc.result == null && tc.id !== activeDelegateId ? (
-                        <p className="text-xs text-muted-foreground/60 italic">Queued (waiting on prior sub-agent)…</p>
+                        <p className="text-xs text-muted-foreground/60 italic">{t("chatScreen.queued")}</p>
                       ) : (
-                        <p className="text-xs text-muted-foreground/60 italic">Executing...</p>
+                        <p className="text-xs text-muted-foreground/60 italic">{t("chatScreen.executingEllipsis")}</p>
                       )}
                     </div>
                   )}
@@ -2932,6 +2935,7 @@ function ToolRoundsBundle({
   subagentProgress?: { iteration?: number; max?: number; phase?: "thinking" | "running" | "final-delivery" | "done"; tools?: string[] } | null;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const allTools = rounds.flatMap((r) => r.toolCalls || []);
   const totalTools = allTools.length;
   const doneCount = allTools.filter((tc) => tc.result != null).length;
@@ -2951,8 +2955,8 @@ function ToolRoundsBundle({
             )}
             <span className="font-medium text-foreground">
               {allDone
-                ? `Used ${totalTools} tool${totalTools === 1 ? "" : "s"} across ${rounds.length} round${rounds.length === 1 ? "" : "s"}`
-                : `Running tools… (${doneCount}/${totalTools} across ${rounds.length} rounds)`}
+                ? t("chatScreen.usedToolsAcross", { tools: totalTools, rounds: rounds.length })
+                : t("chatScreen.runningToolsAcross", { done: doneCount, total: totalTools, rounds: rounds.length })}
             </span>
             <span className="ml-auto" />
             {open ? (
@@ -3037,11 +3041,12 @@ function zipUrl(agentId: string, sessionId: string, projectId?: string): string 
 
 function FilesPanel({ agentId, files }: { agentId: string; files: ProducedFile[] }) {
   const [previewing, setPreviewing] = useState<ProducedFile | null>(null);
+  const t = useT();
   return (
     <>
       <div className="mt-2 space-y-1.5 max-w-[85%]">
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-          Your files
+          {t("chatScreen.yourFiles")}
         </p>
         <div className="flex flex-col gap-1.5">
           {files.map((f) => {
@@ -3057,7 +3062,7 @@ function FilesPanel({ agentId, files }: { agentId: string; files: ProducedFile[]
                 <button
                   onClick={() => setPreviewing(f)}
                   className="flex-1 min-w-0 text-left"
-                  title="Open preview"
+                  title={t("chatScreen.openPreview")}
                 >
                   <div className="text-sm font-medium text-foreground truncate">{basename}</div>
                   {f.size !== undefined && (
@@ -3067,7 +3072,7 @@ function FilesPanel({ agentId, files }: { agentId: string; files: ProducedFile[]
                 <a
                   href={downloadUrl}
                   className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  title="Download"
+                  title={t("chatScreen.download")}
                 >
                   <Download className="h-4 w-4" />
                 </a>
@@ -3115,6 +3120,7 @@ function WorkspacePanel({
   projectId?: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState<ProducedFile | null>(null);
@@ -3185,7 +3191,7 @@ function WorkspacePanel({
         // toast lib we don't have. The message comes from the
         // backend (e.g. "S3-backed store, no host path").
         // eslint-disable-next-line no-alert
-        alert(res.error || "Could not open workspace folder");
+        alert(res.error || t("chatScreen.openWorkspaceFailed"));
       }
     } finally {
       setRevealing(false);
@@ -3227,7 +3233,7 @@ function WorkspacePanel({
         <div
           onMouseDown={(e) => { e.preventDefault(); setResizing(true); }}
           className={`absolute -left-1 top-0 bottom-0 w-2 cursor-col-resize z-10 group ${resizing ? "" : ""}`}
-          title="Drag to resize"
+          title={t("chatScreen.dragResize")}
         >
           <div
             className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${
@@ -3238,7 +3244,7 @@ function WorkspacePanel({
         <div className="flex items-center justify-between gap-2 px-4 h-12 border-b border-border">
           <div className="flex items-center gap-2 text-sm font-medium">
             <FolderOpen className="h-4 w-4" />
-            Workspace
+            {t("chatScreen.workspace")}
           </div>
           <div className="flex items-center gap-1">
             <a
@@ -3253,7 +3259,7 @@ function WorkspacePanel({
                   ? "text-muted-foreground/40 pointer-events-none"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}
-              title="Download all as zip"
+              title={t("chatScreen.downloadAllZip")}
             >
               <Download className="h-4 w-4" />
             </a>
@@ -3276,14 +3282,14 @@ function WorkspacePanel({
               onClick={refresh}
               disabled={loading}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
-              title="Refresh"
+              title={t("chatScreen.refresh")}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={onClose}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Close"
+              title={t("chatScreen.close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -3293,15 +3299,15 @@ function WorkspacePanel({
           {!loading && files.length === 0 ? (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">
               {projectId
-                ? "No files in this project yet."
-                : "No files in this session yet."}
+                ? t("chatScreen.noFilesProject")
+                : t("chatScreen.noFilesSession")}
             </p>
           ) : (
             <div className="flex flex-col">
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70 border-b">
-                <span>Name</span>
-                <span>Modified</span>
-                <span>Size</span>
+                <span>{t("chatScreen.colName")}</span>
+                <span>{t("chatScreen.colModified")}</span>
+                <span>{t("chatScreen.colSize")}</span>
               </div>
               {files.map((f) => {
                 const { icon: Icon } = fileKind(f.path);
@@ -3315,7 +3321,7 @@ function WorkspacePanel({
                     <button
                       onClick={() => setPreviewing({ path: f.path, size: f.size })}
                       className="flex items-center gap-2 min-w-0 text-left"
-                      title="Open preview"
+                      title={t("chatScreen.openPreview")}
                     >
                       <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="text-sm text-foreground truncate">{basename}</span>
@@ -3326,7 +3332,7 @@ function WorkspacePanel({
                     <a
                       href={downloadUrl}
                       className="text-[11px] text-muted-foreground/70 whitespace-nowrap hover:text-foreground"
-                      title="Download"
+                      title={t("chatScreen.download")}
                     >
                       {formatBytes(f.size)}
                     </a>
@@ -3368,6 +3374,7 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [htmlView, setHtmlView] = useState<"rendered" | "source">("rendered");
+  const t = useT();
 
   useEffect(() => {
     // HTML fetches its text lazily only when the user switches to source view.
@@ -3406,7 +3413,7 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
               <button
                 onClick={() => setHtmlView(htmlView === "rendered" ? "source" : "rendered")}
                 className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                title={htmlView === "rendered" ? "View source" : "View rendered"}
+                title={htmlView === "rendered" ? t("chatScreen.viewSource") : t("chatScreen.viewRendered")}
               >
                 {htmlView === "rendered" ? <Code2 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -3414,14 +3421,14 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
             <a
               href={downloadUrl}
               className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              title="Download"
+              title={t("chatScreen.download")}
             >
               <Download className="h-4 w-4" />
             </a>
             <button
               onClick={onClose}
               className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              title="Close"
+              title={t("chatScreen.close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -3435,8 +3442,8 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
             <iframe src={src} className="h-full w-full border-0" title={basename} />
           )}
           {preview === "markdown" && (
-            error ? <p className="text-sm text-destructive">Failed to load: {error}</p>
-            : text === null ? <p className="text-sm text-muted-foreground">Loading…</p>
+            error ? <p className="text-sm text-destructive">{t("chatScreen.failedLoad", { error })}</p>
+            : text === null ? <p className="text-sm text-muted-foreground">{t("chatScreen.loading")}</p>
             : (
               <div className="prose prose-sm dark:prose-invert max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ExternalAnchor }}>{text}</ReactMarkdown>
@@ -3444,8 +3451,8 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
             )
           )}
           {preview === "text" && (
-            error ? <p className="text-sm text-destructive">Failed to load: {error}</p>
-            : text === null ? <p className="text-sm text-muted-foreground">Loading…</p>
+            error ? <p className="text-sm text-destructive">{t("chatScreen.failedLoad", { error })}</p>
+            : text === null ? <p className="text-sm text-muted-foreground">{t("chatScreen.loading")}</p>
             : (
               <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-muted/30 rounded p-3">{text}</pre>
             )
@@ -3461,8 +3468,8 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
                 className="h-full w-full border-0 rounded bg-white"
                 title={basename}
               />
-            ) : error ? <p className="text-sm text-destructive">Failed to load: {error}</p>
-            : text === null ? <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : error ? <p className="text-sm text-destructive">{t("chatScreen.failedLoad", { error })}</p>
+            : text === null ? <p className="text-sm text-muted-foreground">{t("chatScreen.loading")}</p>
             : (
               <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-muted/30 rounded p-3">{text}</pre>
             )
@@ -3470,9 +3477,9 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
           {preview === "none" && (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
               <File className="h-12 w-12 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">Preview not available for this file type.</p>
+              <p className="text-sm text-muted-foreground">{t("chatScreen.previewNA")}</p>
               <a href={downloadUrl} className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
-                <Download className="h-3.5 w-3.5" /> Download
+                <Download className="h-3.5 w-3.5" /> {t("chatScreen.download")}
               </a>
             </div>
           )}
@@ -3493,6 +3500,7 @@ function SlashMenu({
   onHover: (i: number) => void;
   onSelect: (s: SlashItem) => void;
 }) {
+  const t = useT();
   return (
     <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-popover shadow-lg overflow-hidden z-20">
       <div className="max-h-[320px] overflow-y-auto py-1">
@@ -3538,7 +3546,7 @@ function SlashMenu({
         className="flex items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
-        Manage Skills
+        {t("chatScreen.manageSkills")}
       </Link>
     </div>
   );

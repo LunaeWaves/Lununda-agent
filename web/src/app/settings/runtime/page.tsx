@@ -205,7 +205,7 @@ export default function RuntimeSettingsPage() {
               ) : sandboxBackend === "boxlite" ? (
                 <>
                   <div className="space-y-2">
-                    <Label>BoxLite API Key</Label>
+                    <Label>{t("runtime.boxliteApiKey")}</Label>
                     <Input
                       type="password"
                       value={sandboxBoxliteKey}
@@ -215,7 +215,7 @@ export default function RuntimeSettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Snapshot</Label>
+                    <Label>{t("runtime.snapshot")}</Label>
                     <Input
                       value={sandboxBoxliteImage}
                       onChange={(e) => setSandboxBoxliteImage(e.target.value)}

@@ -36,14 +36,15 @@ import {
   UserPlus,
 } from "lucide-react";
 import { getStatus, onboard, testProvider } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
-const STEPS = [
-  { id: "welcome", label: "Welcome", icon: PartyPopper },
-  { id: "admin", label: "Admin", icon: UserPlus },
-  { id: "provider", label: "Provider", icon: KeyRound },
-  { id: "agent", label: "Agent", icon: Bot },
-  { id: "sandbox", label: "Sandbox", icon: Container },
-  { id: "launch", label: "Launch", icon: Sparkles },
+const STEP_KEYS = [
+  { id: "welcome", labelKey: "onboard.steps.welcome", icon: PartyPopper },
+  { id: "admin", labelKey: "onboard.steps.admin", icon: UserPlus },
+  { id: "provider", labelKey: "onboard.steps.provider", icon: KeyRound },
+  { id: "agent", labelKey: "onboard.steps.agentStep", icon: Bot },
+  { id: "sandbox", labelKey: "onboard.steps.sandbox", icon: Container },
+  { id: "launch", labelKey: "onboard.steps.launch", icon: Sparkles },
 ] as const;
 
 // Display label maps. base-ui's <Select.Value /> renders the raw `value`
@@ -113,6 +114,7 @@ const PROVIDERS: Record<
 
 export default function OnboardPage() {
   const router = useRouter();
+  const t = useT();
   const [step, setStep] = useState(0);
 
   // Already-onboarded probe — /api/status returns configured=true once
@@ -199,7 +201,7 @@ export default function OnboardPage() {
       setTestStatus("ok");
     } else {
       setTestStatus("fail");
-      setTestError(res.error || "test failed");
+      setTestError(res.error || t("onboard.testFailed"));
     }
   }
 
@@ -245,11 +247,11 @@ export default function OnboardPage() {
     });
     setSubmitting(false);
     if (!res.ok) {
-      setSubmitError(res.error || "onboard failed");
+      setSubmitError(res.error || t("onboard.onboardFailed"));
       setStep(1); // jump back to admin step where most errors come from
       return;
     }
-    setStep(STEPS.length - 1);
+    setStep(STEP_KEYS.length - 1);
   }
 
   // Validation per step — drives the Next button's disabled state.
@@ -356,21 +358,21 @@ export default function OnboardPage() {
           </Card>
         )}
 
-        {step !== STEPS.length - 1 && (
+        {step !== STEP_KEYS.length - 1 && (
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               disabled={step === 0}
             >
-              <ArrowLeft className="mr-1 size-4" /> Back
+              <ArrowLeft className="mr-1 size-4" /> {t("onboard.back")}
             </Button>
-            {step < STEPS.length - 2 ? (
+            {step < STEP_KEYS.length - 2 ? (
               <Button
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!stepValid[step]}
               >
-                Next <ArrowRight className="ml-1 size-4" />
+                {t("onboard.next")} <ArrowRight className="ml-1 size-4" />
               </Button>
             ) : (
               <Button
@@ -379,11 +381,11 @@ export default function OnboardPage() {
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="mr-1 size-4 animate-spin" /> Setting up
+                    <Loader2 className="mr-1 size-4 animate-spin" /> {t("onboard.settingUp")}
                   </>
                 ) : (
                   <>
-                    Create &amp; launch <Sparkles className="ml-1 size-4" />
+                    {t("onboard.createAndLaunch")} <Sparkles className="ml-1 size-4" />
                   </>
                 )}
               </Button>
@@ -396,9 +398,10 @@ export default function OnboardPage() {
 }
 
 function Stepper({ current }: { current: number }) {
+  const t = useT();
   return (
     <ol className="flex items-center gap-2">
-      {STEPS.map((s, i) => {
+      {STEP_KEYS.map((s, i) => {
         const Icon = s.icon;
         const done = i < current;
         const active = i === current;
@@ -426,9 +429,9 @@ function Stepper({ current }: { current: number }) {
                     : "text-muted-foreground/60")
               }
             >
-              {s.label}
+              {t(s.labelKey)}
             </span>
-            {i < STEPS.length - 1 && (
+            {i < STEP_KEYS.length - 1 && (
               <div
                 className={
                   "h-px flex-1 " +
@@ -444,23 +447,21 @@ function Stepper({ current }: { current: number }) {
 }
 
 function WelcomeStep() {
+  const t = useT();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <PartyPopper className="size-5 text-primary" />
-          Welcome to FastClaw
+          {t("onboard.welcome.title")}
         </CardTitle>
         <CardDescription>
-          A few quick steps to set up your platform — admin account, first LLM
-          provider, and your first agent. Takes about a minute.
+          {t("onboard.welcome.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        <p>You&apos;ll be the super-admin once setup completes — you can add more users from the admin panel afterwards.</p>
-        <p>
-          Everything user-facing (providers, channels, agents, settings) lives in the database and can be changed from the UI later.
-        </p>
+        <p>{t("onboard.welcome.youWillBeAdmin")}</p>
+        <p>{t("onboard.welcome.everythingInDB")}</p>
       </CardContent>
     </Card>
   );
@@ -482,21 +483,22 @@ function AdminStep(props: {
     props.password.length > 0 && props.password.length < 6;
   const mismatch =
     props.passwordConfirm.length > 0 && props.password !== props.passwordConfirm;
+  const t = useT();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserPlus className="size-5 text-primary" />
-          Create super-admin account
+          {t("onboard.admin.title")}
         </CardTitle>
         <CardDescription>
-          You can sign in with either username or email afterwards.
+          {t("onboard.admin.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="ob-username">Username</Label>
+            <Label htmlFor="ob-username">{t("signup.username")}</Label>
             <Input
               id="ob-username"
               value={props.username}
@@ -506,7 +508,7 @@ function AdminStep(props: {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ob-email">Email</Label>
+            <Label htmlFor="ob-email">{t("signup.email")}</Label>
             <Input
               id="ob-email"
               type="email"
@@ -518,7 +520,7 @@ function AdminStep(props: {
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="ob-display">Display Name (optional)</Label>
+          <Label htmlFor="ob-display">{t("onboard.admin.displayNameOptional")}</Label>
           <Input
             id="ob-display"
             value={props.displayName}
@@ -528,7 +530,7 @@ function AdminStep(props: {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="ob-password">Password</Label>
+            <Label htmlFor="ob-password">{t("root.password")}</Label>
             <Input
               id="ob-password"
               type="password"
@@ -538,11 +540,11 @@ function AdminStep(props: {
               placeholder="6+ characters"
             />
             {passwordTooShort && (
-              <p className="text-xs text-destructive">at least 6 characters</p>
+              <p className="text-xs text-destructive">{t("onboard.admin.atLeast6")}</p>
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ob-password2">Confirm Password</Label>
+            <Label htmlFor="ob-password2">{t("onboard.admin.confirmPassword")}</Label>
             <Input
               id="ob-password2"
               type="password"
@@ -551,7 +553,7 @@ function AdminStep(props: {
               autoComplete="new-password"
             />
             {mismatch && (
-              <p className="text-xs text-destructive">passwords don&apos;t match</p>
+              <p className="text-xs text-destructive">{t("onboard.admin.passwordMismatch")}</p>
             )}
           </div>
         </div>
@@ -582,25 +584,26 @@ function ProviderStep(props: {
   testError: string;
 }) {
   const preset = PROVIDERS[props.providerKey];
+  const t = useT();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="size-5 text-primary" />
-          First LLM provider
+          {t("onboard.provider.title")}
         </CardTitle>
         <CardDescription>
-          Connect at least one model. You can add more (and per-user/per-agent
-          overrides) from the Providers page later — or skip and configure
-          everything from there.
+          {t("onboard.provider.desc")}
+
+
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Configure a provider now</p>
+            <p className="text-sm font-medium">{t("onboard.provider.configureNow")}</p>
             <p className="text-xs text-muted-foreground">
-              Off = skip; you can add providers from the Providers page later.
+              {t("onboard.provider.configureNowDesc")}
             </p>
           </div>
           <Switch checked={props.enabled} onCheckedChange={props.setEnabled} />
@@ -608,16 +611,16 @@ function ProviderStep(props: {
         {props.enabled && <Separator />}
         {!props.enabled && (
           <p className="text-xs text-muted-foreground">
-            Skipping — the admin account and agent will be created without a
-            default model. Add one from{" "}
-            <span className="font-mono">Providers</span> after launch.
+            {t("onboard.provider.skipping")} 
+
+            <span className="font-mono">Providers</span> {t("onboard.provider.afterLaunch")}
           </p>
         )}
         {props.enabled && (
         <>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Provider</Label>
+            <Label>{t("onboard.provider.label")}</Label>
             <Select
               value={props.providerKey}
               onValueChange={(v) => v && props.onProviderChange(v)}
@@ -638,7 +641,7 @@ function ProviderStep(props: {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Provider Name</Label>
+            <Label>{t("onboard.provider.nameLabel")}</Label>
             <Input
               value={props.providerName}
               onChange={(e) => props.setProviderName(e.target.value)}
@@ -649,7 +652,7 @@ function ProviderStep(props: {
         </div>
 
         <div className="space-y-1.5">
-          <Label>Default Model</Label>
+          <Label>{t("onboard.provider.defaultModel")}</Label>
           <Input
             value={props.model}
             onChange={(e) => props.setModel(e.target.value)}
@@ -658,7 +661,7 @@ function ProviderStep(props: {
           />
         </div>
         <div className="space-y-1.5">
-          <Label>API Base URL</Label>
+          <Label>{t("onboard.provider.apiBase")}</Label>
           <Input
             value={props.apiBase}
             onChange={(e) => props.setApiBase(e.target.value)}
@@ -666,7 +669,7 @@ function ProviderStep(props: {
           />
         </div>
         <div className="space-y-1.5">
-          <Label>API Key</Label>
+          <Label>{t("onboard.provider.apiKey")}</Label>
           <Input
             type="password"
             value={props.apiKey}
@@ -677,7 +680,7 @@ function ProviderStep(props: {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>API Type</Label>
+            <Label>{t("onboard.provider.apiType")}</Label>
             <Select value={props.apiType} onValueChange={(v) => v && props.setApiType(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue>
@@ -691,7 +694,7 @@ function ProviderStep(props: {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Auth Type</Label>
+            <Label>{t("onboard.provider.authType")}</Label>
             <Select value={props.authType} onValueChange={(v) => v && props.setAuthType(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue>
@@ -716,15 +719,15 @@ function ProviderStep(props: {
           >
             {props.testStatus === "running" ? (
               <>
-                <Loader2 className="mr-1 size-4 animate-spin" /> Testing
+                <Loader2 className="mr-1 size-4 animate-spin" /> {t("onboard.provider.testing")}
               </>
             ) : (
-              "Test connection"
+              t("onboard.provider.testConnection")
             )}
           </Button>
           {props.testStatus === "ok" && (
             <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15">
-              <Check className="mr-1 size-3" /> connected
+              <Check className="mr-1 size-3" /> {t("onboard.provider.connected")}
             </Badge>
           )}
           {props.testStatus === "fail" && (
@@ -742,21 +745,22 @@ function AgentStep(props: {
   agentName: string;
   setAgentName: (v: string) => void;
 }) {
+  const t = useT();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bot className="size-5 text-primary" />
-          First agent
+          {t("onboard.agent.title")}
         </CardTitle>
         <CardDescription>
-          Just a name for now — you can edit personality, skills, and tools
-          after launch.
+          {t("onboard.agent.desc")}
+
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">
-          <Label htmlFor="ob-agent">Agent Name</Label>
+          <Label htmlFor="ob-agent">{t("onboard.agent.nameLabel")}</Label>
           <Input
             id="ob-agent"
             value={props.agentName}
@@ -764,9 +768,9 @@ function AgentStep(props: {
             placeholder="default"
           />
           <p className="text-xs text-muted-foreground">
-            The agent gets a globally unique id (e.g.{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">agt_a1b2c3…</code>);
-            this name is just for display.
+            {t("onboard.agent.nameHint")}{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">agt_a1b2c3…</code>
+            {t("onboard.agent.nameHint2")}
           </p>
         </div>
       </CardContent>
@@ -792,6 +796,7 @@ function SandboxStep(props: {
   boxliteURL: string;
   setBoxliteURL: (v: string) => void;
 }) {
+  const t = useT();
   const SANDBOX_BACKEND_LABELS: Record<string, string> = {
     docker: "Docker",
     e2b: "E2B (cloud)",
@@ -802,19 +807,19 @@ function SandboxStep(props: {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Container className="size-5 text-primary" />
-          Sandbox (optional)
+          {t("onboard.sandbox.title")}
         </CardTitle>
         <CardDescription>
-          Run agent-executed code in an isolated environment. Skip this if
-          you&apos;re unsure — you can flip it on later from Settings.
+          {t("onboard.sandbox.desc")}
+
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Enable sandbox</p>
+            <p className="text-sm font-medium">{t("onboard.sandbox.enable")}</p>
             <p className="text-xs text-muted-foreground">
-              Off by default — code runs in the agent&apos;s own workspace.
+              {t("onboard.sandbox.enableDesc")}
             </p>
           </div>
           <Switch checked={props.enabled} onCheckedChange={props.setEnabled} />
@@ -824,7 +829,7 @@ function SandboxStep(props: {
             <Separator />
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Backend</Label>
+                <Label>{t("onboard.sandbox.backend")}</Label>
                 <Select
                   value={props.backend}
                   onValueChange={(v) => v && props.setBackend(v)}
@@ -846,7 +851,7 @@ function SandboxStep(props: {
               {props.backend === "e2b" ? (
                 <>
                   <div className="space-y-1.5">
-                    <Label>E2B API Key</Label>
+                    <Label>{t("onboard.sandbox.e2bApiKey")}</Label>
                     <Input
                       type="password"
                       value={props.e2bKey}
@@ -856,7 +861,7 @@ function SandboxStep(props: {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>E2B Template</Label>
+                    <Label>{t("onboard.sandbox.e2bTemplate")}</Label>
                     <Input
                       value={props.e2bTemplate}
                       onChange={(e) => props.setE2BTemplate(e.target.value)}
@@ -868,7 +873,7 @@ function SandboxStep(props: {
               ) : props.backend === "boxlite" ? (
                 <>
                   <div className="space-y-1.5">
-                    <Label>BoxLite API Key</Label>
+                    <Label>{t("onboard.sandbox.boxliteApiKey")}</Label>
                     <Input
                       type="password"
                       value={props.boxliteKey}
@@ -878,7 +883,7 @@ function SandboxStep(props: {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Snapshot</Label>
+                    <Label>{t("onboard.sandbox.snapshot")}</Label>
                     <Input
                       value={props.boxliteImage}
                       onChange={(e) => props.setBoxliteImage(e.target.value)}
@@ -891,7 +896,7 @@ function SandboxStep(props: {
                     </p>
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label>API URL (optional)</Label>
+                    <Label>{t("onboard.sandbox.apiUrl")}</Label>
                     <Input
                       value={props.boxliteURL}
                       onChange={(e) => props.setBoxliteURL(e.target.value)}
@@ -902,7 +907,7 @@ function SandboxStep(props: {
                 </>
               ) : (
                 <div className="space-y-1.5">
-                  <Label>Docker Image</Label>
+                  <Label>{t("onboard.sandbox.dockerImage")}</Label>
                   <Input
                     value={props.dockerImage}
                     onChange={(e) => props.setDockerImage(e.target.value)}
@@ -920,26 +925,26 @@ function SandboxStep(props: {
 }
 
 function DoneStep({ onContinue }: { onContinue: () => void }) {
+  const t = useT();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <PartyPopper className="size-5 text-emerald-500" />
-          You&apos;re in!
+          {t("onboard.done.title")}
         </CardTitle>
         <CardDescription>
-          Admin account created, provider configured, first agent ready.
+          {t("onboard.done.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          The session cookie is already set — clicking continue takes you
-          straight to the dashboard.
+          {t("onboard.done.sessionSet")}
         </p>
       </CardContent>
       <CardFooter>
         <Button onClick={onContinue} className="w-full">
-          Open dashboard <ArrowRight className="ml-1 size-4" />
+          {t("onboard.done.openDashboard")} <ArrowRight className="ml-1 size-4" />
         </Button>
       </CardFooter>
     </Card>

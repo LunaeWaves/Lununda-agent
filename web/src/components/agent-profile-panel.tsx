@@ -146,7 +146,7 @@ export default function AgentProfilePanel() {
   if (!agent) {
     return (
       <div className="p-6 max-w-3xl">
-        <p className="text-sm text-muted-foreground">Agent not found.</p>
+        <p className="text-sm text-muted-foreground">{t("profile.notFound")}</p>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export default function AgentProfilePanel() {
     <div className="p-6 max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Profile</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("profile.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isOwner
               ? t("profile.ownerDesc")
@@ -177,11 +177,11 @@ export default function AgentProfilePanel() {
             className={saved ? "border-emerald-500/30 text-emerald-600" : ""}
           >
             {saved ? (
-              <><Check className="h-4 w-4 mr-2" /> Saved</>
+              <><Check className="h-4 w-4 mr-2" /> {t("common.saved")}</>
             ) : saving ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t("common.saving")}</>
             ) : (
-              <><Save className="h-4 w-4 mr-2" /> Save</>
+              <><Save className="h-4 w-4 mr-2" /> {t("common.save")}</>
             )}
           </Button>
         )}
@@ -251,7 +251,7 @@ export default function AgentProfilePanel() {
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <Label htmlFor="agent-profile-public" className="text-sm font-medium">
-              Public access
+              {t("profile.publicAccess")}
             </Label>
             <p className="text-xs text-muted-foreground">
               {isPublic

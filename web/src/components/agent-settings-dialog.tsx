@@ -145,7 +145,7 @@ export function AgentSettingsDialog({
         <aside className="flex flex-col gap-1 border-r bg-muted/40 p-3 overflow-y-auto">
           {agentTabs.length > 0 && (
             <>
-              <SectionLabel>Agent</SectionLabel>
+              <SectionLabel>{t("dialog.agentSection")}</SectionLabel>
               {agentTabs.map((t) => (
                 <TabButton
                   key={t.id}
@@ -157,7 +157,7 @@ export function AgentSettingsDialog({
             </>
           )}
           <SectionLabel className={agentTabs.length > 0 ? "mt-3" : undefined}>
-            User
+            {t("dialog.userSection")}
           </SectionLabel>
           {userTabs.map((t) => (
             <TabButton

@@ -7,9 +7,11 @@ import { logout } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n";
 
 export default function RootPage() {
   const router = useRouter();
+  const t = useT();
   const [showLogin, setShowLogin] = useState(false);
   const [loginField, setLoginField] = useState("");
   const [password, setPassword] = useState("");
@@ -20,9 +22,6 @@ export default function RootPage() {
   useEffect(() => {
     getStatus()
       .then(async (status) => {
-        // Never trust a stale localStorage token when the backend reports
-        // the system is unconfigured — that token belongs to a previous
-        // deployment and would otherwise short-circuit onboarding.
         if (!status.configured) {
           logout();
           router.replace("/onboard/");
@@ -49,12 +48,12 @@ export default function RootPage() {
     try {
       const res = await loginApi(loginField.trim(), password);
       if (!res.ok) {
-        setError(res.error || "Invalid username or password");
+        setError(res.error || t("login.invalidCredentials"));
         return;
       }
       router.replace("/overview/");
     } catch {
-      setError("Connection failed");
+      setError(t("login.cannotReach"));
     } finally {
       setSubmitting(false);
     }
@@ -75,12 +74,12 @@ export default function RootPage() {
           <div className="flex flex-col items-center gap-3">
             <img src="/logo.png" alt="FastClaw" className="h-12 w-12" />
             <h1 className="text-xl font-bold">FastClaw</h1>
-            <p className="text-sm text-muted-foreground">Sign in to continue</p>
+            <p className="text-sm text-muted-foreground">{t("root.signInToContinue")}</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="login-field">Username or email</Label>
+              <Label htmlFor="login-field">{t("root.usernameOrEmail")}</Label>
               <Input
                 id="login-field"
                 value={loginField}
@@ -91,7 +90,7 @@ export default function RootPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="login-password">Password</Label>
+              <Label htmlFor="login-password">{t("root.password")}</Label>
               <Input
                 id="login-password"
                 type="password"
@@ -106,7 +105,7 @@ export default function RootPage() {
               disabled={!loginField.trim() || !password || submitting}
               className="w-full"
             >
-              {submitting ? "Signing in…" : "Sign In"}
+              {submitting ? t("login.submitting") : t("login.submit")}
             </Button>
           </form>
         </div>

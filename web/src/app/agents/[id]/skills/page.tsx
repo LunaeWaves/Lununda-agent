@@ -64,7 +64,7 @@ export default function AgentSkillsPage() {
   // agent-scoped one. Lets the user configure FAL_KEY etc. from
   // whichever entry point they're already on.
   const [skillEntries, setSkillEntries] = useState<Record<string, SkillEntryView>>({});
-  // File input ref + upload state for the local-zip "Upload" button.
+  // File input ref + upload state for the local-zip t("skills.upload") button.
   // The server unzips to <agent>/skills/<name>/ and hot-reloads the
   // agent so the new skill shows up without a refresh.
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -172,10 +172,9 @@ export default function AgentSkillsPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Skills</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("skills.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Skills scoped to <strong>{agentName}</strong> — only this
-            agent sees them
+            {t("skills.agentSubtitle")} <strong>{agentName}</strong> {t("skills.agentSubtitleSuffix")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -206,8 +205,7 @@ export default function AgentSkillsPage() {
               No agent-scoped skills yet
             </p>
             <p className="text-xs text-muted-foreground/60 mb-4 max-w-sm text-center">
-              Install a skill below — it lands in this agent's own skills
-              directory and only this agent sees it.
+              {t("skills.noAgentSkillsDesc")}
             </p>
             <Button variant="outline" size="sm" onClick={() => setInstallOpen(true)}>
               <Download className="h-4 w-4 mr-2" />
@@ -328,20 +326,18 @@ export default function AgentSkillsPage() {
           </button>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium">File requirements</p>
+            <p className="text-sm font-medium">{t("skills.fileRequirements")}</p>
             <ul className="space-y-1.5 text-sm text-muted-foreground">
               <li className="flex gap-2">
                 <span className="text-muted-foreground/60">•</span>
                 <span>
-                  <code className="text-foreground">.zip</code> file that includes a{" "}
-                  <code className="text-foreground">SKILL.md</code> at the root level
+                  <code className="text-foreground">.zip</code> {t("skills.zipWithSkillMd")}
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-muted-foreground/60">•</span>
                 <span>
-                  <code className="text-foreground">SKILL.md</code> contains a skill name
-                  and description formatted in YAML
+                  <code className="text-foreground">SKILL.md</code> {t("skills.skillMdYaml")}
                 </span>
               </li>
             </ul>
@@ -380,7 +376,7 @@ export default function AgentSkillsPage() {
               {uploading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Uploading…
+                  {t("skills.uploading")}
                 </>
               ) : (
                 "Upload"
@@ -581,7 +577,7 @@ function InstallSkillDialog({
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">{r.skillId}</p>
                           <span className="text-[10px] text-muted-foreground">
-                            {r.installs.toLocaleString()} installs
+                            {r.installs.toLocaleString()} {t("skills.installs")}
                           </span>
                         </div>
                         <a
@@ -603,14 +599,14 @@ function InstallSkillDialog({
                       >
                         {already ? (
                           <>
-                            <Check className="h-3.5 w-3.5 mr-1.5" /> Installed
+                            <Check className="h-3.5 w-3.5 mr-1.5" /> {t("skills.installed")}
                           </>
                         ) : busy ? (
                           <>
-                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Installing…
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> {t("skills.installing")}
                           </>
                         ) : (
-                          "Install"
+                          t("skills.installBtn")
                         )}
                       </Button>
                     </div>

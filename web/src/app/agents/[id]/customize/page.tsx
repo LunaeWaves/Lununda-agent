@@ -142,7 +142,7 @@ export default function AgentCustomizePage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">{t("customize.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Personality, memory, and behavior files for <strong>{agentName}</strong>
+            {t("customize.subtitleInline")} <strong>{agentName}</strong>
           </p>
         </div>
         <div className="flex gap-2">
@@ -157,7 +157,7 @@ export default function AgentCustomizePage() {
                   : t("customize.discardNoBase")
               }
             >
-              <RotateCcw className="h-4 w-4 mr-2" /> Revert
+              <RotateCcw className="h-4 w-4 mr-2" /> {t("customize.revert")}
             </Button>
           )}
           <Button
@@ -167,11 +167,11 @@ export default function AgentCustomizePage() {
             className={saved ? "border-emerald-500/30 text-emerald-600" : ""}
           >
             {saved ? (
-              <><Check className="h-4 w-4 mr-2" /> Saved</>
+              <><Check className="h-4 w-4 mr-2" /> {t("common.saved")}</>
             ) : saving ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t("common.saving")}</>
             ) : (
-              <><Save className="h-4 w-4 mr-2" /> Save</>
+              <><Save className="h-4 w-4 mr-2" /> {t("common.save")}</>
             )}
           </Button>
         </div>
@@ -204,10 +204,10 @@ export default function AgentCustomizePage() {
         <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
           {sourceBadge(active?.source)}
           {active?.source === "db" && active.baseContent && (
-            <span>Override active — repo base is {active.baseContent.length} chars.</span>
+            <span>{t("customize.overrideActiveChars", { count: active.baseContent.length })}</span>
           )}
           {active?.source === "fs" && (
-            <span>Loaded from <code>{`<agent home>/${activeTab}`}</code>. Editing creates a per-agent override.</span>
+            <span>{t("customize.loadedFromPath")} <code>{`<agent home>/${activeTab}`}</code>. {t("customize.editingOverride")}</span>
           )}
         </div>
       )}
@@ -230,7 +230,7 @@ export default function AgentCustomizePage() {
         // page usable too: still grows on tall screens, but stops
         // short of "fills the viewport".
         style={{ height: "min(55vh, 480px)", minHeight: 280 }}
-        placeholder={`# ${activeTab}\n\nWrite your content here...`}
+        placeholder={`# ${activeTab}\n\n{t("customize.placeholder")}`}
       />
     </div>
   );

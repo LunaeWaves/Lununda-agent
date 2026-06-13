@@ -145,7 +145,7 @@ export default function AgentSchedulerPage() {
             <h2 className="text-2xl font-semibold tracking-tight">{t("scheduler.title")}</h2>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {t("scheduler.tasksFor")} <strong>{agentName || t("scheduler.thisAgent")}</strong>.
+            <strong>{agentName || t("scheduler.thisAgent")}</strong>{t("scheduler.tasksFor")}
           </p>
         </div>
       </div>
@@ -166,7 +166,7 @@ export default function AgentSchedulerPage() {
         <div className="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center">
           <Clock className="mx-auto size-8 text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground">
-            No scheduled tasks yet.
+            {t("scheduler.noTasks")}
           </p>
         </div>
       ) : (

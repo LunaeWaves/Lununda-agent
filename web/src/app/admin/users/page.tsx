@@ -49,6 +49,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Users, KeyRound, Trash2, Plus } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface UserRow {
   id: string;
@@ -75,6 +76,7 @@ export default function AdminUsersPage() {
   const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
   const [resetPwd, setResetPwd] = useState("");
   const [regOpen, setRegOpen] = useState<boolean | null>(null);
+  const t = useT();
 
   async function refresh() {
     setError("");
@@ -98,7 +100,7 @@ export default function AdminUsersPage() {
       setRegOpen(!!r.open);
     } catch {
       setRegOpen(!next);
-      setError("Failed to update registration setting");
+      setError(t("admin.users.updateRegFailed"));
     }
   }
 
@@ -157,14 +159,14 @@ export default function AdminUsersPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Users</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("admin.users.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage platform members. Each user gets isolated agents, sessions, and keys.
+            {t("admin.users.subtitle")}
           </p>
         </div>
         <Button onClick={openCreateDialog}>
           <Plus className="h-4 w-4 mr-2" />
-          Add User
+          {t("admin.users.addUser")}
         </Button>
       </div>
 
@@ -172,10 +174,9 @@ export default function AdminUsersPage() {
         <CardContent>
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium">Open registration</p>
+              <p className="text-sm font-medium">{t("admin.users.openRegistration")}</p>
               <p className="text-xs text-muted-foreground">
-                When on, anyone with the URL can create an account via /signup.
-                When off, only you can add users from this page.
+                {t("admin.users.openRegistrationOn")} {t("admin.users.openRegistrationOff")}
               </p>
             </div>
             <Switch
@@ -202,13 +203,13 @@ export default function AdminUsersPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4">
               <Users className="h-7 w-7 text-primary" />
             </div>
-            <p className="text-sm text-muted-foreground mb-1">No users yet</p>
+            <p className="text-sm text-muted-foreground mb-1">{t("admin.users.noUsers")}</p>
             <p className="text-xs text-muted-foreground/60 mb-4">
-              Add a user to give them their own scoped workspace
+              {t("admin.users.noUsersDesc")}
             </p>
             <Button variant="outline" size="sm" onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />
-              Add User
+              {t("admin.users.addUser")}
             </Button>
           </div>
         </div>
@@ -217,11 +218,11 @@ export default function AdminUsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("admin.users.colUsername")}</TableHead>
+                <TableHead>{t("admin.users.colEmail")}</TableHead>
+                <TableHead>{t("admin.users.colRole")}</TableHead>
+                <TableHead>{t("admin.users.colStatus")}</TableHead>
+                <TableHead className="text-right">{t("admin.users.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -265,7 +266,7 @@ export default function AdminUsersPage() {
                           setResetPwd("");
                           setResetTarget(u);
                         }}
-                        title="Reset password"
+                        title={t("admin.users.resetPassword")}
                       >
                         <KeyRound className="size-4" />
                       </Button>
@@ -274,7 +275,7 @@ export default function AdminUsersPage() {
                         variant="ghost"
                         className="text-destructive hover:text-destructive"
                         onClick={() => setDeleteTarget(u)}
-                        title="Delete"
+                        title={t("common.delete")}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -290,15 +291,15 @@ export default function AdminUsersPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add User</DialogTitle>
+            <DialogTitle>{t("admin.users.addUserTitle")}</DialogTitle>
             <DialogDescription>
-              Create a new platform member. They&apos;ll get their own scoped agents, sessions, and keys.
+              {t("admin.users.addUserDesc")}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="user-username">Username</Label>
+                <Label htmlFor="user-username">{t("admin.users.colUsername")}</Label>
                 <Input
                   id="user-username"
                   required
@@ -309,7 +310,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="user-email">Email</Label>
+                <Label htmlFor="user-email">{t("admin.users.colEmail")}</Label>
                 <Input
                   id="user-email"
                   required
@@ -321,7 +322,7 @@ export default function AdminUsersPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="user-password">Password</Label>
+              <Label htmlFor="user-password">{t("root.password")}</Label>
               <Input
                 id="user-password"
                 required
@@ -333,16 +334,16 @@ export default function AdminUsersPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="user-display">Display name</Label>
+                <Label htmlFor="user-display">{t("account.displayName")}</Label>
                 <Input
                   id="user-display"
                   value={form.displayName}
                   onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-                  placeholder="Optional"
+                  placeholder={t("admin.users.displayNameOptional")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Role</Label>
+                <Label>{t("admin.users.colRole")}</Label>
                 <Select
                   value={form.role}
                   onValueChange={(v) => v && setForm({ ...form, role: v })}
@@ -359,13 +360,13 @@ export default function AdminUsersPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
                 disabled={!form.username.trim() || !form.email.trim() || !form.password.trim()}
               >
-                Create user
+                {t("admin.users.createUser")}
               </Button>
             </DialogFooter>
           </form>
@@ -383,17 +384,17 @@ export default function AdminUsersPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset password</DialogTitle>
+            <DialogTitle>{t("admin.users.resetPassword")}</DialogTitle>
             <DialogDescription>
-              Set a new password for{" "}
+              {t("admin.users.resetPasswordDesc")}{" "}
               <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
                 {resetTarget?.username}
               </code>
-              . They&apos;ll need this to log in next time.
+              . {t("admin.users.resetPasswordHint")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5 py-2">
-            <Label htmlFor="reset-pwd">New password</Label>
+            <Label htmlFor="reset-pwd">{t("admin.users.newPassword")}</Label>
             <Input
               id="reset-pwd"
               type="password"
@@ -411,10 +412,10 @@ export default function AdminUsersPage() {
                 setResetPwd("");
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={handleResetPassword} disabled={!resetPwd.trim()}>
-              Reset password
+              {t("admin.users.resetPassword")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -426,18 +427,18 @@ export default function AdminUsersPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogTitle>{t("admin.users.deleteUser")}</AlertDialogTitle>
             <AlertDialogDescription>
               <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
                 {deleteTarget?.username}
               </code>{" "}
-              will be removed along with all of their agents, sessions, and API keys. This cannot be undone.
+              {t("admin.users.deleteUserDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)}>
-              Delete
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

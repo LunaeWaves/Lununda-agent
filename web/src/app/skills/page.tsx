@@ -137,15 +137,15 @@ export default function SkillsPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Skills</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("skills.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Installed skills that agents can use
+            {t("skills.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setUploadOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
-            Upload Skills
+            {t("skills.uploadSkill")}
           </Button>
           <Button onClick={() => setInstallOpen(true)}>
             <Download className="h-4 w-4 mr-2" />
@@ -336,7 +336,7 @@ export default function SkillsPage() {
                   Uploading…
                 </>
               ) : (
-                "Upload"
+                t("skills.upload")
               )}
             </Button>
           </div>
@@ -398,6 +398,7 @@ function InstallSkillDialog({
   onInstalled: () => void;
   installedNames: Set<string>;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -457,7 +458,7 @@ function InstallSkillDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Install Skill</DialogTitle>
+          <DialogTitle>{t("skills.installSkill")}</DialogTitle>
           <DialogDescription>
             Search skills.sh for a published skill. Installs land in{" "}
             <code className="font-mono text-xs">~/.fastclaw/skills/</code> and
@@ -551,7 +552,7 @@ function InstallSkillDialog({
                         ) : busy ? (
                           <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Installing…</>
                         ) : (
-                          "Install"
+                          t("skills.installBtn")
                         )}
                       </Button>
                     </div>

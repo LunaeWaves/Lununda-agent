@@ -147,17 +147,13 @@ export default function AgentContextPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">{t("context.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            What the LLM sees for{" "}
-            <strong>{agentName || "this agent"}</strong>. The prompt mode
-            picks both the framework prompt profile and the built-in tool
-            set. Custom tools come from plugins — always exposed
-            regardless of mode.
+            {t("context.subtitle", { name: agentName || "this agent" })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {saved && (
             <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-              <Check className="h-3.5 w-3.5" /> Saved
+              <Check className="h-3.5 w-3.5" /> {t("common.saved")}
             </span>
           )}
         </div>
@@ -171,7 +167,7 @@ export default function AgentContextPage() {
             <h3 className="font-medium">{t("context.promptMode")}</h3>
             {promptMode === "" || promptMode === "agent" ? (
               <Badge variant="outline" className="text-[10px]">
-                Default
+                {t("context.default")}
               </Badge>
             ) : (
               <Badge className="bg-primary/10 text-primary hover:bg-primary/10 text-[10px]">
@@ -203,42 +199,23 @@ export default function AgentContextPage() {
         </Select>
         <div className="mt-3 text-xs text-muted-foreground space-y-1.5">
           <div>
-            <strong>Agent</strong> — full framework prompt (task delegation,
-            tool-use discipline, workspace self-update, scheduling) + all
-            built-in tools. Default for autonomous task agents.
+            <strong>{t("context.modeAgent")}</strong> — {t("context.agentDesc")}
           </div>
           <div>
-            <strong>Chatbot</strong> — slim framework so persona files
-            shape voice directly. Built-ins narrowed to{" "}
-            <code className="text-[10px]">image_gen</code>,{" "}
-            <code className="text-[10px]">tts</code>,{" "}
-            <code className="text-[10px]">write_file</code>,{" "}
-            <code className="text-[10px]">edit_file</code> — the
-            last two let the LLM persist USER.md / MEMORY.md when it
-            learns about the chatter. Memory is the USER.md / MEMORY.md
-            sections inlined in the system prompt; no{" "}
-            <code className="text-[10px]">memory_search</code> escape
-            hatch (it scans logs chatbot mode doesn't write, returns
-            empty, and confuses the model). Main reply emits as plain
-            text, multi-bubble via the inline split marker. For
-            companion / role-play / customer-support bots.
+            <strong>{t("context.modeChatbot")}</strong> — {t("context.chatbotDesc")}
           </div>
           <div>
-            <strong>Customize</strong> — only the date anchor + your
-            bootstrap files; NO built-in tools. You write the system
-            prompt completely via SOUL.md / IDENTITY.md and bring tools
-            via plugins.
+            <strong>{t("context.modeCustomize")}</strong> — {t("context.customizeDesc")}
           </div>
         </div>
         <div className="mt-4 pt-3 border-t border-border flex items-start gap-2 text-xs text-muted-foreground">
           <Puzzle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Plugin and MCP tools are always exposed regardless of mode.
-            Build a plugin — see{" "}
+            {t("context.pluginToolsNote")}{" "}
             <code className="text-[11px]">
               ~/.fastclaw/plugins/fastclaw-plugin-demo
             </code>{" "}
-            for a minimal example.
+            {t("context.pluginToolsExample")}
           </span>
         </div>
       </div>
@@ -253,12 +230,7 @@ export default function AgentContextPage() {
             <div className="min-w-0">
               <h3 className="font-medium">{t("context.splitReplies")}</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Let the agent split one reply into multiple chat bubbles
-                using a separator marker — natural for short, multi-beat
-                replies in IM. Applies to every IM channel
-                (WeChat / Telegram / Discord / Slack / LINE / Feishu);
-                ignored on web. Off by default — keeps each reply as a
-                single message.
+                {t("context.splitRepliesDesc")}
               </p>
             </div>
           </div>
@@ -279,18 +251,9 @@ export default function AgentContextPage() {
           <div className="flex items-start gap-3 min-w-0">
             <Brain className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <h3 className="font-medium">Auto-remember chatter</h3>
+              <h3 className="font-medium">{t("context.autoPersist")}</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Backup persistence path: every 5 user-turns the runtime
-                fires a small LLM call that distills the recent
-                conversation into USER.md / MEMORY.md. The primary
-                path is the LLM writing those files directly via{" "}
-                <code className="text-[10px]">write_file</code> /{" "}
-                <code className="text-[10px]">edit_file</code> (now
-                available in Chatbot mode too) — this toggle just
-                makes sure something still gets persisted when the
-                model forgets to. Off by default to preserve the
-                stateless-across-sessions behavior.
+                {t("context.autoPersistDesc")}
               </p>
             </div>
           </div>
@@ -298,7 +261,7 @@ export default function AgentContextPage() {
             checked={autoPersist}
             onCheckedChange={handleAutoPersistChange}
             disabled={autoPersistSaving}
-            aria-label="Auto-remember chatter"
+            aria-label={t("context.autoPersist")}
           />
         </div>
       </div>

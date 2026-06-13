@@ -47,11 +47,11 @@ import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { useAgentName } from "@/hooks/use-agent-name";
 import { cn } from "@/lib/utils";
 
-const PAGE_TYPE_SECTIONS = [
-  { type: "overview", label: "总览", icon: EyeIcon },
-  { type: "entity", label: "实体", icon: DatabaseIcon },
-  { type: "concept", label: "概念", icon: LightbulbIcon },
-  { type: "source", label: "来源", icon: BookOpenIcon },
+const PAGE_TYPE_SECTIONS = (t: ReturnType<typeof useT>) => [
+  { type: "overview", label: t("wiki.overview"), icon: EyeIcon },
+  { type: "entity", label: t("wiki.entity"), icon: DatabaseIcon },
+  { type: "concept", label: t("wiki.concept"), icon: LightbulbIcon },
+  { type: "source", label: t("wiki.source"), icon: BookOpenIcon },
 ];
 
 export default function WikiPage() {
@@ -132,7 +132,7 @@ export default function WikiPage() {
   }, [agentId, kbSources, loadData]);
 
   const handleForceGenerate = useCallback(() => {
-    if (!window.confirm("强制重新生成将删除已有 Wiki 页面并重新分析所有知识库源，确定继续？")) return;
+    if (!window.confirm(t("wiki.forceRegenConfirm"))) return;
     handleGenerate(true);
   }, [handleGenerate]);
 
@@ -233,7 +233,7 @@ export default function WikiPage() {
       <div className="w-64 shrink-0 border-r bg-muted/30 flex flex-col">
         <div className="p-3 border-b">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Wiki</h3>
+            <h3 className="text-sm font-semibold">{t("wiki.title")}</h3>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
@@ -241,7 +241,7 @@ export default function WikiPage() {
                 className="h-7 w-7"
                 onClick={() => handleGenerate()}
                 disabled={generating || unprocessedCount === 0}
-                title={unprocessedCount === 0 ? "所有源已处理" : "生成未处理的 Wiki"}
+                title={unprocessedCount === 0 ? t("wiki.allProcessed") : t("wiki.generateUnprocessed")}
               >
                 <SparklesIcon className="h-4 w-4" />
               </Button>
@@ -251,7 +251,7 @@ export default function WikiPage() {
                 className="h-7 w-7"
                 onClick={handleForceGenerate}
                 disabled={generating || kbSources.length === 0}
-                title="强制重新生成所有 Wiki"
+                title={t("wiki.forceRegenAll")}
               >
                 <RefreshCwIcon className="h-3.5 w-3.5" />
               </Button>
@@ -260,7 +260,7 @@ export default function WikiPage() {
                 size="icon"
                 className="h-7 w-7"
                 onClick={handleLoadGraph}
-                title="知识图谱"
+                title={t("wiki.knowledgeGraph")}
               >
                 <NetworkIcon className="h-4 w-4" />
               </Button>
@@ -268,14 +268,14 @@ export default function WikiPage() {
           </div>
           {stats && (
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.total_pages} 页 · {stats.total_edges} 链接
+              {t("wiki.pageStats", { pages: stats.total_pages, links: stats.total_edges })}
             </p>
           )}
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-2">
-            {PAGE_TYPE_SECTIONS.map((section) => {
+            {PAGE_TYPE_SECTIONS(t).map((section) => {
               const sectionPages = grouped[section.type] || [];
               return (
                 <div key={section.type} className="mb-2">
@@ -311,7 +311,7 @@ export default function WikiPage() {
         {showGraph ? (
           <div className="flex-1 flex flex-col">
             <div className="p-3 border-b flex items-center gap-2">
-              <h3 className="text-sm font-semibold">知识图谱</h3>
+              <h3 className="text-sm font-semibold">{t("wiki.knowledgeGraph")}</h3>
               <Button
                 variant="ghost"
                 size="sm"
@@ -380,7 +380,7 @@ export default function WikiPage() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <BookOpenIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h2 className="text-lg font-semibold mb-1">Wiki 知识图谱</h2>
+              <h2 className="text-lg font-semibold mb-1">{t("wiki.wikiGraphTitle", { name: agentName })}</h2>
               <p className="text-sm mb-4">
                 {agentName
                   ? `${agentName} 的结构化知识库`
@@ -394,12 +394,12 @@ export default function WikiPage() {
                   </Button>
                   {unprocessedCount < kbSources.length && (
                     <p className="text-xs text-muted-foreground">
-                      {kbSources.length - unprocessedCount} 个源已处理，
+                      {t("wiki.sourcesProcessed", { done: kbSources.length - unprocessedCount, total: kbSources.length })}
                       <button
                         className="underline hover:text-foreground ml-1"
                         onClick={handleForceGenerate}
                       >
-                        强制重新生成全部
+                        {t("wiki.forceRegenFull")}
                       </button>
                     </p>
                   )}

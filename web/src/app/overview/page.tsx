@@ -95,9 +95,9 @@ export default function OverviewPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("overview.title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Monitor your FastClaw gateway
+          {t("overview.monitor")}
         </p>
       </div>
 
@@ -115,7 +115,7 @@ export default function OverviewPage() {
         {/* Agents */}
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-muted-foreground">Agents</span>
+            <span className="text-sm text-muted-foreground">{t("overview.agents")}</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/10">
               <Bot className="h-4 w-4 text-violet-500" />
             </div>
@@ -123,14 +123,14 @@ export default function OverviewPage() {
           <p className="text-3xl font-semibold tracking-tight">
             {status?.agents?.length || 0}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Active agents</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("overview.activeAgents")}</p>
         </div>
 
         {/* Users — admin-only */}
         {isAdmin && (
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Users</span>
+              <span className="text-sm text-muted-foreground">{t("overview.users")}</span>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500/10">
                 <Users className="h-4 w-4 text-cyan-500" />
               </div>
@@ -138,7 +138,7 @@ export default function OverviewPage() {
             <p className="text-3xl font-semibold tracking-tight">
               {status?.users ?? 0}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Registered</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("overview.registered")}</p>
           </div>
         )}
 
@@ -146,7 +146,7 @@ export default function OverviewPage() {
         {isAdmin && (
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Chats</span>
+              <span className="text-sm text-muted-foreground">{t("overview.chats")}</span>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10">
                 <MessagesSquare className="h-4 w-4 text-amber-500" />
               </div>
@@ -154,7 +154,7 @@ export default function OverviewPage() {
             <p className="text-3xl font-semibold tracking-tight">
               {chats ?? "—"}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Total sessions</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("overview.totalSessions")}</p>
           </div>
         )}
 
@@ -162,7 +162,7 @@ export default function OverviewPage() {
         {isAdmin && showChannels && (
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Channels</span>
+              <span className="text-sm text-muted-foreground">{t("overview.channels")}</span>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
                 <Radio className="h-4 w-4 text-blue-500" />
               </div>
@@ -181,15 +181,15 @@ export default function OverviewPage() {
           <div className="p-5 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <Brain className="h-4 w-4 text-amber-500" />
-              <h3 className="font-medium">Configuration</h3>
+              <h3 className="font-medium">{t("overview.configuration")}</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Model and tools wired into this gateway
+              {t("overview.configDesc")}
             </p>
           </div>
           <div className="px-5 pb-5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Model</span>
+              <span className="text-sm text-muted-foreground">{t("overview.model")}</span>
               {status?.provider?.model ? (
                 <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">
                   {status.provider.model}
@@ -212,14 +212,14 @@ export default function OverviewPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Tools</span>
-                  <span className="text-sm text-muted-foreground">None configured</span>
+                  <span className="text-sm text-muted-foreground">{t("overview.tools")}</span>
+                  <span className="text-sm text-muted-foreground">{t("overview.noneConfigured")}</span>
                 </div>
                 <Separator />
               </>
             )}
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Runtime</span>
+              <span className="text-sm text-muted-foreground">{t("overview.runtime")}</span>
               <span className="text-sm truncate">
                 {runtime?.enabled
                   ? `${runtime.backend === "e2b" ? "E2B" : "Docker"}${

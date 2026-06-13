@@ -20,11 +20,12 @@ import {
   type TokenUsageRange,
   type TokenUsageReport,
 } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
-const RANGES: { value: TokenUsageRange; label: string }[] = [
-  { value: "24h", label: "Last 24 hours" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "30d", label: "Last 30 days" },
+const RANGE_KEYS: { value: TokenUsageRange; labelKey: string }[] = [
+  { value: "24h", labelKey: "admin.usage24h" },
+  { value: "7d", labelKey: "admin.usage7d" },
+  { value: "30d", labelKey: "admin.usage30d" },
 ];
 
 // fmt collapses big counts into 12.3K / 4.5M / 1.2B so the cards stay
@@ -40,6 +41,7 @@ function fmt(n: number): string {
 
 export default function AdminUsagePage() {
   const [range, setRange] = useState<TokenUsageRange>("7d");
+  const t = useT();
   const [report, setReport] = useState<TokenUsageReport | null>(null);
   const [agentNames, setAgentNames] = useState<Record<string, string>>({});
   const [userNames, setUserNames] = useState<Record<string, string>>({});
@@ -81,7 +83,7 @@ export default function AdminUsagePage() {
       const data = await adminGetTokenUsage(r, 10);
       setReport(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load usage");
+      setError(e instanceof Error ? e.message : t("usage.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -111,22 +113,22 @@ export default function AdminUsagePage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Token Usage</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("admin.usage.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Aggregate LLM token consumption across the platform.
+            {t("admin.usage.subtitle")}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => load(range)} disabled={loading}>
           <RefreshCcw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          {t("admin.refreshChats")}
         </Button>
       </div>
 
       <Tabs value={range} onValueChange={(v) => setRange(v as TokenUsageRange)}>
         <TabsList>
-          {RANGES.map((r) => (
+          {RANGE_KEYS.map((r) => (
             <TabsTrigger key={r.value} value={r.value}>
-              {r.label}
+              {t(r.labelKey)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -141,24 +143,24 @@ export default function AdminUsagePage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard label="Total tokens" value={fmt(totalTokens)} hint={`${totals?.requestCount ?? 0} requests`} />
-        <SummaryCard label="Input" value={fmt(totals?.inputTokens ?? 0)} />
-        <SummaryCard label="Output" value={fmt(totals?.outputTokens ?? 0)} />
+        <SummaryCard label={t("admin.usage.totalTokens")} value={fmt(totalTokens)} hint={`${totals?.requestCount ?? 0} ${t("usage.requests").toLowerCase()}`} />
+        <SummaryCard label={t("usage.input")} value={fmt(totals?.inputTokens ?? 0)} />
+        <SummaryCard label={t("usage.output")} value={fmt(totals?.outputTokens ?? 0)} />
         <SummaryCard
-          label="Cache (read / write)"
+          label={t("admin.usage.cacheReadWrite")}
           value={`${fmt(totals?.cacheReadTokens ?? 0)} / ${fmt(totals?.cacheCreationTokens ?? 0)}`}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RankCard
-          title="Top agents"
+          title={t("admin.usage.topAgents")}
           rows={report?.topAgents ?? []}
           resolve={(k) => renderKey(k, agentNames)}
           icon="agent"
         />
         <RankCard
-          title="Top users"
+          title={t("admin.usage.topUsers")}
           rows={report?.topUsers ?? []}
           resolve={(k) => renderKey(k, userNames)}
           icon="user"
@@ -191,19 +193,20 @@ interface RankCardProps {
 }
 
 function RankCard({ title, rows, resolve }: RankCardProps) {
+  const t = useT();
   return (
     <Card>
       <CardContent>
         <h3 className="text-sm font-medium mb-3">{title}</h3>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No usage recorded yet.</p>
+          <p className="text-sm text-muted-foreground">{t("admin.usage.noUsage")}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Tokens</TableHead>
-                <TableHead className="text-right">Requests</TableHead>
+                <TableHead>{t("admin.usage.colName")}</TableHead>
+                <TableHead className="text-right">{t("admin.usage.colTokens")}</TableHead>
+                <TableHead className="text-right">{t("admin.usage.colRequests")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -271,15 +271,15 @@ export default function AgentsPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Agents</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("agents.title")}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your AI agents and their configurations
+            {t("agents.subtitle")}
           </p>
         </div>
         {!quotaLocked && (
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            New Agent
+            {t("agents.newAgent")}
           </Button>
         )}
       </div>
@@ -360,14 +360,14 @@ export default function AgentsPage() {
                     className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                   >
                     <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Public
+                    {t("agents.public")}
                   </Badge>
                 ) : (
                   <Badge
                     variant="outline"
                     className="bg-muted/60 text-muted-foreground"
                   >
-                    Private
+                    {t("agents.private")}
                   </Badge>
                 )}
               </div>
@@ -402,7 +402,7 @@ export default function AgentsPage() {
                     }}
                   >
                     <Pencil className="h-3 w-3 mr-1.5" />
-                    Edit
+                    {t("common.edit")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -414,7 +414,7 @@ export default function AgentsPage() {
                     }}
                   >
                     <Trash2 className="h-3 w-3 mr-1.5" />
-                    Remove
+                    {t("agents.remove")}
                   </Button>
                 </div>
               )}
@@ -496,7 +496,7 @@ export default function AgentsPage() {
                 type="button"
                 onClick={() => createAvatarInput.current?.click()}
                 className="group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed bg-muted/40 transition hover:bg-muted"
-                aria-label="Upload avatar"
+                aria-label={t("agents.uploadAvatar")}
               >
                 {newAvatarPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -582,7 +582,7 @@ export default function AgentsPage() {
                 type="button"
                 onClick={() => editAvatarInput.current?.click()}
                 className="group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed bg-muted/40 transition hover:bg-muted"
-                aria-label="Upload avatar"
+                aria-label={t("agents.uploadAvatar")}
               >
                 {editAvatarPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -617,7 +617,7 @@ export default function AgentsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-edit-desc">Description</Label>
+              <Label htmlFor="agent-edit-desc">{t("agents.descLabel")}</Label>
               <Textarea
                 id="agent-edit-desc"
                 value={editDescription}
@@ -701,7 +701,7 @@ export default function AgentsPage() {
               Cancel
             </Button>
             <Button onClick={handleEdit} disabled={!editName.trim() || saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -711,14 +711,14 @@ export default function AgentsPage() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+            <AlertDialogTitle>{t("agents.deleteAgent")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete <strong>{deleteId}</strong>?
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

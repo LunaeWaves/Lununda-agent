@@ -118,7 +118,7 @@ export default function ToolsPage() {
   return (
     <div className="flex flex-col md:flex-row md:gap-8 p-4 md:p-6 max-w-6xl mx-auto md:min-h-[calc(100vh-3.5rem)]">
       <aside className="md:w-48 md:shrink-0 mb-4 md:mb-0">
-        <h2 className="text-lg font-semibold tracking-tight mb-3 md:mb-4">Tools</h2>
+        <h2 className="text-lg font-semibold tracking-tight mb-3 md:mb-4">{t("tools.title")}</h2>
         <CategoryRail
           categories={cfg?.categories || []}
           active={active}
@@ -156,11 +156,11 @@ export default function ToolsPage() {
             saveButton={
               <Button onClick={handleSave} disabled={saving} variant={saved ? "outline" : "default"}>
                 {saved ? (
-                  <><Check className="h-4 w-4 mr-2" /> Saved</>
+                  <><Check className="h-4 w-4 mr-2" /> {t("common.saved")}</>
                 ) : saving ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t("common.saving")}</>
                 ) : (
-                  <><Save className="h-4 w-4 mr-2" /> Save</>
+                  <><Save className="h-4 w-4 mr-2" /> {t("common.save")}</>
                 )}
               </Button>
             }
@@ -229,6 +229,7 @@ function CategoryPanel({
   setTools: (patch: Partial<ToolCategorySettings>) => void;
   saveButton?: React.ReactNode;
 }) {
+  const t = useT();
   // Which provider's config to render. Default: the first one that
   // already has a value, else the first provider in the catalog. The
   // selector only swaps the visible config — every provider's state
@@ -249,7 +250,7 @@ function CategoryPanel({
         <div>
           <h3 className="text-xl font-semibold tracking-tight">{catalog.label}</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure provider API keys and fallback order. Tools with no configured provider are hidden from agents.
+            {t("tools.configDesc")}
           </p>
         </div>
         {saveButton}
@@ -259,7 +260,7 @@ function CategoryPanel({
         <div className="rounded-lg border border-border bg-card">
           <div className="p-5 space-y-4">
             <div className="space-y-2">
-              <Label>Provider</Label>
+              <Label>{t("tools.providerLabel")}</Label>
               <Select
                 value={selectedProvider}
                 onValueChange={(v) => v && setSelectedProvider(v)}
@@ -316,6 +317,7 @@ function ProviderFields({
   settings: ToolProviderSettings;
   onChange: (patch: Partial<ToolProviderSettings>) => void;
 }) {
+  const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const defaultModel = settings.options?.model || "";
 
@@ -330,7 +332,7 @@ function ProviderFields({
     <div className="space-y-3 pt-1">
       {provider.needsKey && (
         <div className="space-y-2">
-          <Label>API key</Label>
+          <Label>{t("tools.apiKeyLabel")}</Label>
           <Input
             type="password"
             placeholder="sk-…"
@@ -342,7 +344,7 @@ function ProviderFields({
       )}
       {provider.needsUrl && (
         <div className="space-y-2">
-          <Label>Endpoint</Label>
+          <Label>{t("tools.endpoint")}</Label>
           <Input
             type="url"
             placeholder="https://searxng.example.com"
@@ -354,7 +356,7 @@ function ProviderFields({
       )}
       {provider.models.length > 1 && (
         <div className="space-y-2">
-          <Label>Default model</Label>
+          <Label>{t("tools.defaultModel")}</Label>
           <Input
             value={defaultModel}
             onChange={(e) => setOption("model", e.target.value)}
@@ -379,7 +381,7 @@ function ProviderFields({
         onClick={() => setShowAdvanced((v) => !v)}
         className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
       >
-        {showAdvanced ? "Hide" : "Show"} advanced options
+        {showAdvanced ? t("tools.hideAdvanced") : t("tools.showAdvanced")} advanced options
       </button>
 
       {showAdvanced && (
@@ -399,6 +401,7 @@ function AdvancedOptionsEditor({
   options: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
 }) {
+  const t = useT();
   const [newKey, setNewKey] = useState("");
   const [newVal, setNewVal] = useState("");
 
@@ -481,6 +484,7 @@ function ChainEditor({
   tools: ToolCategorySettings;
   setTools: (patch: Partial<ToolCategorySettings>) => void;
 }) {
+  const t = useT();
   // Each provider contributes at most one chain option, using whichever
   // model the admin actually configured in the Default model input.
   // Providers with a single catalog model (e.g. the None sentinel, or
@@ -538,10 +542,10 @@ function ChainEditor({
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-center justify-between mb-3">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-          Fallback chain (top → bottom)
+          {t("tools.fallbackChain")}
         </Label>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Auto fallback</span>
+          <span className="text-xs text-muted-foreground">{t("tools.autoFallback")}</span>
           <Switch
             checked={autoFallback}
             onCheckedChange={(v) => setTools({ autoFallback: v })}
@@ -552,8 +556,7 @@ function ChainEditor({
       <div className="space-y-1.5">
         {chain.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-2 py-4">
-            No providers selected. The <code className="font-mono">{catalog.name}</code> tool
-            won&apos;t be available to agents until you add at least one.
+            {t("tools.noProviders", { name: catalog.name })}
           </p>
         ) : (
           chain.map((ref, i) => {
@@ -590,7 +593,7 @@ function ChainEditor({
           <Plus className="h-3.5 w-3.5 text-muted-foreground" />
           <Select onValueChange={(v) => v && addToChain(v)} value="">
             <SelectTrigger className="w-64 h-8 text-xs">
-              <SelectValue placeholder="Add provider to chain…" />
+              <SelectValue placeholder={t("tools.addProvider")} />
             </SelectTrigger>
             <SelectContent>
               {unusedOptions.map((o) => (

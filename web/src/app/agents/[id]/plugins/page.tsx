@@ -83,13 +83,9 @@ export default function AgentPluginsPage() {
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Plugins</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("plugins.title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Hook plugins discovered on this install — enable per-agent for{" "}
-          <strong>{agentName}</strong>. Off by default; plugins only
-          fire on agents you explicitly turn on. Follow-up messages flow
-          back through <code className="text-[10px]">chat.send</code> —
-          they don&apos;t trigger another agent turn.
+          {t("plugins.subtitle")} <strong>{agentName}</strong>. {t("plugins.subtitleSuffix")} <code className="text-[10px]">chat.send</code> {t("plugins.subtitleSuffix2")}
         </p>
       </div>
 
@@ -100,14 +96,16 @@ export default function AgentPluginsPage() {
               <Plug className="h-7 w-7 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground mb-1">
-              No hook plugins installed
+              {t("plugins.noPlugins")}
             </p>
             <p className="text-xs text-muted-foreground/60 max-w-sm text-center">
-              Drop a plugin directory into{" "}
+              {t("plugins.installHint")}{" "}
               <code className="text-[10px]">~/.fastclaw/plugins/</code>{" "}
-              with <code className="text-[10px]">type: &quot;hook&quot;</code> in
-              its <code className="text-[10px]">plugin.json</code>, then
-              restart the daemon.
+              {t("plugins.installHint2")}{" "}
+              <code className="text-[10px]">type: &quot;hook&quot;</code>{" "}
+              {t("plugins.installHint3")}{" "}
+              <code className="text-[10px]">plugin.json</code>,{" "}
+              {t("plugins.installHint4")}
             </p>
           </div>
         </div>
