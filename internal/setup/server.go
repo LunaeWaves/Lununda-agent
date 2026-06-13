@@ -339,6 +339,8 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("PUT /api/providers/{id}", auth(s.handleUpdateProvider))
 	mux.HandleFunc("DELETE /api/providers/{id}", auth(s.handleDeleteProvider))
 	mux.HandleFunc("POST /api/providers/{id}/test", auth(s.handleTestStoredProvider))
+	mux.HandleFunc("POST /api/providers/{id}/models", auth(s.handleListStoredProviderModels))
+	mux.HandleFunc("POST /api/list-provider-models", opt(s.handleListProviderModels))
 	mux.HandleFunc("GET /api/scoped-channels", auth(s.handleListScopedChannels))
 	mux.HandleFunc("POST /api/scoped-channels", auth(s.handleCreateScopedChannel))
 	mux.HandleFunc("PUT /api/scoped-channels/{id}", auth(s.handleUpdateScopedChannel))

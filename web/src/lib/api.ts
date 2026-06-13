@@ -598,6 +598,32 @@ export async function testStoredProvider(
   return res.json();
 }
 
+export async function listProviderModels(req: {
+  apiBase: string;
+  apiKey: string;
+  apiType?: string;
+  authType?: string;
+}): Promise<{ ok: boolean; models?: string[]; error?: string }> {
+  const res = await apiFetch("/api/list-provider-models", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return res.json();
+}
+
+export async function listStoredProviderModels(
+  providerId: string,
+  overrides?: { apiBase?: string; apiType?: string; authType?: string },
+): Promise<{ ok: boolean; models?: string[]; error?: string }> {
+  const res = await apiFetch(`/api/providers/${providerId}/models`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(overrides ?? {}),
+  });
+  return res.json();
+}
+
 export async function listScopedChannels(scope?: ScopeName, scopeId?: string) {
   const params = new URLSearchParams();
   if (scope) params.set("scope", scope);

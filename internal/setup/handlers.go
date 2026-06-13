@@ -745,6 +745,114 @@ func runProviderTest(ctx context.Context, req testProviderRequest) map[string]an
 	return map[string]any{"ok": true}
 }
 
+// runListModels calls the upstream list-models endpoint so the dashboard
+// can offer a provider's available model ids as a picklist instead of
+// forcing the user to type each one. Only OpenAI-compatible (/models)
+// and Anthropic (/v1/models) upstreams are supported — both return
+// {"data":[{"id":"..."},...]}.
+func runListModels(ctx context.Context, req testProviderRequest) map[string]any {
+	base := provider.NormalizeAPIBase(req.APIBase, req.APIType)
+	listURL := base + "/models"
+	if req.APIType == "anthropic-messages" {
+		listURL = base + "/v1/models"
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", listURL, nil)
+	if err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}
+	}
+	if req.APIType == "anthropic-messages" {
+		httpReq.Header.Set("x-api-key", req.APIKey)
+		httpReq.Header.Set("anthropic-version", "2023-06-01")
+	} else if req.AuthType == "api-key" {
+		httpReq.Header.Set("api-key", req.APIKey)
+	} else {
+		httpReq.Header.Set("Authorization", "Bearer "+req.APIKey)
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return map[string]any{
+			"ok":    false,
+			"error": fmt.Sprintf("HTTP %d: %s", resp.StatusCode, truncate(strings.TrimSpace(string(respBody)), 240)),
+		}
+	}
+	var parsed struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return map[string]any{"ok": false, "error": fmt.Sprintf("response is not valid JSON: %v", err)}
+	}
+	models := make([]string, 0, len(parsed.Data))
+	for _, m := range parsed.Data {
+		if m.ID != "" {
+			models = append(models, m.ID)
+		}
+	}
+	return map[string]any{"ok": true, "models": models}
+}
+
+// handleListProviderModels lists models for a provider configured inline in
+// the request body (used from the Create dialog before the row is saved —
+// the key has not been stored yet). Mirrors handleTestProvider.
+func (s *Server) handleListProviderModels(w http.ResponseWriter, r *http.Request) {
+	var req testProviderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid request"})
+		return
+	}
+	jsonResponse(w, http.StatusOK, runListModels(r.Context(), req))
+}
+
+// handleListStoredProviderModels lists models using a saved provider's key,
+// honoring the same apiBase/apiType/authType overrides the Edit form sends.
+// Mirrors handleTestStoredProvider.
+func (s *Server) handleListStoredProviderModels(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	rec, err := s.dataStore.GetConfig(r.Context(), id)
+	if err != nil || rec == nil || rec.Kind != store.KindProvider {
+		jsonResponse(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
+		return
+	}
+	if !s.authorizeScope(w, r, rec.LegacyScope(), rec.LegacyScopeID(), scopeRead) {
+		return
+	}
+	var body struct {
+		APIBase  *string `json:"apiBase,omitempty"`
+		APIType  *string `json:"apiType,omitempty"`
+		AuthType *string `json:"authType,omitempty"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	pc := config.ProviderConfig{}
+	if blob, err := json.Marshal(rec.Data); err == nil {
+		_ = json.Unmarshal(blob, &pc)
+	}
+	apiBase := pc.APIBase
+	if body.APIBase != nil {
+		apiBase = *body.APIBase
+	}
+	apiType := pc.APIType
+	if body.APIType != nil {
+		apiType = *body.APIType
+	}
+	authType := pc.AuthType
+	if body.AuthType != nil {
+		authType = *body.AuthType
+	}
+	jsonResponse(w, http.StatusOK, runListModels(r.Context(), testProviderRequest{
+		APIBase:  apiBase,
+		APIKey:   pc.APIKey,
+		APIType:  apiType,
+		AuthType: authType,
+	}))
+}
+
 // validateProviderTestBody confirms the 2xx body is a real Messages /
 // ChatCompletion object rather than an HTML splash page or a generic
 // gateway "ok" payload. Returns nil if the shape matches.
