@@ -71,7 +71,21 @@ export function NavMain({
           const handleClick = item.onClick
             ? item.onClick
             : item.url
-              ? () => router.push(item.url!)
+              ? () => {
+                  const href = item.url!;
+                  const before = window.location.pathname;
+                  router.push(href);
+                  // router.push silently fails in some static-export
+                  // scenarios (Next.js caches the route tree per page
+                  // and occasionally a target route isn't resolvable).
+                  // Detect that failure after a tick and fall back to a
+                  // full page navigation.
+                  requestAnimationFrame(() => {
+                    if (window.location.pathname === before) {
+                      window.location.href = href;
+                    }
+                  });
+                }
               : undefined;
           return (
             <SidebarMenuItem key={item.url ?? item.title}>

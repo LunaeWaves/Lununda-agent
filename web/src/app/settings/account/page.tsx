@@ -133,9 +133,9 @@ export default function AccountSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-semibold tracking-tight">Account</h3>
+        <h3 className="text-xl font-semibold tracking-tight">{t("account.title")}</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Profile, password, and session.
+          {t("account.desc")}
         </p>
       </div>
 
@@ -165,7 +165,7 @@ export default function AccountSettingsPage() {
           </div>
           <Button variant="outline" size="sm" onClick={pickAvatar}>
             <Upload className="size-4 mr-2" />
-            Upload
+            {t("account.uploadAvatar")}
           </Button>
           <input
             ref={fileRef}
@@ -213,7 +213,7 @@ export default function AccountSettingsPage() {
             {profileSaved ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Saved
+                {t("common.saved")}
               </>
             ) : (
               <>
@@ -228,9 +228,9 @@ export default function AccountSettingsPage() {
       {/* Password */}
       <form onSubmit={savePassword} className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div>
-          <h4 className="font-medium">Change password</h4>
+          <h4 className="font-medium">{t("account.changePassword")}</h4>
           <p className="text-sm text-muted-foreground">
-            You&apos;ll need your current password. You&apos;ll be signed out and asked to sign back in.
+            {t("account.changePasswordDesc")}
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -280,10 +280,10 @@ export default function AccountSettingsPage() {
             {pwSaved ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Updated
+                {t("account.passwordUpdated")}
               </>
             ) : (
-              pwSaving ? "Updating..." : "Update password"
+              pwSaving ? t("account.updating") : t("account.updatePassword")
             )}
           </Button>
         </div>

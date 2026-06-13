@@ -39,7 +39,7 @@ export default function AboutSettingsPage() {
       <div>
         <h3 className="text-xl font-semibold tracking-tight">{t("about.title")}</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Gateway version and release info.
+          {t("about.desc")}
         </p>
       </div>
 
@@ -53,9 +53,9 @@ export default function AboutSettingsPage() {
         <Separator />
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium">Upgrade</p>
+            <p className="text-sm font-medium">{t("about.upgrade")}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Check GitHub for the latest release and upgrade instructions.
+              {t("about.upgradeDesc")}
             </p>
           </div>
           <Button
@@ -64,12 +64,12 @@ export default function AboutSettingsPage() {
             onClick={() => window.open(RELEASES_URL, "_blank", "noopener,noreferrer")}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
-            Releases
+            {t("about.releases")}
           </Button>
         </div>
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground">
-            Or upgrade in place from the shell:
+              {t("about.shellUpgrade")}
           </p>
           <div className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2">
             <code className="font-mono text-sm">{UPGRADE_CMD}</code>
@@ -78,7 +78,7 @@ export default function AboutSettingsPage() {
               variant="ghost"
               className="h-7 w-7"
               onClick={copyCmd}
-              aria-label="Copy command"
+              aria-label={t("about.copyCommand")}
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5" />
