@@ -201,6 +201,9 @@ const en: Record<string, string> = {
   "agents.public": "Public",
   "agents.private": "Private",
   "agents.remove": "Remove",
+  "agents.deleteAgent": "Delete Agent",
+  "agents.descLabel": "Description",
+  "agents.uploadAvatar": "Upload avatar",
 
   // Account settings
   "account.username": "Username",
@@ -247,6 +250,7 @@ const en: Record<string, string> = {
   "channels.disconnectConfirm": "Disconnect this channel?",
   "channels.disconnecting": "Disconnecting…",
   "channels.loadFailed": "Failed to load channels",
+  "channels.failedToLoad": "Failed to load channels",
 
   // Skills
   "skills.noDescription": "No description",
@@ -325,6 +329,9 @@ const en: Record<string, string> = {
   "scheduler.updateFailed": "Failed to update job",
   "scheduler.disable": "Disable",
   "scheduler.enable": "Enable",
+  "scheduler.lastRun": "Last run",
+  "scheduler.nextRun": "Next run",
+  "scheduler.via": "via",
 
   // Cron
   "cron.title": "Cron Jobs",
@@ -351,6 +358,10 @@ const en: Record<string, string> = {
   "cron.typeCron": "Cron Expression",
   "cron.typeInterval": "Interval",
   "cron.typeExact": "Exact Time",
+  "cron.newJob": "New Job",
+  "cron.createJobDesc": "Set up a scheduled task for an agent to run automatically.",
+  "cron.jobNamePlaceholder": "Daily report",
+  "cron.type": "Type",
 
   // Knowledge
   "knowledge.title": "Knowledge",
@@ -395,6 +406,9 @@ const en: Record<string, string> = {
   "knowledge.failedAddText": "Failed to add text",
   "knowledge.failedFetchURL": "Failed to fetch URL",
   "knowledge.untitled": "Untitled",
+  "knowledge.text": "Text",
+  "knowledge.url": "URL",
+  "knowledge.urlLabel": "URL",
 
   // Regex hooks page
   "regexHooks.subtitle": "Intercept messages matching a pattern and execute a CLI instead of the LLM.",
@@ -455,6 +469,8 @@ const en: Record<string, string> = {
   "runtime.sandbox": "Sandbox backend",
   "runtime.sandboxDesc": "Choose where agent code executes.",
   "runtime.dockerImage": "Docker Image",
+  "runtime.boxliteApiKey": "BoxLite API Key",
+  "runtime.snapshot": "Snapshot",
 
   // Models
   "models.manageProviders": "Manage LLM providers and default model",
@@ -822,6 +838,7 @@ const en: Record<string, string> = {
   "chatScreen.downloadFile": "Download",
   "chatScreen.close": "Close",
   "chatScreen.refresh": "Refresh",
+  "chatScreen.executingEllipsis": "Executing...",
   "common.pageOf": "Page {page} / {total}",
   "common.of": "of",
 

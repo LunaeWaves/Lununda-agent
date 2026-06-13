@@ -95,6 +95,7 @@ const zhCN: Record<string, string> = {
   "chat.regexHook.matched": "正则钩子已匹配",
   "chat.regexHook.running": "正则钩子运行中...",
   "chat.tool.executed": "已执行 {count} 个工具",
+  "chat.tool.executed_other": "已执行 {count} 个工具",
   "chat.tool.running": "正在运行工具 ({done}/{total})...",
   "chat.tool.executing": "执行中...",
   "chat.tool.stopped": "(已停止)",
@@ -200,6 +201,9 @@ const zhCN: Record<string, string> = {
   "agents.public": "公开",
   "agents.private": "私有",
   "agents.remove": "移除",
+  "agents.deleteAgent": "删除智能体",
+  "agents.descLabel": "描述",
+  "agents.uploadAvatar": "上传头像",
 
   // Account settings
   "account.username": "用户名",
@@ -246,6 +250,7 @@ const zhCN: Record<string, string> = {
   "channels.disconnectConfirm": "断开此通道？智能体将不再接收来自它的消息。",
   "channels.disconnecting": "断开中…",
   "channels.loadFailed": "加载通道失败",
+  "channels.failedToLoad": "加载通道失败",
 
   // Skills
   "skills.noDescription": "暂无描述",
@@ -324,6 +329,9 @@ const zhCN: Record<string, string> = {
   "scheduler.updateFailed": "更新任务失败",
   "scheduler.disable": "禁用",
   "scheduler.enable": "启用",
+  "scheduler.lastRun": "上次运行",
+  "scheduler.nextRun": "下次运行",
+  "scheduler.via": "通过",
 
   // Cron
   "cron.title": "定时任务",
@@ -350,6 +358,10 @@ const zhCN: Record<string, string> = {
   "cron.typeCron": "Cron 表达式",
   "cron.typeInterval": "间隔",
   "cron.typeExact": "指定时间",
+  "cron.newJob": "新建任务",
+  "cron.createJobDesc": "设置一个定时任务，让智能体自动执行。",
+  "cron.jobNamePlaceholder": "每日报告",
+  "cron.type": "类型",
 
   // Knowledge
   "knowledge.title": "知识库",
@@ -394,6 +406,9 @@ const zhCN: Record<string, string> = {
   "knowledge.failedAddText": "添加文本失败",
   "knowledge.failedFetchURL": "获取 URL 失败",
   "knowledge.untitled": "无标题",
+  "knowledge.text": "文本",
+  "knowledge.url": "URL",
+  "knowledge.urlLabel": "URL",
 
   // Regex hooks page
   "regexHooks.subtitle": "拦截匹配特定模式的消息并执行 CLI 命令，而非调用 LLM。",
@@ -454,6 +469,8 @@ const zhCN: Record<string, string> = {
   "runtime.sandbox": "沙箱后端",
   "runtime.sandboxDesc": "选择智能体代码执行环境。",
   "runtime.dockerImage": "Docker 镜像",
+  "runtime.boxliteApiKey": "BoxLite API 密钥",
+  "runtime.snapshot": "快照",
 
   // Models
   "models.manageProviders": "管理 LLM 提供商和默认模型",
@@ -821,6 +838,7 @@ const zhCN: Record<string, string> = {
   "chatScreen.downloadFile": "下载",
   "chatScreen.close": "关闭",
   "chatScreen.refresh": "刷新",
+  "chatScreen.executingEllipsis": "执行中...",
   "common.pageOf": "第 {page} 页 / 共 {total} 页",
   "common.of": "/",
 

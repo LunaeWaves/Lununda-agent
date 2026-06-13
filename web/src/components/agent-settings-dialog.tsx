@@ -146,11 +146,11 @@ export function AgentSettingsDialog({
           {agentTabs.length > 0 && (
             <>
               <SectionLabel>{t("dialog.agentSection")}</SectionLabel>
-              {agentTabs.map((t) => (
+              {agentTabs.map((item) => (
                 <TabButton
-                  key={t.id}
-                  tab={t}
-                  active={tab === t.id}
+                  key={item.id}
+                  tab={item}
+                  active={tab === item.id}
                   onSelect={setTab}
                 />
               ))}
@@ -159,11 +159,11 @@ export function AgentSettingsDialog({
           <SectionLabel className={agentTabs.length > 0 ? "mt-3" : undefined}>
             {t("dialog.userSection")}
           </SectionLabel>
-          {userTabs.map((t) => (
+          {userTabs.map((item) => (
             <TabButton
-              key={t.id}
-              tab={t}
-              active={tab === t.id}
+              key={item.id}
+              tab={item}
+              active={tab === item.id}
               onSelect={setTab}
             />
           ))}
