@@ -42,6 +42,12 @@ func upgradeCmd() *cobra.Command {
 }
 
 func doUpgrade() error {
+	if version == "dev" {
+		fmt.Println("🔒 Upgrade disabled: this is a local development build (version = \"dev\").")
+		fmt.Println("   Update manually instead:  git pull && go build ./cmd/fastclaw")
+		return nil
+	}
+
 	const repo = "fastclaw-ai/fastclaw"
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
 
