@@ -387,6 +387,7 @@ func (s *Server) Run(ctx context.Context) error {
 		mux.HandleFunc("GET /api/agents/{id}/wiki/graph", auth(s.handleWikiGraph))
 		mux.HandleFunc("DELETE /api/agents/{id}/wiki/pages/{pageId}", auth(s.handleWikiDeletePage))
 		mux.HandleFunc("POST /api/agents/{id}/wiki/generate", auth(s.handleWikiGenerate))
+	mux.HandleFunc("GET /api/agents/{id}/wiki/progress", auth(s.handleWikiProgress))
 	// Tasks
 	mux.HandleFunc("GET /api/tasks", admin(s.handleListTasks))
 

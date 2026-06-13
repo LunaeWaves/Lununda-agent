@@ -2166,3 +2166,10 @@ export async function generateWiki(
   });
   return res.json();
 }
+
+export async function getWikiProgress(
+  agentId: string,
+): Promise<{ total?: number; done?: number; failed?: number; status: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/wiki/progress`);
+  return res.json();
+}

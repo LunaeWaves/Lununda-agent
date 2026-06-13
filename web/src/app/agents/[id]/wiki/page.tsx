@@ -49,6 +49,7 @@ import {
   getWikiPage,
   deleteWikiPage,
   generateWiki,
+  getWikiProgress,
   getWikiGraph,
   listKBSources,
   type KBSource,
@@ -77,6 +78,7 @@ export default function WikiPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; status: string } | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [showGraph, setShowGraph] = useState(false);
   const graphRef = useRef<HTMLDivElement>(null);
@@ -123,25 +125,41 @@ export default function WikiPage() {
   const handleGenerate = useCallback(async (force?: boolean) => {
     if (!agentId || kbSources.length === 0) return;
     setGenerating(true);
+    setProgress({ done: 0, total: kbSources.length, status: "running" });
     try {
-      const res = await generateWiki(
+      await generateWiki(
         agentId,
         kbSources.map((s) => s.id),
         force,
       );
-      if (res.status === "already_running") {
-        alert(t("wiki.generating"));
-        setGenerating(false);
-        return;
-      }
-      setTimeout(() => {
-        loadData();
-        setGenerating(false);
-      }, 3000);
     } catch {
       setGenerating(false);
+      setProgress(null);
     }
-  }, [agentId, kbSources, loadData]);
+  }, [agentId, kbSources]);
+
+  useEffect(() => {
+    if (!agentId || !generating) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const p = await getWikiProgress(agentId);
+        if (cancelled) return;
+        if (p.status === "idle") return;
+        setProgress({ done: p.done ?? 0, total: p.total ?? 0, status: p.status });
+        if (p.status === "done") {
+          setGenerating(false);
+          loadData();
+        }
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [agentId, generating, loadData]);
 
   const handleForceGenerate = useCallback(() => {
     if (!window.confirm(t("wiki.forceRegenConfirm"))) return;
@@ -250,7 +268,15 @@ export default function WikiPage() {
       <div className="w-64 shrink-0 border-r bg-muted/30 flex flex-col">
         <div className="p-3 border-b">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">{t("wiki.title")}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">{t("wiki.title")}</h3>
+              {generating && progress && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <RefreshCwIcon className="h-3 w-3 animate-spin" />
+                  {t("wiki.generatingProgress", { done: progress.done, total: progress.total })}
+                </span>
+              )}
+            </div>
             <div className="flex gap-1">
               <Button
                 variant="ghost"

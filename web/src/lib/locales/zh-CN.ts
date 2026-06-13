@@ -572,6 +572,7 @@ const zhCN: Record<string, string> = {
   "wiki.deletePageConfirm": "确定删除「{name}」？此操作无法撤销。",
   "wiki.deleteFailed": "删除页面失败",
   "wiki.generating": "Wiki 生成正在进行中，请等待完成后再试。",
+  "wiki.generatingProgress": "生成中 {done}/{total}…",
   "wiki.overview": "总览",
   "wiki.entity": "实体",
   "wiki.concept": "概念",

@@ -572,6 +572,7 @@ const en: Record<string, string> = {
   "wiki.deletePageConfirm": "Delete \"{name}\"? This cannot be undone.",
   "wiki.deleteFailed": "Failed to delete page",
   "wiki.generating": "Wiki generation is in progress, please wait.",
+  "wiki.generatingProgress": "Generating {done}/{total}…",
   "wiki.overview": "Overview",
   "wiki.entity": "Entities",
   "wiki.concept": "Concepts",

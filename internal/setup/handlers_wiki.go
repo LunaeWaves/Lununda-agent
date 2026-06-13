@@ -109,6 +109,31 @@ func (s *Server) handleWikiDeletePage(w http.ResponseWriter, r *http.Request) {
 // wikiGenLocks prevents concurrent generation for the same agent.
 var wikiGenLocks sync.Map // map[string]bool
 
+// wikiGenProgress tracks per-agent wiki generation progress for the UI.
+type wikiGenProgress struct {
+	Total     int       `json:"total"`
+	Done      int       `json:"done"`
+	Failed    int       `json:"failed"`
+	Status    string    `json:"status"` // "running" | "done"
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+var wikiGenProgressMap sync.Map // agentID -> *wikiGenProgress
+
+func bumpWikiProgress(agentID string, success bool) {
+	v, ok := wikiGenProgressMap.Load(agentID)
+	if !ok {
+		return
+	}
+	p := v.(*wikiGenProgress)
+	if success {
+		p.Done++
+	} else {
+		p.Failed++
+	}
+	p.UpdatedAt = time.Now()
+}
+
 type wikiGenerateRequest struct {
 	SourceIDs []string `json:"source_ids"`
 	Force     bool     `json:"force,omitempty"`
@@ -138,6 +163,15 @@ func (s *Server) handleWikiGenerate(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "started"})
+}
+
+func (s *Server) handleWikiProgress(w http.ResponseWriter, r *http.Request) {
+	agentID := r.PathValue("id")
+	if v, ok := wikiGenProgressMap.Load(agentID); ok {
+		writeJSON(w, http.StatusOK, v)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "idle"})
 }
 
 func (s *Server) runWikiGeneration(agentID string, sourceIDs []string, force bool) {
@@ -184,6 +218,12 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string, force boo
 		return
 	}
 
+	wikiGenProgressMap.Store(agentID, &wikiGenProgress{
+		Total:     len(toProcess),
+		Status:    "running",
+		UpdatedAt: time.Now(),
+	})
+
 	slog.Info("wiki generate: using model", "model", model, "agent", agentID)
 	invoker := func(ctx context.Context, messages []provider.Message) (string, error) {
 		resp, err := prov.Chat(ctx, messages, nil, model, 4096, 0.3)
@@ -198,6 +238,7 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string, force boo
 		r := gen.Generate(ctx, agentID, sid)
 		if r.Error != "" {
 			slog.Warn("wiki generate failed", "source", sid, "error", r.Error)
+			bumpWikiProgress(agentID, false)
 		} else {
 			slog.Info("wiki generate done", "source", sid,
 				"created", r.PagesCreated, "updated", r.PagesUpdated,
@@ -205,7 +246,13 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string, force boo
 			if kbs != nil {
 				kbs.MarkSourceGenerated(ctx, sid)
 			}
+			bumpWikiProgress(agentID, true)
 		}
+	}
+	if v, ok := wikiGenProgressMap.Load(agentID); ok {
+		p := v.(*wikiGenProgress)
+		p.Status = "done"
+		p.UpdatedAt = time.Now()
 	}
 }
 
