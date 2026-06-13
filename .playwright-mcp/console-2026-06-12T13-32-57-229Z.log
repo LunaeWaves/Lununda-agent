@@ -1,2 +1,0 @@
-[     162ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
-[  418209ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781271177389-cfppop&since=-1:0

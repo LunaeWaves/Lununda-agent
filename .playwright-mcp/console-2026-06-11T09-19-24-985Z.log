@@ -1,3 +1,0 @@
-[   22591ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
-[   29885ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
-[   82824ms] [LOG] [chat] post-turn files diff {agent: agt_a44e3ee59747b57528b4, sessionId: s-1781169594868-9euujl, preSnapSize: 0, postTurnCount: 0, postTurnPaths: Array(0)} @ http://localhost:18953/_next/static/chunks/bab48e053ce82ceb.js:1

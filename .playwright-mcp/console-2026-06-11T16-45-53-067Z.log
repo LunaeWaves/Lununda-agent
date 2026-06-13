@@ -1,4 +1,0 @@
-[     295ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:18953/api/agents/agt_a44e3ee59747b57528b4/files/avatar.png:0
-[    9464ms] [LOG] [chat] post-turn files diff {agent: agt_a44e3ee59747b57528b4, sessionId: s-1781196353383-zn0l8f, preSnapSize: 0, postTurnCount: 0, postTurnPaths: Array(0)} @ http://localhost:18953/_next/static/chunks/c8adf9b0a4bb4c79.js:1
-[  164566ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781196353383-zn0l8f&since=-1:0
-[  359842ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:18953/api/chat/subscribe?agentId=agt_a44e3ee59747b57528b4&sessionId=s-1781196353383-zn0l8f&since=-1:0
