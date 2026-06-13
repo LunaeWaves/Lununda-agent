@@ -22,7 +22,12 @@ go test ./internal/agent -run TestName
 make build
 
 # Web UI only
-cd web && pnpm install --frozen-lockfile && pnpm build
+# Clear .next/out first: a stale .next cache can yield an empty out/ and
+# silently drop web changes from the embedded binary.
+cd web && rm -rf .next out && pnpm install --frozen-lockfile && pnpm build
+
+# Embed the freshly built web into the Go embed tree (run before `go build`)
+rm -rf internal/setup/web && cp -r web/out internal/setup/web
 ```
 
 The binary is `./bin/fastclaw`. Version/commit/date are injected via `-ldflags` — see Makefile for the `LDFLAGS` variable.
