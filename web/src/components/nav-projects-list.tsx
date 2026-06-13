@@ -541,13 +541,12 @@ function CreateProjectDialog({
         <DialogHeader>
           <DialogTitle>{t("sidebar.newProject")}</DialogTitle>
           <DialogDescription>
-            Group chats that share research, files, or context. Every chat
-            in a project sees the same workspace folder.
+            {t("sidebar.newProjectDesc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium">Name</label>
+            <label className="mb-1 block text-xs font-medium">{t("sidebar.projectNameLabel")}</label>
             <Input
               autoFocus
               value={name}
@@ -557,7 +556,7 @@ function CreateProjectDialog({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium">
-              Description (optional)
+              {t("sidebar.projectDescOptional")}
             </label>
             <Textarea
               value={description}
@@ -573,7 +572,7 @@ function CreateProjectDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={save} disabled={saving || !name.trim()}>
             {saving ? t("sidebar.creating") : t("sidebar.createProject")}
@@ -630,13 +629,12 @@ function EditProjectDialog({
         <DialogHeader>
           <DialogTitle>{t("sidebar.editProject")}</DialogTitle>
           <DialogDescription>
-            Rename or update the description. The workspace folder stays
-            the same — files aren&apos;t moved.
+            {t("sidebar.editProjectDesc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium">Name</label>
+            <label className="mb-1 block text-xs font-medium">{t("sidebar.projectNameLabel")}</label>
             <Input
               autoFocus
               value={name}
@@ -645,7 +643,7 @@ function EditProjectDialog({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium">
-              Description
+              {t("sidebar.projectDescLabel")}
             </label>
             <Textarea
               value={description}
@@ -656,7 +654,7 @@ function EditProjectDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={save} disabled={saving || !name.trim()}>
             {saving ? t("sidebar.saving") : t("sidebar.saveProject")}
