@@ -138,6 +138,11 @@ func (s *Server) handleDeleteKBSource(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// Cascade: remove wiki pages generated from this source so deleting a
+	// KB source doesn't leave orphan wiki entries behind.
+	if ws := s.wikiStoreFor(agentID); ws != nil {
+		_, _ = ws.DeletePagesBySource(r.Context(), agentID, sourceID)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 

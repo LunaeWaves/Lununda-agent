@@ -14,6 +14,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   BookOpenIcon,
   BrainIcon,
   ChevronRightIcon,
@@ -63,6 +73,8 @@ export default function WikiPage() {
   const [pages, setPages] = useState<WikiPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState<WikiPage | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WikiPage | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
@@ -138,20 +150,25 @@ export default function WikiPage() {
 
   const unprocessedCount = kbSources.filter((s) => !s.wiki_generated_at).length;
 
-  const handleDelete = useCallback(
-    async (pageId: string) => {
-      if (!agentId) return;
-      try {
-        await deleteWikiPage(agentId, pageId);
-        if (selectedPageId === pageId) {
-          setSelectedPageId(null);
-          setSelectedPage(null);
-        }
-        loadData();
-      } catch {}
-    },
-    [agentId, selectedPageId, loadData],
-  );
+  const openDelete = useCallback((page: WikiPage) => {
+    setDeleteError(null);
+    setDeleteTarget(page);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!agentId || !deleteTarget) return;
+    try {
+      await deleteWikiPage(agentId, deleteTarget.id);
+      if (selectedPageId === deleteTarget.id) {
+        setSelectedPageId(null);
+        setSelectedPage(null);
+      }
+      setDeleteTarget(null);
+      loadData();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : t("wiki.deleteFailed"));
+    }
+  }, [agentId, deleteTarget, selectedPageId, loadData, t]);
 
   const handleLoadGraph = useCallback(async () => {
     if (!agentId) return;
@@ -287,17 +304,30 @@ export default function WikiPage() {
                     )}
                   </div>
                   {sectionPages.map((page) => (
-                    <button
+                    <div
                       key={page.id}
+                      role="button"
+                      tabIndex={0}
                       className={cn(
-                        "w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-1.5",
+                        "group w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-1.5 cursor-pointer",
                         selectedPageId === page.id && "bg-accent font-medium",
                       )}
                       onClick={() => handleSelectPage(page.id)}
                     >
                       <ChevronRightIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{page.title}</span>
-                    </button>
+                      <span className="truncate flex-1">{page.title}</span>
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDelete(page);
+                        }}
+                        aria-label={t("common.delete")}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               );
@@ -332,7 +362,7 @@ export default function WikiPage() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 ml-auto"
-                  onClick={() => handleDelete(selectedPage.id)}
+                  onClick={() => openDelete(selectedPage)}
                 >
                   <TrashIcon className="h-4 w-4" />
                 </Button>
@@ -414,6 +444,35 @@ export default function WikiPage() {
           </div>
         )}
       </div>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("wiki.deletePageTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteError ?? t("wiki.deletePageConfirm", { name: deleteTarget?.title ?? "" })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+            >
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
