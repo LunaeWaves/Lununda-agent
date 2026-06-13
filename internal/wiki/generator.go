@@ -132,7 +132,7 @@ func (g *Generator) Generate(ctx context.Context, agentID, sourceID string) *Gen
 				result.PagesFailed++
 				continue
 			}
-			body = stripCodeFences(genText)
+			body = stripFrontmatter(stripCodeFences(genText))
 		}
 
 		summary := firstParagraph(body, 240)
@@ -342,10 +342,12 @@ source 页面必须包含完整原文，逐字照录，绝不摘要。
 
 const generationSystemPrompt = `你是知识库维护者，负责撰写一篇知识库页面。
 
-语言要求：所有输出必须以简体中文撰写。仅 YAML 前言键名和 [[type:slug]] wikilinks 保持 ASCII 格式。
+语言要求：所有输出必须以简体中文撰写。仅 [[type:slug]] wikilinks 保持 ASCII 格式。
 
 输出规则：
-- 仅输出页面的完整 markdown 正文。不要解释、不要外围包裹。
+- 仅输出页面的完整 markdown 正文，直接以「# 标题」开头。
+- 不要解释、不要任何外围包裹。
+- 严禁输出 YAML frontmatter（开头的 --- 块），也不要在正文里列出 type、slug、title、tags、aliases、sources 等元数据字段——这些由系统单独存储，写进正文会污染页面。
 - 交叉引用使用 [[type:slug]] 语法。对每个提及的知识库页面均慷慨使用。
 - 所有主张如源自某来源，必须以括号引用标注来源出处。不得编造来源。
 
@@ -430,7 +432,7 @@ func buildGenerationPrompt(pp planPage, sourceID, sourceText, indexExcerpt, anal
 	if sources == nil {
 		sources = []string{sourceID}
 	}
-	return fmt.Sprintf(`待撰写页面：
+	return fmt.Sprintf(`待撰写页面（以下元数据仅供参考你识别页面身份，严禁写入输出正文）：
 - type:      %s
 - slug:      %s
 - title:     %s
@@ -485,6 +487,16 @@ func extractPlan(text string) *wikiPlan {
 		}
 	}
 	return nil
+}
+
+// frontmatterRe matches a leading YAML frontmatter block (a pair of ---
+// delimiters at the very start of the text), which some models emit despite
+// instructions. Wiki metadata lives in dedicated DB columns, so a frontmatter
+// block in the body only pollutes the rendered page.
+var frontmatterRe = regexp.MustCompile(`(?s)\A\s*---[^\n]*\n.*?\n---[^\n]*\n?`)
+
+func stripFrontmatter(s string) string {
+	return strings.TrimSpace(frontmatterRe.ReplaceAllString(s, ""))
 }
 
 func stripCodeFences(text string) string {
