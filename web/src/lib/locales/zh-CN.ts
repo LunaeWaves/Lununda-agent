@@ -249,7 +249,6 @@ const zhCN: Record<string, string> = {
   "channels.disconnect": "断开通道",
   "channels.disconnectConfirm": "断开此通道？智能体将不再接收来自它的消息。",
   "channels.disconnecting": "断开中…",
-  "channels.loadFailed": "加载通道失败",
   "channels.failedToLoad": "加载通道失败",
 
   // Skills
@@ -543,7 +542,7 @@ const zhCN: Record<string, string> = {
   "sessions.noSessions": "暂无对话记录。",
 
   // Usage
-    "usage.input": "输入",
+  "usage.input": "输入",
   "usage.output": "输出",
   "usage.cache": "缓存",
   "usage.total": "合计",
@@ -707,7 +706,6 @@ const zhCN: Record<string, string> = {
   "chat.tool.runningN": "正在运行工具 ({done}/{total})...",
   "chat.tool.input": "输入",
   "chat.tool.output": "输出",
-  "chat.tool.executingEllipsis": "执行中...",
   "chat.failedResponse": "无法获取回复，请检查网关是否正在运行。",
 
   // Onboard

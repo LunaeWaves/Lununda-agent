@@ -249,7 +249,6 @@ const en: Record<string, string> = {
   "channels.disconnect": "Disconnect channel",
   "channels.disconnectConfirm": "Disconnect this channel?",
   "channels.disconnecting": "Disconnecting…",
-  "channels.loadFailed": "Failed to load channels",
   "channels.failedToLoad": "Failed to load channels",
 
   // Skills
@@ -543,7 +542,7 @@ const en: Record<string, string> = {
   "sessions.noSessions": "No sessions yet.",
 
   // Usage
-    "usage.input": "Input",
+  "usage.input": "Input",
   "usage.output": "Output",
   "usage.cache": "Cache",
   "usage.total": "Total",
@@ -707,7 +706,6 @@ const en: Record<string, string> = {
   "chat.tool.runningN": "Running tools ({done}/{total})...",
   "chat.tool.input": "Input",
   "chat.tool.output": "Output",
-  "chat.tool.executingEllipsis": "Executing...",
   "chat.failedResponse": "Failed to get a response. Is the gateway running?",
 
   // Onboard

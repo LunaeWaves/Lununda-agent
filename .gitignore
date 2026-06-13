@@ -71,3 +71,8 @@ env.toml
 web/node_modules/
 web/pnpm-lock.yaml
 fastclaw-patched
+
+# Test/browser automation artifacts
+.playwright-mcp/
+cookies.txt
+onboard-welcome.png
