@@ -492,6 +492,8 @@ const en: Record<string, string> = {
   "models.usedByAgents": "Used by agents unless overridden in agent config.",
   "models.colActions": "Actions",
   "models.title": "Models",
+  "models.providerDialogDesc": "Configure LLM provider connection and models",
+  "models.addProviderHint": "Add an LLM provider to get started",
   "models.subtitle": "Manage LLM providers and default model",
   "models.provider": "Provider",
   "models.providerName": "Provider Name",

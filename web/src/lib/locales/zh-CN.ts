@@ -492,6 +492,8 @@ const zhCN: Record<string, string> = {
   "models.usedByAgents": "除非在智能体配置中覆盖，否则所有智能体使用此模型。",
   "models.colActions": "操作",
   "models.title": "模型",
+  "models.providerDialogDesc": "配置 LLM 提供商连接和模型",
+  "models.addProviderHint": "添加一个 LLM 提供商以开始",
   "models.subtitle": "管理 LLM 提供商和默认模型",
   "models.provider": "提供商",
   "models.providerName": "提供商名称",

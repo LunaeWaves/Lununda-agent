@@ -650,9 +650,9 @@ export default function ModelsPage() {
               {inAgentContext ? t("models.activeModel") : t("models.defaultModelLabel")}
             </h3>
             {!isSuperAdmin && (inheriting ? (
-              <Badge variant="outline" className="text-[10px]">Inheriting</Badge>
+              <Badge variant="outline" className="text-[10px]">{t("models.inheriting")}</Badge>
             ) : (
-              <Badge className="bg-primary/10 text-primary hover:bg-primary/10 text-[10px]">Override</Badge>
+              <Badge className="bg-primary/10 text-primary hover:bg-primary/10 text-[10px]">{t("models.override")}</Badge>
             ))}
           </div>
           {overridden && (
@@ -663,7 +663,7 @@ export default function ModelsPage() {
               onClick={handleClearOverride}
               disabled={saving}
             >
-              Clear override
+              {t("models.clearOverride")}
             </Button>
           )}
         </div>
@@ -735,9 +735,9 @@ export default function ModelsPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 mb-4">
               <Brain className="h-7 w-7 text-amber-500" />
             </div>
-            <p className="text-sm text-muted-foreground mb-1">No providers configured</p>
+            <p className="text-sm text-muted-foreground mb-1">{t("models.noProviders")}</p>
             <p className="text-xs text-muted-foreground/60 mb-4">
-              Add an LLM provider to get started
+              {t("models.addProviderHint")}
             </p>
             <Button variant="outline" size="sm" onClick={openAddDialog}>
               <Plus className="h-4 w-4 mr-2" />
@@ -847,7 +847,7 @@ export default function ModelsPage() {
               {editingName ? t("models.editProvider") : t("models.addProvider")}
             </DialogTitle>
             <DialogDescription>
-              Configure LLM provider connection and models
+              {t("models.providerDialogDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -888,7 +888,7 @@ export default function ModelsPage() {
 
             {/* API Base URL */}
             <div className="space-y-1.5">
-              <Label>API Base URL</Label>
+              <Label>{t("models.apiBaseLabel")}</Label>
               <Input
                 value={formApiBase}
                 onChange={(e) => setFormApiBase(e.target.value)}
@@ -920,7 +920,7 @@ export default function ModelsPage() {
               />
               {editingName && (
                 <p className="text-[11px] text-muted-foreground/60">
-                  Leave empty to keep existing key. Test connection uses the saved key.
+                  {t("models.keepExistingKey")}
                 </p>
               )}
             </div>
@@ -963,38 +963,38 @@ export default function ModelsPage() {
                 <Label className="text-base">{t("models.colModels")}</Label>
                 <Button variant="outline" size="sm" onClick={handleAddModel}>
                   <Plus className="h-3 w-3 mr-1.5" />
-                  Add Model
+                  {t("models.addModel")}
                 </Button>
               </div>
 
               {formModels.length === 0 && (
                 <p className="text-sm text-muted-foreground/60 text-center py-4">
-                  No models configured. Add models to use with this provider.
+                  {t("models.noModelsConfigured")}
                 </p>
               )}
 
               {formModels.map((m, idx) => {
-                const t = modelTests[idx];
+                const mt = modelTests[idx];
                 return (
                 <div key={idx} className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-medium text-muted-foreground">
-                        Model {idx + 1}
+                        {t("models.modelN", { n: idx + 1 })}
                       </span>
-                      {t?.status === "testing" && (
+                      {mt?.status === "testing" && (
                         <Badge variant="outline" className="text-[10px]">
-                          <Loader2 className="mr-1 size-3 animate-spin" /> testing
+                          <Loader2 className="mr-1 size-3 animate-spin" /> {t("models.testing")}
                         </Badge>
                       )}
-                      {t?.status === "success" && (
+                      {mt?.status === "success" && (
                         <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 text-[10px]">
-                          <Check className="mr-1 size-3" /> connected
+                          <Check className="mr-1 size-3" /> {t("models.connected")}
                         </Badge>
                       )}
-                      {t?.status === "error" && (
-                        <Badge variant="outline" className="border-destructive/40 text-destructive text-[10px]" title={t.error}>
-                          failed
+                      {mt?.status === "error" && (
+                        <Badge variant="outline" className="border-destructive/40 text-destructive text-[10px]" title={mt.error}>
+                          {t("models.failed")}
                         </Badge>
                       )}
                     </div>
@@ -1005,12 +1005,12 @@ export default function ModelsPage() {
                       onClick={() => handleRemoveModel(idx)}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
-                      Remove
+                      {t("models.removeModel")}
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Model ID</Label>
+                      <Label className="text-xs">{t("models.modelIdLabel")}</Label>
                       <Input
                         value={m.id}
                         onChange={(e) => handleUpdateModel(idx, "id", e.target.value)}
@@ -1019,7 +1019,7 @@ export default function ModelsPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Display Name</Label>
+                      <Label className="text-xs">{t("models.displayNameLabel")}</Label>
                       <Input
                         value={m.name}
                         onChange={(e) => handleUpdateModel(idx, "name", e.target.value)}
@@ -1051,7 +1051,7 @@ export default function ModelsPage() {
                   >
                     {batchTesting ? (
                       <>
-                        <Loader2 className="mr-1 size-4 animate-spin" /> Testing
+                        <Loader2 className="mr-1 size-4 animate-spin" /> {t("models.testing")}
                       </>
                     ) : (
                       t("models.testConnection")
@@ -1059,18 +1059,18 @@ export default function ModelsPage() {
                   </Button>
                   <span className="text-xs text-muted-foreground">
                     {cleanModelRows.length === 0
-                      ? "Add at least one model with an id, then test."
-                      : "Pings every model above; results show next to each row."}
+                      ? t("models.addOneModel")
+                      : t("models.pingEveryModel")}
                   </span>
                 </div>
                 {Object.values(modelTests).some((t) => t.status === "error") && (
                   <ul className="space-y-0.5">
                     {formModels.map((m, idx) => {
-                      const t = modelTests[idx];
-                      if (!t || t.status !== "error" || !m.id.trim()) return null;
+                      const mt = modelTests[idx];
+                      if (!mt || mt.status !== "error" || !m.id.trim()) return null;
                       return (
                         <li key={idx} className="text-xs text-destructive break-all">
-                          <code className="font-mono">{m.id}</code>: {t.error}
+                          <code className="font-mono">{m.id}</code>: {mt.error}
                         </li>
                       );
                     })}
@@ -1082,11 +1082,11 @@ export default function ModelsPage() {
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {!allModelsPassed && (
               <span className="text-xs text-muted-foreground sm:mr-auto">
-                Test every model first — Add/Update unlocks once they all pass.
+                {t("models.testEveryModel")}
               </span>
             )}
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSaveProvider}
