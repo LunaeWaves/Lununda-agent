@@ -120,9 +120,27 @@ export interface AgentDetail {
   // (visible via /api/plugins). null/undefined means "no per-agent
   // override at all".
   plugins?: Record<string, boolean> | null;
+  // mcpServers is the per-agent MCP server overlay: serverName →
+  // config. null/undefined means no override; the agent falls back to
+  // user/system scope MCP servers. Whole-map replace semantics on write
+  // — see AgentUpdatePayload.mcpServers.
+  mcpServers?: Record<string, MCPServerConfig> | null;
   soul?: string;
   skills?: string[];
   tools?: string[];
+}
+
+// MCPServerConfig mirrors internal/config.MCPServerConfig. The `type`
+// field selects the transport: "stdio" launches a local subprocess
+// (command + args + env), "http" connects to a remote server (url +
+// headers). Other transports may be added later — render defensively.
+export interface MCPServerConfig {
+  type: "stdio" | "http" | string;
+  url?: string;
+  headers?: Record<string, string>;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
 }
 
 export interface SkillEnvSpec {
@@ -1305,6 +1323,11 @@ export interface AgentUpdatePayload {
   // per-agent overrides and fall back to system-wide enable state.
   plugins?: Record<string, boolean>;
   pluginsReset?: boolean;
+  // Per-agent MCP server overlay. Whole-map replace semantics: omit to
+  // leave the saved value alone, send {} to clear, send the full desired
+  // map to replace. The caller must read-modify-write — partial maps
+  // clobber siblings.
+  mcpServers?: Record<string, MCPServerConfig>;
   kb?: AgentFileConfig["kb"];
 }
 

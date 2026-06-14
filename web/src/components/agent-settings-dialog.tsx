@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   BrainIcon,
+  Cable,
   ClockIcon,
   CoinsIcon,
   IdCardIcon,
@@ -27,6 +28,7 @@ import AgentModelsPage from "@/app/agents/[id]/models/page";
 import AgentContextPage from "@/app/agents/[id]/context/page";
 import AgentSkillsPage from "@/app/agents/[id]/skills/page";
 import AgentPluginsPage from "@/app/agents/[id]/plugins/page";
+import AgentMcpPage from "@/app/agents/[id]/mcp/page";
 import AgentChannelsPage from "@/app/agents/[id]/channels/page";
 import AgentSchedulerPage from "@/app/agents/[id]/scheduler/page";
 import AgentRegexHooksPage from "@/app/agents/[id]/regex-hooks/page";
@@ -43,6 +45,7 @@ export type AgentSettingsTab =
   | "context"
   | "skills"
   | "plugins"
+  | "mcp"
   | "channels"
   | "scheduler"
   | "regex-hooks"
@@ -60,6 +63,7 @@ const AGENT_TABS = (t: ReturnType<typeof useT>): Array<{ id: AgentSettingsTab; l
   { id: "context", label: t("settings.context"), icon: LayersIcon },
   { id: "skills", label: t("settings.skills"), icon: SparklesIcon },
   { id: "plugins", label: t("settings.plugins"), icon: Plug },
+  { id: "mcp", label: t("settings.mcp"), icon: Cable },
   { id: "channels", label: t("settings.channels"), icon: RadioIcon },
   { id: "scheduler", label: t("settings.scheduler"), icon: ClockIcon },
   { id: "regex-hooks", label: t("settings.regexHooks"), icon: RegexIcon },
@@ -176,6 +180,7 @@ export function AgentSettingsDialog({
           {tab === "context" && <AgentContextPage />}
           {tab === "skills" && <AgentSkillsPage />}
           {tab === "plugins" && <AgentPluginsPage />}
+          {tab === "mcp" && <AgentMcpPage />}
           {tab === "channels" && <AgentChannelsPage />}
           {tab === "scheduler" && <AgentSchedulerPage />}
           {tab === "regex-hooks" && <AgentRegexHooksPage />}

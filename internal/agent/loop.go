@@ -375,10 +375,11 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 
 		for _, td := range mcpMgr.ToolDefs() {
 			toolName := td.Name
-			ag.registry.Register(toolName, td.Description, td.InputSchema,
+			ag.registry.RegisterFrom(toolName, td.Description, td.InputSchema,
 				func(ctx context.Context, args json.RawMessage) (string, error) {
 					return mcpMgr.CallTool(ctx, toolName, args)
 				},
+				tools.SourceMCP,
 			)
 		}
 

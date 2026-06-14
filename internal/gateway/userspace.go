@@ -499,6 +499,11 @@ func (sp *UserSpace) EnsureAgent(ctx context.Context, st store.Store, mb *bus.Me
 				v := *ovr.AutoPersist
 				rc.AutoPersist = &v
 			}
+			// Per-agent MCP server overlay — without this, the
+			// dashboard-saved mcpServers never reach the agent loop.
+			if len(ovr.MCPServers) > 0 {
+				rc.MCPServers = ovr.MCPServers
+			}
 		}
 	}
 	if chatterPin.Model != "" {
@@ -712,6 +717,13 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 			if agentOverride.AutoPersist != nil {
 				v := *agentOverride.AutoPersist
 				rc.AutoPersist = &v
+			}
+			// Per-agent MCP server overlay — mirrors the foreign-chatter
+			// path in EnsureAgent. Without this, mcpServers written to
+			// the agents.defaults row are silently dropped during owner-
+			// side agent load and the agent loop sees an empty map.
+			if len(agentOverride.MCPServers) > 0 {
+				rc.MCPServers = agentOverride.MCPServers
 			}
 		}
 		// Same story for providers: assembleConfig was called with

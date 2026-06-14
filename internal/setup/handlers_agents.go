@@ -183,6 +183,35 @@ func (s *Server) agentScopePlugins(r *http.Request, agentID string) map[string]b
 	return out
 }
 
+// agentScopeMCPServers reads the per-agent MCP server config overlay
+// from agents.defaults. Returns nil when no override exists so the
+// runtime falls back to user/system scope. The stored value round-trips
+// through the loose map[string]interface{} shape used by the configs
+// table — we reify it into config.MCPServerConfig so the response is
+// typed (and matches what the agent loop consumes at runtime).
+func (s *Server) agentScopeMCPServers(r *http.Request, agentID string) map[string]config.MCPServerConfig {
+	rec, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", agentID, "agents.defaults")
+	if err != nil || rec == nil || rec.Data == nil {
+		return nil
+	}
+	raw, ok := rec.Data["mcpServers"]
+	if !ok {
+		return nil
+	}
+	blob, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var out map[string]config.MCPServerConfig
+	if err := json.Unmarshal(blob, &out); err != nil {
+		return nil
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // agentScopeAutoPersist reads the per-agent autoPersist override.
 // Returns nil when absent — same convention as agentScopeSplitReplies.
 // Drives the runPostTurn AutoPersistMemory pass (LLM-distilled writes to
@@ -490,6 +519,11 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		// To clear all overrides for this agent, send pluginsReset:true.
 		Plugins      map[string]bool `json:"plugins,omitempty"`
 		PluginsReset bool            `json:"pluginsReset,omitempty"`
+		// MCPServers per-agent MCP server overlay. Whole-map replace
+		// semantics (same as providers): omit to leave alone, send {} to
+		// clear the override, send the full desired map to replace. The
+		// caller must read-modify-write — partial maps clobber siblings.
+		MCPServers map[string]config.MCPServerConfig `json:"mcpServers,omitempty"`
 		KB *config.AgentKBCfg `json:"kb,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -583,6 +617,13 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 	} else if req.AutoPersist != nil {
 		defaultsPatch["autoPersist"] = *req.AutoPersist
 	}
+	if req.MCPServers != nil {
+		if len(req.MCPServers) == 0 {
+			defaultsPatch["mcpServers"] = nil
+		} else {
+			defaultsPatch["mcpServers"] = req.MCPServers
+		}
+	}
 	if err := s.applyAgentScopeDefaultsPatch(r, rec.ID, defaultsPatch); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
@@ -613,6 +654,7 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 			"splitReplies":     s.agentScopeSplitReplies(r, rec.ID),
 			"autoPersist":      s.agentScopeAutoPersist(r, rec.ID),
 			"plugins":          s.agentScopePlugins(r, rec.ID),
+			"mcpServers":       s.agentScopeMCPServers(r, rec.ID),
 			"config":           rec.Config,
 			"isPublic":         rec.IsPublic,
 			"shareModelConfig": share,
@@ -653,6 +695,7 @@ func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 			"splitReplies":     s.agentScopeSplitReplies(r, rec.ID),
 			"autoPersist":      s.agentScopeAutoPersist(r, rec.ID),
 			"plugins":          s.agentScopePlugins(r, rec.ID),
+			"mcpServers":       s.agentScopeMCPServers(r, rec.ID),
 			"avatarUrl":        "/api/agents/" + rec.ID + "/files/avatar.png",
 			"createdAt":        rec.CreatedAt,
 			"isPublic":         rec.IsPublic,

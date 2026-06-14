@@ -386,6 +386,13 @@ type AgentDefaults struct {
 	// so this is the only way for the agent to remember a chatter across
 	// sessions.
 	AutoPersist *bool `json:"autoPersist,omitempty"`
+	// MCPServers — per-agent MCP server overlay. Round-trips through
+	// the agent-scope agents.defaults row written by the dashboard / CLI.
+	// Applied to ResolvedAgent.MCPServers at userspace assembly time in
+	// gateway/userspace.go (two overlay sites — owner load + foreign-
+	// chatter lazy-attach). Empty map means "no override"; runtime falls
+	// back to user / system scope MCP servers.
+	MCPServers map[string]MCPServerConfig `json:"mcpServers,omitempty"`
 }
 
 // AgentEntry is the in-memory shape of one agent row, used during
