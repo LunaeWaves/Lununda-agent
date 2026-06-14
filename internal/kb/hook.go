@@ -46,7 +46,24 @@ type AutoQueryCfg struct {
 // AutoQueryHook returns a function suitable for use as a BeforeModelCall
 // hook. The cfgFn callback reads the agent's current KB config on each
 // call so changes take effect without restart.
+//
+// The returned closure holds a per-agent cache of the last query it ran
+// for. Within a ReAct loop the same user message drives every iteration,
+// so without this cache the hook would re-search the FTS index, re-emit
+// a synthetic knowledgebase_search tool_call/result pair, and re-inject
+// a [KB] context message on every model call — once per loop iteration,
+// even though the previous iteration's results are already in the
+// session. The cache short-circuits repeat iterations so the work runs
+// exactly once per distinct user query.
+//
+// Staleness tradeoff: the cache is keyed by query string only. If the
+// agent calls a knowledgebase_ingest_* tool mid-loop with the same user
+// query, auto-query will NOT pick up the new content until the user
+// sends a different message. The LLM still sees the ingest result in
+// its tool-result stream and can call knowledgebase_search explicitly
+// to refresh — auto-query is a convenience layer, not the only path.
 func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) func(context.Context, *HookContext) {
+	var lastQuery string
 	return func(ctx context.Context, hc *HookContext) {
 		cfg := cfgFn()
 		slog.Debug("kb auto-query hook", "agent", agentID, "enabled", cfg.Enabled, "mode", cfg.AutoMode, "store_nil", store == nil, "source", hc.Source)
@@ -72,6 +89,24 @@ func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) fu
 			return
 		}
 
+		// Cache hit: same query already processed AND the [KB]
+		// injection it produced is still in hc.Messages. The second
+		// condition matters because the cache is per-agent-lifetime
+		// (the hook closure outlives any one session): if the user
+		// starts a brand-new chat with the same query, the new
+		// session's messages won't carry the old [KB] injection, so
+		// we must re-search to give the LLM its KB context.
+		//
+		// Within a single ReAct loop the prior injection is always
+		// present (iter 1 put it there, iter 2+ reads it back), so
+		// this hits and skips duplicate search + synth emission.
+		// Across turns in the SAME session, the injection is still
+		// in session_messages, so this also hits — and the LLM
+		// keeps operating on the same KB context.
+		if lastQuery == query && messagesContainKBContext(hc.Messages) {
+			return
+		}
+
 		maxResults := cfg.MaxResults
 		if maxResults <= 0 {
 			maxResults = 5
@@ -90,6 +125,12 @@ func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) fu
 			slog.Debug("kb auto-query failed", "agent", agentID, "error", err)
 			return
 		}
+
+		// Mark the query as cached BEFORE branching on results so a
+		// search that returned 0 hits is also memoized — otherwise
+		// an empty-result query in "always" mode would re-search on
+		// every iteration.
+		lastQuery = query
 
 		if len(results) > 0 {
 			// Results found — apply searchMode.
@@ -198,6 +239,20 @@ func extractLastUserMessage(msgs []provider.Message) string {
 		}
 	}
 	return ""
+}
+
+// messagesContainKBContext reports whether any message in msgs carries
+// an injected KB context block. injectKBContext prefixes every injection
+// with "[KB]" (or the custom IndicatorFound text), so a simple prefix
+// scan is enough. Used by the cache-hit check to confirm the previously
+// cached injection is still in scope for the current conversation.
+func messagesContainKBContext(msgs []provider.Message) bool {
+	for _, m := range msgs {
+		if strings.HasPrefix(m.Content, "[KB]") {
+			return true
+		}
+	}
+	return false
 }
 
 func containsAnyKeyword(text string, keywords []string) bool {
