@@ -121,7 +121,17 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 - 天然防"LLM 重发 → hook 再拦"的死循环，也防"一次授权永久放行同类操作"的安全漏洞
 - **不做 `/yes always`**——"相同操作自动同意"的判定（参数匹配/模糊匹配）复杂度高且易误放行，收益不明确，砍掉
 
-**实现位置**：`BeforeToolCall` hook（loop.go 已有 hook 注册机制），工具 callback 本身不阻塞、不感知授权。授权状态记在 session（单次授权标记 + 被拦 tool_call 摘要）。
+**统一授权模型（判定集中、工具无感）**：
+授权判定**全部集中在 loop 层**（`filterAuthorizedCalls` + `authGate`），工具 callback **不重复判定逻辑**。每个 tool_call 带 `approved/denied/waiting` 标签（loop 设定，一次性）：
+
+- `denied` / `waiting` → **loop 层直接不执行**，生成拒绝/等待 tool_result，工具根本不被调用
+- `approved` → 进入工具执行，loop 同时标记该 call 的 `sandboxBypass=true`
+
+工具内部（file 的 `resolvePathSandboxed`、exec 的 cmd.Dir 边界等）**只读一个 flag**：`sandboxBypass` 为 true 则放开 workspace 边界限制（hardline 路径/命令仍拦）。工具不感知 hardline/dangerous/mode——那些全在 loop 层决定。
+
+**为什么这样**：避免"每加一个带路径检查的工具就要再打通一处授权"的循环重复。判定逻辑单一来源（loop），工具只读一个 bool。`/yes` 只改 loop 层状态，全链路自动生效。后续任何工具只要读 `sandboxBypass` flag 就自动支持授权，零额外改动。
+
+flag 传递：通过 registry 的 per-call 标记（按 toolCallID），loop 在执行前设置，工具执行时读取、执行后清除。
 
 **web 快捷选项**：聊天框在授权请求下方提供"允许 / 拒绝"点选，点击自动填充 `/yes` / `/no` 到输入框，用户也可手打。
 
