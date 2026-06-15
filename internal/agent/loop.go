@@ -368,6 +368,11 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 	// pre-Agent block. Self-disables when runner is nil.
 	tools.RegisterDelegateTask(registry, ag)
 
+	// Skill search/install tools. Installs land in this agent's private
+	// skills dir (rc.Home/skills); ReloadWorkspaceFiles re-scans so the
+	// new skill is usable on the next turn without a restart.
+	tools.RegisterSkillInstall(registry, rc.Home+"/skills", ag.ReloadWorkspaceFiles)
+
 	// Connect MCP servers and register their tools
 	if len(rc.MCPServers) > 0 {
 		mcpMgr := mcp.NewManager(rc.MCPServers)

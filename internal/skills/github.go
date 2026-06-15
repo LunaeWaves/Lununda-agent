@@ -2,6 +2,7 @@ package skills
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -19,9 +20,18 @@ func InstallFromGitHubRepo(repo, skillName, targetDir string) (*Result, error) {
 	owner, name := parts[0], parts[1]
 
 	client := defaultHTTPClient()
+	// FASTCLAW_GH_PROXY optionally mirrors github.com archive tarballs
+	// through an accelerator prefix (e.g. "https://ghfast.top/"), so
+	// installs succeed from networks where GitHub is blocked/throttled.
+	ghMirror := strings.TrimRight(os.Getenv("FASTCLAW_GH_PROXY"), "/")
 	var lastErr error
 	for _, ref := range []string{"main", "master"} {
-		tarURL := fmt.Sprintf("https://codeload.github.com/%s/%s/tar.gz/refs/heads/%s", owner, name, ref)
+		// github.com archive, not codeload: identical tarball, but mirrors
+		// like ghfast.top proxy github.com and reject codeload.github.com.
+		tarURL := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/%s.tar.gz", owner, name, ref)
+		if ghMirror != "" {
+			tarURL = ghMirror + "/" + tarURL
+		}
 
 		subpath := ""
 		dest := ""

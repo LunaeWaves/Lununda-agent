@@ -194,6 +194,15 @@ func makeExecToolFull(r *Registry, sbCfg *SandboxConfig, envProvider SkillEnvPro
 
 		cmd := exec.CommandContext(execCtx, "sh", "-c", command)
 
+		// Pin the working directory to the agent's workspace so relative
+		// paths (./skills, ./out.png, git clone ./foo) resolve inside it,
+		// not the FastClaw process CWD. Mirrors the sandbox path, which
+		// runs every command in /workspace. host_exec deliberately omits
+		// this — it's the operator's escape hatch to the real machine.
+		if r != nil && r.userRoot != "" {
+			cmd.Dir = r.userRoot
+		}
+
 		// Always set cmd.Env explicitly. Default Go behavior is to
 		// inherit the parent's full env, which leaks daemon secrets
 		// (FASTCLAW_STORAGE_DSN, FASTCLAW_OBJECT_STORE_*, ...) into
