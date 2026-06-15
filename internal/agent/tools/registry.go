@@ -230,6 +230,13 @@ type Registry struct {
 	// hash so both layers agree on what "the same call" means.
 	turnFailMu sync.Mutex
 	turnFails  map[turnFailKey]string
+	// bypassPaths are absolute path prefixes the agent loop has authorized
+	// for outside-workspace writes this round (user replied /yes to an
+	// ask-mode prompt on a file-write tool). resolvePathSandboxed relaxes
+	// its boundary check for paths under these prefixes — hardline system
+	// paths (/etc, ~/.ssh, ...) stay blocked regardless.
+	bypassMu   sync.RWMutex
+	bypassPaths []string
 	// shellMgr owns every `exec(run_in_background=true)` shell so the
 	// agent can later read their output via bash_output and terminate
 	// them via kill_shell. Sessions outlive individual turns; they die
@@ -406,6 +413,36 @@ func (r *Registry) SetSessionID(sessionID string) {
 // deny.
 func (r *Registry) SetCallerIsAdmin(v bool) {
 	r.callerIsAdmin = v
+}
+
+// SetSandboxBypassPaths records absolute path prefixes the agent loop has
+// authorized for outside-workspace writes this round (user /yes'd an
+// ask-mode file-write prompt). resolvePathSandboxed relaxes its check for
+// paths under these. Cleared at round end.
+func (r *Registry) SetSandboxBypassPaths(paths []string) {
+	r.bypassMu.Lock()
+	defer r.bypassMu.Unlock()
+	r.bypassPaths = paths
+}
+
+// ClearSandboxBypassPaths empties the bypass list (round end).
+func (r *Registry) ClearSandboxBypassPaths() {
+	r.bypassMu.Lock()
+	defer r.bypassMu.Unlock()
+	r.bypassPaths = nil
+}
+
+// IsSandboxBypassPath reports whether absPath is under a bypass-authorized
+// prefix this round. File tools call this to relax resolvePathSandboxed.
+func (r *Registry) IsSandboxBypassPath(absPath string) bool {
+	r.bypassMu.RLock()
+	defer r.bypassMu.RUnlock()
+	for _, p := range r.bypassPaths {
+		if absPath == p || strings.HasPrefix(absPath, p+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 // SetProjectID scopes the registry's workspace.Store calls to a project

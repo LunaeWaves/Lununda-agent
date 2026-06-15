@@ -431,9 +431,24 @@ func resolvePathSandboxed(root, sandboxRoot, path string) (string, error) {
 // "agent reads its own IDENTITY.md" flow when the systemFileStore lookup
 // misses (fresh agent, store not yet hydrated, no store configured at
 // all).
-func (r *Registry) effectiveSandboxRoot(root string) string {
+// effectiveSandboxRoot picks the bound that file ops should enforce for a
+// path resolving against `root`. Identity files (SOUL.md / IDENTITY.md / …)
+// live in r.systemRoot — agent home, OUTSIDE the workspace sandbox mount —
+// so the workspace sandbox bound would always reject them. Confine
+// system-file operations to systemRoot itself instead. When the caller is
+// resolving `path` (non-empty) AND the loop has user-authorized that exact
+// outside-workspace target this round (sandbox bypass via /yes), return ""
+// so resolvePathSandboxed relaxes its boundary — but only for non-system
+// files; identity files are never bypassable.
+func (r *Registry) effectiveSandboxRoot(root, path string) string {
 	if root == r.systemRoot && r.systemRoot != "" {
 		return r.systemRoot
+	}
+	if path != "" {
+		abs := resolvePath(root, path)
+		if r.IsSandboxBypassPath(abs) {
+			return ""
+		}
 	}
 	return r.sandboxRoot
 }
@@ -539,7 +554,7 @@ func makeReadFile(r *Registry) ToolFunc {
 		}
 
 		root := r.rootForPath(args.Path)
-		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), args.Path)
+		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, args.Path), args.Path)
 		if err != nil {
 			return "", err
 		}
@@ -630,7 +645,7 @@ func makeWriteFile(r *Registry) ToolFunc {
 		}
 
 		root := r.rootForPath(args.Path)
-		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), args.Path)
+		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, args.Path), args.Path)
 		if err != nil {
 			return "", err
 		}
@@ -726,7 +741,7 @@ func makeEditFile(r *Registry) ToolFunc {
 		}
 
 		root := r.rootForPath(args.Path)
-		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), args.Path)
+		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, args.Path), args.Path)
 		if err != nil {
 			return "", err
 		}
@@ -826,7 +841,7 @@ func makeListDir(r *Registry) ToolFunc {
 		}
 
 		root := r.rootForPath(args.Path)
-		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), args.Path)
+		fullPath, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, args.Path), args.Path)
 		if err != nil {
 			return "", err
 		}

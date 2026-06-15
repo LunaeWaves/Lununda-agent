@@ -187,6 +187,25 @@ func modeGate(mode, reason string) authDecision {
 	}
 }
 
+// writeTargetOutsideWorkspace returns the absolute resolved path and true
+// when the call is a file-write tool whose path lands outside the
+// workspace. Used by the loop to collect sandbox-bypass prefixes when a
+// single-use /yes authorizes such a call.
+func (g *authGate) writeTargetOutsideWorkspace(toolName, argsJSON string) (string, bool) {
+	if !fileWriteTools[toolName] {
+		return "", false
+	}
+	path := extractStringArg(argsJSON, "path")
+	if path == "" {
+		return "", false
+	}
+	abs := resolveAgainst(g.workspace, path)
+	if isUnder(abs, g.workspace) {
+		return "", false
+	}
+	return abs, true
+}
+
 // extractStringArg pulls a string field from a JSON args blob without
 // caring about the rest of the schema. Returns "" on any failure.
 func extractStringArg(argsJSON, key string) string {

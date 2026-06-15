@@ -515,7 +515,7 @@ func (r *Registry) readForPatch(ctx context.Context, path string) (string, error
 		return "", nil
 	}
 	root := r.rootForPath(path)
-	full, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), path)
+	full, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, path), path)
 	if err != nil {
 		return "", err
 	}
@@ -550,7 +550,7 @@ func (r *Registry) writeForPatch(ctx context.Context, path, content string) erro
 		return nil
 	}
 	root := r.rootForPath(path)
-	full, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), path)
+	full, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, path), path)
 	if err != nil {
 		return err
 	}
@@ -575,7 +575,7 @@ func (r *Registry) deleteForPatch(ctx context.Context, path string) error {
 		return r.workspaceStore.Delete(ctx, r.agentID, r.projectID, r.sessionID, path)
 	}
 	root := r.rootForPath(path)
-	full, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root), path)
+	full, err := resolvePathSandboxed(root, r.effectiveSandboxRoot(root, path), path)
 	if err != nil {
 		return err
 	}

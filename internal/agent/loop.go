@@ -2151,9 +2151,15 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		// Authorization gate (stage 3): split executeCalls into allowed
 		// vs. blocked/prompted before running anything. Blocked calls get
 		// a synthetic tool_result so every tool_use id stays paired.
-		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, executeCalls)
+		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, executeCalls)
 		if promptDesc != "" {
 			a.emitAuthPrompt(ctx, promptDesc)
+		}
+		// Sandbox bypass: outside-workspace writes the user /yes'd this
+		// round relax resolvePathSandboxed for exactly those paths.
+		// Cleared after the round so the authorization never leaks forward.
+		if len(bypassPaths) > 0 {
+			a.registry.SetSandboxBypassPaths(bypassPaths)
 		}
 
 		// Execute tools concurrently via SDK engine
@@ -2162,6 +2168,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			"count", len(toExec),
 		)
 		results := a.engine.executeToolsConcurrently(ctx, a.registry, toExec, a.workspacePath)
+		a.registry.ClearSandboxBypassPaths()
 		// Merge blocked/prompted results (keyed by tool_use id) so they
 		// land at the right index when the padding pass below rebuilds
 		// the results slice against resp.ToolCalls.
@@ -2844,13 +2851,17 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		}
 
 		// Authorization gate (stage 3).
-		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, resp.ToolCalls)
+		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, resp.ToolCalls)
 		if promptDesc != "" {
 			a.emitAuthPrompt(ctx, promptDesc)
+		}
+		if len(bypassPaths) > 0 {
+			a.registry.SetSandboxBypassPaths(bypassPaths)
 		}
 
 		// Execute tools concurrently via SDK engine
 		execResults := a.engine.executeToolsConcurrently(ctx, a.registry, toExec, a.workspacePath)
+		a.registry.ClearSandboxBypassPaths()
 		totalToolCalls += len(execResults)
 		// Rebuild results aligned to resp.ToolCalls order, filling blocked
 		// slots from blockedCalls so every tool_use id pairs with a result.
@@ -3333,10 +3344,10 @@ func (a *Agent) sendMediaFiles(msg bus.InboundMessage, mediaPaths []string) {
 // authorization prompt this round — the caller emits the "⚠️ 回复 /yes"
 // message once per round and records it on the session. Empty desc means
 // no prompt is needed.
-func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string) {
+func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string, bypassPaths []string) {
 	blocked = make(map[string]toolCallResult)
 	if a.authGate == nil {
-		return calls, blocked, ""
+		return calls, blocked, "", nil
 	}
 	mode := sess.AuthMode()
 	if mode == "" {
@@ -3346,12 +3357,21 @@ func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.To
 	var promptCandidate string
 	for _, tc := range calls {
 		dec := a.authGate.evaluateCall(tc.Function.Name, tc.Function.Arguments, mode, singleUse)
-		if singleUse && dec.action == authAllow {
+		consumedSingleUse := singleUse && dec.action == authAllow
+		if consumedSingleUse {
 			singleUse = false
 		}
 		switch dec.action {
 		case authAllow:
 			toExec = append(toExec, tc)
+			// Single-use approval that covered an outside-workspace write:
+			// collect the target path so the file-tool sandbox relaxes for
+			// exactly this call (and only this round).
+			if consumedSingleUse {
+				if abs, outside := a.authGate.writeTargetOutsideWorkspace(tc.Function.Name, tc.Function.Arguments); outside {
+					bypassPaths = append(bypassPaths, abs)
+				}
+			}
 		case authBlock:
 			blocked[tc.ID] = toolCallResult{
 				toolCallID: tc.ID,
@@ -3374,7 +3394,7 @@ func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.To
 	if promptCandidate != "" {
 		sess.SetPendingDesc(promptCandidate)
 	}
-	return toExec, blocked, promptCandidate
+	return toExec, blocked, promptCandidate, bypassPaths
 }
 
 // emitAuthPrompt surfaces the "needs authorization" message to the user
