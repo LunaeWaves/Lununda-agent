@@ -95,6 +95,15 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 - file 工具（write_file/edit_file/delete）：workspace 外**写** → 按模式处理；workspace 外**读** → **直接允许**（读不改变状态，风险低，不打扰用户）
 - exec 工具：**一律**——workspace 内自由，workspace 外（任何命令，不区分读写）→ 按模式处理。理由：shell 命令是任意字符串，静态区分读/写不可靠（`cat` 能读、`cp` 能写、管道组合更难判定），一律授权比启发式更安全且语义清晰
 
+**三层安全模型**（参考 hermes-agent approval.py，确认点：hardline 底线 + 危险黑名单）：
+1. **hardline 底线**：灾难性命令（`rm -rf /`、`mkfs`、`dd of=/dev/sd*`、fork bomb、关机/重启等）**任何模式都拦截，yolo 也不能绕过**。理由：yolo 是信任 agent 操作文件/服务，不是信任它清盘/关机——这是 yolo 之下的地板。
+2. **危险命令黑名单**（dangerous patterns）：高风险但可恢复的操作（`git reset --hard`、`git push --force`、`chmod -R 777`、`rm -rf`、`DROP TABLE`、`curl|sh` 等）→ 按模式处理（ask 询问 / auto 拒 / yolo 放行）。作为 workspace 边界的**补充层**——workspace 内的危险命令也拦。
+3. **workspace 边界**：位置维度（workspace 内自由，外则按模式）。
+
+检测顺序：hardline → dangerous → workspace 边界。hardline 命中直接拒绝（不可授权）；其余按模式 + 单次授权。
+
+**拒绝消息防绕过措辞**：所有拒绝（hardline / auto 拒 / /no / 超时）的 tool_result 明确告诉 LLM「用户未授权，不要重试、不要换措辞、不要换工具绕过，停下等用户」。防 prompt injection 换方式绕过（参考 hermes 的 "silence is not consent" 契约）。
+
 **授权流程（对话式，BeforeToolCall hook 拦截）**：
 授权不是一个阻塞子流程，而是**两个 turn 之间的对话**，复用现有 hook 机制：
 
