@@ -36,7 +36,7 @@ func TestE2BReproWithRealWorkspace(t *testing.T) {
 		home = filepath.Join(os.Getenv("HOME"), ".fastclaw")
 	}
 
-	ws := workspace.NewLocalFS(filepath.Join(home, "workspaces"))
+	ws := workspace.NewLocalFSWithRoot(filepath.Join(home, "workspaces"))
 
 	// Quick survey of how much data Hydrate will ship in the bundle, so
 	// when the bundle is huge we know that's what to blame.

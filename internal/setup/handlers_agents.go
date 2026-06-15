@@ -1322,13 +1322,12 @@ func (s *Server) handleAgentFile(w http.ResponseWriter, r *http.Request) {
 	}
 	// Workspace store not configured — fall back to direct FS read.
 	// The local FS layout mirrors the workspace store's:
-	// ~/.fastclaw/workspaces/<agent_id>/<path>.
-	home, err := config.HomeDir()
+	// ~/.fastclaw/agents/<agent_id>/workspace/<path>.
+	root, err := config.AgentWorkspaceDir(id)
 	if err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	root := filepath.Join(home, "workspaces", id)
 	abs := filepath.Join(root, filepath.Clean("/"+rel))
 	if !strings.HasPrefix(abs, root+string(os.PathSeparator)) && abs != root {
 		jsonResponse(w, http.StatusForbidden, map[string]any{"error": "path escape"})

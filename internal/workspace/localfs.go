@@ -10,30 +10,47 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fastclaw-ai/fastclaw/internal/config"
 )
 
-// LocalFS stores objects under a root directory, one subtree per agent. This
-// is the default backend for single-host deployments — same on-disk layout
-// the agent tools already use, so existing agents upgrade in place.
+// LocalFS stores objects under a per-agent workspace directory. This is the
+// default backend for single-host deployments — same on-disk layout the agent
+// tools already use, so existing agents upgrade in place.
+//
+// agentWorkspaceRoot resolves each agent's workspace root lazily (defaults to
+// config.AgentWorkspaceDir). Centralising it here means LocalFS, sandbox
+// mounts, and handlers all derive the same path — a write under workspace.Store
+// lands exactly where the docker bind-mount points, so sandbox mode never
+// loses files to a path mismatch.
 type LocalFS struct {
-	// root is usually ~/.fastclaw/workspaces. Objects for agent foo go to
-	// <root>/foo/<path>.
-	root string
+	agentWorkspaceRoot func(agentID string) string
 }
 
-// NewLocalFS returns a LocalFS rooted at the given directory. The directory
-// is created on first Put; callers don't need to pre-create it.
-func NewLocalFS(root string) *LocalFS {
-	return &LocalFS{root: root}
+// NewLocalFS returns a LocalFS using config.AgentWorkspaceDir as the per-agent
+// workspace root.
+func NewLocalFS() *LocalFS {
+	return &LocalFS{
+		agentWorkspaceRoot: func(agentID string) string {
+			dir, err := config.AgentWorkspaceDir(agentID)
+			if err != nil {
+				return ""
+			}
+			return dir
+		},
+	}
 }
 
-// Root returns the on-disk root the LocalFS was constructed with
-// (typically ~/.fastclaw/workspaces). Exposed so callers that need
-// to compute a host path for an external tool — e.g. "open in
-// Finder" / shelling out — can join from the same anchor LocalFS
-// uses internally without re-deriving it from FASTCLAW_HOME.
-func (f *LocalFS) Root() string {
-	return f.root
+// NewLocalFSWithRoot returns a LocalFS that uses a custom <root>/<agentID>
+// layout instead of config.AgentWorkspaceDir. Kept for operators who pin a
+// shared workspace root via config (Factory.LocalDir) — the default path
+// goes through NewLocalFS so sandbox mounts stay in sync.
+func NewLocalFSWithRoot(root string) *LocalFS {
+	return &LocalFS{
+		agentWorkspaceRoot: func(agentID string) string {
+			return filepath.Join(root, agentID)
+		},
+	}
 }
 
 // LocalScopeDir implements the LocalScoper marker. Always returns
@@ -48,10 +65,10 @@ func (f *LocalFS) LocalScopeDir(agentID, projectID, sessionID string) (string, b
 // scopeDir returns the on-disk directory for a (agent, project, session)
 // scope:
 //
-//	pid="", sid=""   →  <root>/<agent>/                          (agent-shared)
-//	pid="", sid="x"  →  <root>/<agent>/sessions/x/               (loose chat)
-//	pid="p", sid=""  →  <root>/<agent>/projects/p/               (project root)
-//	pid="p", sid="x" →  <root>/<agent>/projects/p/x/             (project chat)
+//	pid="", sid=""   →  <workspaceRoot>/<agent>/                  (agent-shared)
+//	pid="", sid="x"  →  <workspaceRoot>/<agent>/sessions/x/       (loose chat)
+//	pid="p", sid=""  →  <workspaceRoot>/<agent>/projects/p/       (project root)
+//	pid="p", sid="x" →  <workspaceRoot>/<agent>/projects/p/x/     (project chat)
 //
 // Project chats keep their own subdir inside the project so two
 // concurrent chats can't collide on `notes.md`, and "move chat into
@@ -61,15 +78,16 @@ func (f *LocalFS) LocalScopeDir(agentID, projectID, sessionID string) (string, b
 // so relative writes default to the chat's own files — see
 // docker_executor.go's pool.Get.
 func (f *LocalFS) scopeDir(agentID, projectID, sessionID string) string {
+	root := f.agentWorkspaceRoot(agentID)
 	switch {
 	case projectID != "" && sessionID != "":
-		return filepath.Join(f.root, agentID, "projects", projectID, sessionID)
+		return filepath.Join(root, "projects", projectID, sessionID)
 	case projectID != "":
-		return filepath.Join(f.root, agentID, "projects", projectID)
+		return filepath.Join(root, "projects", projectID)
 	case sessionID != "":
-		return filepath.Join(f.root, agentID, "sessions", sessionID)
+		return filepath.Join(root, "sessions", sessionID)
 	default:
-		return filepath.Join(f.root, agentID)
+		return root
 	}
 }
 

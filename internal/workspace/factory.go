@@ -51,7 +51,14 @@ func (f Factory) New(defaultLocalDir string) (Store, error) {
 		if root == "" {
 			root = defaultLocalDir
 		}
-		return NewLocalFS(filepath.Clean(root)), nil
+		root = filepath.Clean(root)
+		// Custom LocalDir pins the legacy <root>/<agentID> layout. The
+		// default (no LocalDir) goes through NewLocalFS so workspace
+		// paths stay in lockstep with sandbox mounts (config.AgentWorkspaceDir).
+		if f.LocalDir == "" {
+			return NewLocalFS(), nil
+		}
+		return NewLocalFSWithRoot(root), nil
 	case "aws-s3", "cloudflare-r2", "backblaze-b2", "aliyun-oss", "minio", "s3":
 		s3 := f.S3
 		if s3.Endpoint == "" {

@@ -703,9 +703,10 @@ func AgentHomeDir(agentID string) (string, error) {
 }
 
 // AgentWorkspaceDir returns the agent's working directory for user-facing
-// artifacts: ~/.fastclaw/workspaces/<agent_id>/. agents.id is globally
-// unique so no user namespace is needed; per-session sub-directories are
-// added by the workspace store at write time (see workspace.LocalFS).
+// artifacts: ~/.fastclaw/agents/<agent_id>/workspace/. This is the single
+// source of truth for where workspace files live — workspace.LocalFS,
+// sandbox mounts (docker/e2b/boxlite), and file handlers all resolve
+// through here so writes, mounts, and reads can never diverge.
 func AgentWorkspaceDir(agentID string) (string, error) {
 	if agentID == "" {
 		return "", errors.New("config.AgentWorkspaceDir: agentID is required")
@@ -714,7 +715,7 @@ func AgentWorkspaceDir(agentID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "workspaces", agentID), nil
+	return filepath.Join(home, "agents", agentID, "workspace"), nil
 }
 
 func expandPath(path string) string {

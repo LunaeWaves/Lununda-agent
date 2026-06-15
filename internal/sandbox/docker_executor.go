@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fastclaw-ai/fastclaw/internal/config"
 )
 
 // DockerExecutor wraps DockerSandbox to implement Executor. The container
@@ -259,7 +261,15 @@ func (p *DockerExecutorPool) Get(ctx context.Context, agentID, projectID, sessio
 	// Per-chat per-container — even within the same project — so
 	// concurrent chats don't share shell state. The shared part is the
 	// FS mount, not the container.
-	workspace := filepath.Join(p.workspaceRoot, "workspaces", agentID)
+	//
+	// workspace base resolves through config.AgentWorkspaceDir (same as
+	// workspace.LocalFS) so the bind mount lands exactly where the Store
+	// writes — sandbox and Store paths can't drift.
+	workspaceBase, werr := config.AgentWorkspaceDir(agentID)
+	if werr != nil {
+		return nil, fmt.Errorf("resolve agent workspace: %w", werr)
+	}
+	workspace := workspaceBase
 	var workdir string
 	switch {
 	case projectID != "" && sessionID != "":

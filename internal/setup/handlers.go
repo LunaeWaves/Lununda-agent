@@ -1527,11 +1527,10 @@ func (s *Server) readWorkspaceFileBytes(ctx context.Context, agentID, relPath st
 		defer rc.Close()
 		return io.ReadAll(rc)
 	}
-	home, err := config.HomeDir()
+	root, err := config.AgentWorkspaceDir(agentID)
 	if err != nil {
 		return nil, err
 	}
-	root := filepath.Join(home, "workspaces", agentID)
 	abs := filepath.Join(root, filepath.Clean("/"+relPath))
 	if !strings.HasPrefix(abs, root+string(os.PathSeparator)) {
 		return nil, fmt.Errorf("path escape")
