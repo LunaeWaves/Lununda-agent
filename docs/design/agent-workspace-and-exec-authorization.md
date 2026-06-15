@@ -104,22 +104,30 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 
 **拒绝消息防绕过措辞**：所有拒绝（hardline / auto 拒 / /no / 超时）的 tool_result 明确告诉 LLM「用户未授权，不要重试、不要换措辞、不要换工具绕过，停下等用户」。防 prompt injection 换方式绕过（参考 hermes 的 "silence is not consent" 契约）。
 
-**授权流程（对话式，BeforeToolCall hook 拦截）**：
-授权不是一个阻塞子流程，而是**两个 turn 之间的对话**，复用现有 hook 机制：
+**授权流程（一次确认即执行，waiting call 留存）**：
+授权是"标记 → 用户确认 → 立即执行"的一次连续流程，**不是二次确认**。waiting 的 tool_call 完整留存在 session，用户一次 slash 确认后系统立即执行，不让用户重述需求、不靠 LLM 重发。
 
-1. LLM 发出 tool_call → `BeforeToolCall` hook 检查是否越界（workspace 外 + 非白名单 + 写/执行类）
-2. 越界且需要授权（ask 模式）→ hook 拦截，**不执行工具**，发消息「⚠️ 需要执行 <描述>，回复 /yes 继续，/no 取消」，当前 turn 结束
-3. 用户回复：
-   - `/yes` → session 标记"下一次 tool_call 单次授权"，LLM 在新 turn 重新发 tool_call（或系统重新注入），hook 消耗授权放行
-   - `/no` → 清 pending，LLM 收到"被拒"换方案
-   - 其它内容 → A 严格模式不识别为授权，作为普通消息进对话历史，LLM 自行应对
-4. 不回复 → turn 自然结束，无副作用（**不需要 timer/超时**）
+1. LLM 发出 tool_call → loop 检查（hardline → dangerous → workspace 边界）
+2. 需授权（ask 模式）→ 标记该 call = `waiting`，**完整 tool_call 存入 session.pendingCalls**，turn 结束，发询问（4 选项固定格式）
+3. 用户回复 slash 命令 → 取 pendingCalls，按命令立即执行：
+   - `/yes` → 标记 approved → **立即执行这批 call**（多个 pending 一次 /yes 批准全部）→ 结果喂回 LLM 续跑完成任务
+   - `/no` → 标记 denied → 不执行，拒绝结果喂回 LLM
+   - `/auto` → 切模式 + 重判 pendingCalls（auto 下 workspace 外自动拒）→ 执行放行的、拒其它的
+   - `/yolo` → 切模式 + 重判（yolo 全放行，hardline 仍拦）→ **立即执行全部**
+   - 其它内容 → 当普通消息，pendingCalls **保留**（隔几句 /yes 仍可执行），LLM 自行应对
 
-**单次授权语义**（确认点：防授权蔓延）：
-- `/yes` 只对**紧接下来的那一次 tool_call** 生效，消耗即失效
-- 下一个 tool_call（即使参数完全相同）越界 → 重新拦截询问
-- 天然防"LLM 重发 → hook 再拦"的死循环，也防"一次授权永久放行同类操作"的安全漏洞
-- **不做 `/yes always`**——"相同操作自动同意"的判定（参数匹配/模糊匹配）复杂度高且易误放行，收益不明确，砍掉
+**模式自动行为（不询问）**：
+- **yolo**：需授权的 call 自动确认、立即执行（不询问用户）。hardline 仍拦。
+- **auto**：需授权的 call 自动判断——workspace 外/dangerous 直接拒（不询问），结果喂回 LLM。workspace 内/白名单放行。
+- **ask**（默认）：询问用户，给 4 选项。
+
+**询问的固定格式**：每次都给全部 4 个选项（`/yes` `/no` `/auto` `/yolo`），不论当前模式。用户随时可切模式。前端通过 `auth_prompt` 事件渲染可点按钮。
+
+**pendingCalls 语义**：
+- 一轮里 LLM 发的多个需授权 call → 全部存入 pendingCalls（一批）
+- `/yes` 一次批准整批（非逐个）
+- 跨消息保留：用户没回 slash 而是聊别的，pendingCalls 保留，下次 `/yes` 仍执行；执行后或 `/no` 后清空
+- 执行 pendingCalls 时设 bypassPaths（workspace 外写要 bypass 工具内 sandbox）
 
 **统一授权模型（判定集中、工具无感）**：
 授权判定**全部集中在 loop 层**（`filterAuthorizedCalls` + `authGate`），工具 callback **不重复判定逻辑**。每个 tool_call 带 `approved/denied/waiting` 标签（loop 设定，一次性）：
@@ -127,11 +135,11 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 - `denied` / `waiting` → **loop 层直接不执行**，生成拒绝/等待 tool_result，工具根本不被调用
 - `approved` → 进入工具执行，loop 同时标记该 call 的 `sandboxBypass=true`
 
-工具内部（file 的 `resolvePathSandboxed`、exec 的 cmd.Dir 边界等）**只读一个 flag**：`sandboxBypass` 为 true 则放开 workspace 边界限制（hardline 路径/命令仍拦）。工具不感知 hardline/dangerous/mode——那些全在 loop 层决定。
+工具内部（file 的 `resolvePathSandboxed`、exec 的 cmd.Dir 边界等）**只读 bypassPaths**：路径在 bypassPaths 内则放开 workspace 边界限制（hardline 路径/命令仍拦）。工具不感知 hardline/dangerous/mode——那些全在 loop 层决定。
 
-**为什么这样**：避免"每加一个带路径检查的工具就要再打通一处授权"的循环重复。判定逻辑单一来源（loop），工具只读一个 bool。`/yes` 只改 loop 层状态，全链路自动生效。后续任何工具只要读 `sandboxBypass` flag 就自动支持授权，零额外改动。
+**为什么这样**：避免"每加一个带路径检查的工具就要再打通一处授权"的循环重复。判定逻辑单一来源（loop），工具只查 bypassPaths。后续任何工具只要走 `resolvePathSandboxed` 就自动支持授权，零额外改动。
 
-flag 传递：通过 registry 的 per-call 标记（按 toolCallID），loop 在执行前设置，工具执行时读取、执行后清除。
+flag 传递：loop 在执行 approved（含 /yes 触发的 pendingCalls）前，把 workspace 外目标路径设进 registry.bypassPaths，执行后清除。
 
 **web 快捷选项**：聊天框在授权请求下方提供"允许 / 拒绝"点选，点击自动填充 `/yes` / `/no` 到输入框，用户也可手打。
 
