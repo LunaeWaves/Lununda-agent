@@ -95,21 +95,35 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 - file 工具（write_file/edit_file/delete）：workspace 外**写** → 按模式处理；workspace 外**读** → **直接允许**（读不改变状态，风险低，不打扰用户）
 - exec 工具：**一律**——workspace 内自由，workspace 外（任何命令，不区分读写）→ 按模式处理。理由：shell 命令是任意字符串，静态区分读/写不可靠（`cat` 能读、`cp` 能写、管道组合更难判定），一律授权比启发式更安全且语义清晰
 
-**授权等待语义（确认点 4 选定）**：
-- 复用 steer 机制（loop.go `DrainSteer`/`appendSteer`）——用户可中途发消息，循环在工具轮次间折入，授权不需要从零造暂停/恢复
-- 发出授权请求 → 会话写一条"待确认"特殊消息 + 启动 timer
-- 用户回复"允许" → 取消 timer，放行
-- **超时（默认 10 分钟，agent 设置可调）→ 自动生成"拒绝"的 tool_result 喂回 LLM**，agent 自行决定下一步
-- 超时被拒后用户又回复"允许"：当作普通 steer 处理，**不保证重试**——用户需主动重新发起任务（确认点 4）
+**授权流程（对话式，BeforeToolCall hook 拦截）**：
+授权不是一个阻塞子流程，而是**两个 turn 之间的对话**，复用现有 hook 机制：
 
-**web 快捷选项**：聊天框在授权请求下方提供"允许 / 拒绝 / 切到 yolo"点选，点击自动填充到输入框（类似 Claude Code 的选项式确认），用户也可手打。
+1. LLM 发出 tool_call → `BeforeToolCall` hook 检查是否越界（workspace 外 + 非白名单 + 写/执行类）
+2. 越界且需要授权（ask 模式）→ hook 拦截，**不执行工具**，发消息「⚠️ 需要执行 <描述>，回复 /yes 继续，/no 取消」，当前 turn 结束
+3. 用户回复：
+   - `/yes` → session 标记"下一次 tool_call 单次授权"，LLM 在新 turn 重新发 tool_call（或系统重新注入），hook 消耗授权放行
+   - `/no` → 清 pending，LLM 收到"被拒"换方案
+   - 其它内容 → A 严格模式不识别为授权，作为普通消息进对话历史，LLM 自行应对
+4. 不回复 → turn 自然结束，无副作用（**不需要 timer/超时**）
+
+**单次授权语义**（确认点：防授权蔓延）：
+- `/yes` 只对**紧接下来的那一次 tool_call** 生效，消耗即失效
+- 下一个 tool_call（即使参数完全相同）越界 → 重新拦截询问
+- 天然防"LLM 重发 → hook 再拦"的死循环，也防"一次授权永久放行同类操作"的安全漏洞
+- **不做 `/yes always`**——"相同操作自动同意"的判定（参数匹配/模糊匹配）复杂度高且易误放行，收益不明确，砍掉
+
+**实现位置**：`BeforeToolCall` hook（loop.go 已有 hook 注册机制），工具 callback 本身不阻塞、不感知授权。授权状态记在 session（单次授权标记 + 被拦 tool_call 摘要）。
+
+**web 快捷选项**：聊天框在授权请求下方提供"允许 / 拒绝"点选，点击自动填充 `/yes` / `/no` 到输入框，用户也可手打。
 
 ## Considered Options（为何这么选）
 
 - **install_skill 用 exec 替代**：exec clone 到 sandbox 相对路径，路径不可控、产物不被 loader 识别。结构化工具（Go 代码硬编码路径）才是正解。
 - **exec 安全沙箱靠静态分析命令**：shell 命令是任意字符串，无法可靠静态约束。只能启发式 + 分级，真正隔离靠容器。诚实声明局限，不假装安全。
 - **目录硬迁移（自动搬运）vs 仅改代码**：选仅改代码 + 手动迁移。自动搬运历史 workspace 有数据丢失风险，且调用面小到不需要兼容层。
-- **授权无限挂起 vs 超时拒绝**：选超时拒绝。agent loop 是事件驱动 + steer 折入，"无限挂起"与架构冲突（需改会话语义），超时拒绝顺势且自愈。
+- **授权阻塞回调 vs 对话式 hook 拦截**：选后者。在工具 callback 里阻塞等 timer/steer 要改 agent loop 的会话语义、引入 timer 超时等复杂度。对话式方案——BeforeToolCall hook 拦截越界工具、发询问、turn 结束、用户 /yes 后下个 turn 重新执行——复用现有 turn + hook 机制，无 timer、无阻塞、无 pending 状态机，且用户不回就自然结束（无超时问题）。
+- **`/yes` 单次 vs `/yes always` 同类放行**：选单次。`always` 需要"同类操作"判定（参数精确匹配？模糊？工具+路径前缀？），复杂且易误放行，授权蔓延风险高。单次 `/yes` 只对下一个 tool_call 生效，安全且实现简单，防循环/防蔓延天然成立。
+- **用户回复识别（严格 vs 模糊 vs 交 LLM）**：选严格（A）——只认 `/yes` `/no`，其它当普通消息进对话。无歧义、默认拒绝（安全）、实现最简；用户自然回复由 LLM 在对话中自行理解应对。
 - **白名单存 DB vs 文件**：选文件（`policy.json`），天然按 agent 隔离，满足"只加自己目录"约束，也便于用户查看/编辑。
 
 ## Consequences
