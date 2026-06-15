@@ -2176,7 +2176,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		// a synthetic tool_result so every tool_use id stays paired.
 		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, executeCalls)
 		if promptDesc != "" {
-			a.emitAuthPrompt(ctx, promptDesc)
+			a.emitAuthPrompt(ctx, promptDesc, msg.Channel)
 		}
 		if len(bypassPaths) > 0 {
 			a.registry.SetSandboxBypassPaths(bypassPaths)
@@ -2894,7 +2894,7 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		// Authorization gate (stage 3).
 		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, resp.ToolCalls)
 		if promptDesc != "" {
-			a.emitAuthPrompt(ctx, promptDesc)
+			a.emitAuthPrompt(ctx, promptDesc, msg.Channel)
 		}
 		if len(bypassPaths) > 0 {
 			a.registry.SetSandboxBypassPaths(bypassPaths)
@@ -3442,10 +3442,8 @@ func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.To
 // pairing (LLM APIs reject "tool message without preceding tool_calls").
 // The authorization ask is already embedded in the blocked tool_result,
 // which the model sees as a normal tool response.
-func (a *Agent) emitAuthPrompt(ctx context.Context, desc string) {
+func (a *Agent) emitAuthPrompt(ctx context.Context, desc, channel string) {
 	// Structured event: front-end renders tappable buttons, one per option.
-	// Each option carries the slash command to insert/send so the UI just
-	// needs to fill the input box (or submit directly).
 	options := []map[string]string{
 		{"cmd": "/yes", "label_zh": "授权执行", "label_en": "Approve"},
 		{"cmd": "/no", "label_zh": "拒绝", "label_en": "Deny"},
@@ -3456,8 +3454,13 @@ func (a *Agent) emitAuthPrompt(ctx context.Context, desc string) {
 		"description": desc,
 		"options":     options,
 	}})
-	// Plain-text fallback (one option per line) for channels/web clients
-	// that don't render auth_prompt specially — copy-paste friendly.
+	// Plain-text fallback (one option per line) for IM channels that don't
+	// have a bubble UI — WeChat, Telegram, Discord, etc. Web already renders
+	// the auth_prompt event as tappable buttons, so a duplicate text bubble
+	// would just be noise.
+	if channel == "web" {
+		return
+	}
 	content := "⚠️ 需要授权：" + desc + "\n" +
 		"/yes — 授权执行 (Approve)\n" +
 		"/no — 拒绝 (Deny)\n" +
