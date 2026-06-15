@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fastclaw-ai/fastclaw/internal/config"
+	"github.com/fastclaw-ai/fastclaw/internal/workspace"
 )
 
 // DockerExecutor wraps DockerSandbox to implement Executor. The container
@@ -158,6 +159,9 @@ func (d *DockerExecutor) SnapshotWorkspace(ctx context.Context) (map[string][]by
 			return walkErr
 		}
 		if entry.IsDir() {
+			if p != root && workspace.IsBuildArtifactDir(entry.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		rel, err := filepath.Rel(root, p)

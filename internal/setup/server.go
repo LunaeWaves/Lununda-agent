@@ -293,6 +293,14 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("PATCH /api/agents/{id}/projects/{pid}", auth(s.handleUpdateProject))
 	mux.HandleFunc("DELETE /api/agents/{id}/projects/{pid}", auth(s.handleDeleteProject))
 
+	// Project runtime: the coding-agent live dev server + preview
+	mux.HandleFunc("GET /api/agents/{id}/projects/{pid}/runtime", auth(s.handleGetRuntime))
+	mux.HandleFunc("POST /api/agents/{id}/projects/{pid}/runtime/up", auth(s.handleRuntimeUp))
+	mux.HandleFunc("POST /api/agents/{id}/projects/{pid}/runtime/sleep", auth(s.handleRuntimeSleep))
+	mux.HandleFunc("POST /api/agents/{id}/projects/{pid}/runtime/wake", auth(s.handleRuntimeWake))
+	mux.HandleFunc("DELETE /api/agents/{id}/projects/{pid}/runtime", auth(s.handleRuntimeStop))
+	mux.HandleFunc("GET /api/agents/{id}/projects/{pid}/runtime/logs", auth(s.handleRuntimeLogs))
+
 	// Per-agent channels (IM bot bindings)
 	mux.HandleFunc("GET /api/agents/{id}/channels", auth(s.handleListAgentChannels))
 	mux.HandleFunc("POST /api/agents/{id}/channels/telegram", auth(s.handleConnectAgentTelegram))
