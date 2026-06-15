@@ -17,6 +17,7 @@ import (
 	"github.com/fastclaw-ai/fastclaw/internal/auth"
 	"github.com/fastclaw-ai/fastclaw/internal/channels"
 	"github.com/fastclaw-ai/fastclaw/internal/config"
+	"github.com/fastclaw-ai/fastclaw/internal/runtime"
 	"github.com/fastclaw-ai/fastclaw/internal/session"
 	"github.com/fastclaw-ai/fastclaw/internal/store"
 	"github.com/fastclaw-ai/fastclaw/internal/taskqueue"
@@ -86,7 +87,15 @@ type Server struct {
 	usage      usage.Meter
 	startedAt  time.Time
 	wikiCache  *kb.WikiCache
+	// runtimeMgr powers the coding-agent project runtime (live dev server
+	// + preview URL for the /runtime endpoints). Nil when unused — the
+	// handlers 503 instead of nil-panicking. Set via SetRuntimeManager.
+	runtimeMgr *runtime.Manager
 }
+
+// SetRuntimeManager wires the project runtime manager. Call once at boot,
+// before the server starts accepting traffic.
+func (s *Server) SetRuntimeManager(m *runtime.Manager) { s.runtimeMgr = m }
 
 // NewServer creates a setup wizard server on the given port.
 func NewServer(port int) *Server {
