@@ -39,11 +39,34 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 
 ### D4. 目录布局重构（agent 子树收敛）
 
-改 `AgentWorkspaceDir(agentID)` 返回 `~/.fastclaw/agents/<id>/workspace`（原 `~/.fastclaw/workspaces/<id>/`）。
+目标：每个 agent 的数据收敛到一棵子树
+`~/.fastclaw/agents/<id>/`，含 `agent/`（身份/skills/memory）+ `workspace/`（工作产物）。workspace 从 `~/.fastclaw/workspaces/<id>/` 迁到 `~/.fastclaw/agents/<id>/workspace/`。
 
-调用面极小：`AgentWorkspaceDir` 全项目仅在 `config.go:750` 使用，改动集中、风险可控。
+**方案选择：方案 iii（LocalFS 用回调定位每 agent 的 workspace 根）**
+
+经调研，路径硬编码分散在 config / LocalFS / 三个 sandbox backend / handlers 多处。采用方案 iii：所有路径计算统一收敛到 `config.AgentWorkspaceDir(agentID)`，确保 workspace.Store（LocalFS）、sandbox 挂载（docker/e2b/boxlite）、handler 三处路径**同源**，消除"一处写、一处挂"的不一致隐患（sandbox 模式文件丢失的根因）。
+
+**调研关键结论**：
+- `SandboxPool` + `homeFromWorkspace`（pool.go）是**死代码**——`NewPool()` 全项目无调用，当前实际用的是 `DockerExecutorPool`/`E2BExecutorPool`/`BoxliteExecutorPool`（经 `LifecyclePool` 装饰）。重构时顺手删除。
+- `skillDirsForAgent(home, agentID)`（活代码）直接用 home 拼 `agents/<id>/agent/skills` + `skills`，**不依赖 workspace 路径格式**——workspace 改位置，skill 挂载完全不受影响。
+- 所有 sandbox backend 的 home 都来自 `buildSystemSandboxPool`（userspace.go:100）的 `config.HomeDir()`。
+- `LocalFS.Root()` 方法全项目零调用（死方法），可安全删除。
+
+**改动清单**：
+1. `config.go` `AgentWorkspaceDir` → 返回 `~/.fastclaw/agents/<id>/workspace`
+2. `localfs.go` LocalFS 用回调 `agentWorkspaceRoot(agentID)`（默认 `config.AgentWorkspaceDir`）定位每 agent 根；scopeDir 改用回调；删 `Root()` 死方法
+3. `gateway.go:253` `NewLocalFS` 调用适配（去掉 workspaces root，改工厂）
+4. `docker_executor.go:262` / `e2b_executor.go` / `boxlite_executor.go`：路径改用 `config.AgentWorkspaceDir(agentID)` + projects/sessions 子目录
+5. `handlers.go:1534` / `handlers_agents.go:1331`：改调 `config.AgentWorkspaceDir`
+6. `pool.go`：删死代码（`SandboxPool` + `homeFromWorkspace`）
+
+**不变量**：workspace.Store 写路径 == sandbox 挂载 host 路径 == handler 读路径，三者同源调 `AgentWorkspaceDir`。sandbox 模式下容器内 `/workspace` ↔ host `agents/<id>/workspace/...` 必须一致。
 
 **迁移策略**：仅改代码（新 agent 用新路径），**用户手动迁移历史数据**（确认点 2）。不写自动迁移逻辑，避免数据搬运出错。
+
+**风险点**：
+- sandbox 挂载改动（#4）在 host 模式测不出，需配 docker 端到端验证容器内 `/workspace` 挂对。改动是机械的路径拼接，风险可控。
+- e2b/boxlite 是 `RemoteWorkspace`（非 bind-mount），靠 workspace.Store hydrate/flush 同步——只要 LocalFS 和 hydrate 用同一个 scopeDir 就一致（方案 iii 天然保证）。
 
 ### D5. 授权系统（白名单 + 三档模式 + IM 确认）
 
