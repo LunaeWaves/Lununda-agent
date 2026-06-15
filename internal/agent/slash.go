@@ -134,6 +134,13 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 				msg.Channel, msg.UserID, msg.SenderName, msg.Channel),
 		}
 
+	case "/yes":
+		return a.slashAuthReply(msg, true)
+	case "/no":
+		return a.slashAuthReply(msg, false)
+	case "/ask", "/auto", "/yolo":
+		return a.slashSetAuthMode(msg, strings.TrimPrefix(cmd, "/"))
+
 	default:
 		return slashResult{}
 	}
@@ -150,6 +157,11 @@ var writeSlashCommands = map[string]bool{
 	"/compact":     true,
 	"/model":       true,
 	"/personality": true,
+	"/yes":         true,
+	"/no":          true,
+	"/ask":         true,
+	"/auto":        true,
+	"/yolo":        true,
 }
 
 // isAdminChatter decides whether the chatter is allowed to run a write-mode
@@ -533,4 +545,43 @@ func truncateSlash(s string, n int) string {
 		return s
 	}
 	return string(r[:n]) + "…"
+}
+
+// slashAuthReply resolves an in-flight authorization request on the
+// current session: /yes approves it (the parked tool callback unblocks and
+// proceeds), /no denies it (callback returns a rejection to the LLM).
+// No pending request → tell the user there's nothing to confirm, so a
+// stray /yes doesn't look like it silently did nothing.
+func (a *Agent) slashAuthReply(msg bus.InboundMessage, approved bool) slashResult {
+	sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
+	if sess == nil {
+		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。"}
+	}
+	p := sess.PendingAuth()
+	if p == nil {
+		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。"}
+	}
+	p.Approved = approved
+	sess.SetPendingAuth(nil)
+	close(p.Done) // unblock the waiting tool callback
+	if approved {
+		return slashResult{handled: true, reply: "✅ 已授权，继续执行。"}
+	}
+	return slashResult{handled: true, reply: "🚫 已拒绝该操作。"}
+}
+
+// slashSetAuthMode switches the current session's authorization mode.
+// Session-scoped: not persisted, doesn't affect other sessions.
+func (a *Agent) slashSetAuthMode(msg bus.InboundMessage, mode string) slashResult {
+	sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
+	if sess == nil {
+		return slashResult{handled: true, reply: "⚠️ 找不到当前会话。"}
+	}
+	sess.SetAuthMode(mode)
+	desc := map[string]string{
+		AuthModeAsk:  "workspace 外写操作会先问你（/yes 授权，/no 拒绝）",
+		AuthModeAuto: "workspace 外写操作自动拒绝（不询问）",
+		AuthModeYolo: "全部放行（注意风险）",
+	}[mode]
+	return slashResult{handled: true, reply: fmt.Sprintf("🔧 当前会话授权模式已切到 `%s`（仅本会话生效）。\n%s", mode, desc)}
 }

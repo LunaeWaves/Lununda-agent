@@ -58,6 +58,26 @@ type Session struct {
 	// pending steer.
 	turnDepth int
 	steerBuf  []provider.Message
+
+	// Authorization (stage 3): authMode is the session-scoped exec/file
+	// authorization mode — "ask" (default, prompt on outside-workspace
+	// writes), "auto" (deny outside-workspace without prompting), "yolo"
+	// (allow all). /ask /auto /yolo flip it for the current session only;
+	// it is NOT persisted and resets to the agent default on a new session.
+	// pendingAuth carries an in-flight authorization request awaiting
+	// /yes or /no (see agent auth gate); nil when nothing is pending.
+	authMode   string
+	pendingAuth *PendingAuth
+}
+
+// PendingAuth is an authorization request parked on a Session waiting for
+// the user to reply /yes (approve) or /no (deny). The tool callback that
+// triggered it blocks on Done, which is closed when the user replies or
+// the timeout fires (with Approved set accordingly).
+type PendingAuth struct {
+	Description string  // human-readable op summary shown in the prompt
+	Approved    bool
+	Done        chan struct{}
 }
 
 // SessionKey returns the opaque session_key this Session is bound to.
@@ -95,6 +115,37 @@ func (s *Session) ctx() context.Context {
 func (s *Session) SetChatter(uid string) {
 	s.mu.Lock()
 	s.chatterUserID = uid
+	s.mu.Unlock()
+}
+
+// AuthMode returns the session-scoped authorization mode. Empty means
+// "use the agent default" — callers resolve the effective mode by
+// falling back to the default (ask) when this is "".
+func (s *Session) AuthMode() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.authMode
+}
+
+// SetAuthMode flips the session-scoped authorization mode. Session-only:
+// not persisted, not shared with other sessions.
+func (s *Session) SetAuthMode(mode string) {
+	s.mu.Lock()
+	s.authMode = mode
+	s.mu.Unlock()
+}
+
+// PendingAuth returns the in-flight authorization request, or nil.
+func (s *Session) PendingAuth() *PendingAuth {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pendingAuth
+}
+
+// SetPendingAuth parks / clears an in-flight authorization request.
+func (s *Session) SetPendingAuth(p *PendingAuth) {
+	s.mu.Lock()
+	s.pendingAuth = p
 	s.mu.Unlock()
 }
 
