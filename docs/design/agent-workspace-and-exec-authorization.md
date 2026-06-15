@@ -71,18 +71,29 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 ### D5. 授权系统（白名单 + 三档模式 + IM 确认）
 
 **模式（类似 Claude Code）**：
-- **ask**：workspace 外的写/执行类操作 → 暂停等用户确认（默认）
+- **ask**：workspace 外的写/执行类操作 → 暂停等用户确认（**默认**）
 - **auto**：workspace 内自由，workspace 外自动拒绝（不给 LLM 授权通过的幻觉，直接返回"被拒"让 agent 改用 workspace 内方案）
 - **yolo**：全部放行（用户自担风险）
 
+**斜杠命令**（复用 `agent.handleSlashCommand`，加进现有 switch）：
+- `/yes` — 批准当前 session 挂起的授权请求
+- `/no` — 拒绝当前 session 挂起的授权请求
+- `/ask` `/auto` `/yolo` — 切换**当前 session** 的模式
+
+**模式 session 级语义**：
+- 新 session 启动用全局默认（`agents.defaults.authMode`，默认 `ask`）
+- `/ask` `/auto` `/yolo` 只改当前 session，**不持久化、不跨 session**
+- session 结束恢复默认
+
 **白名单**：
-- 存 `~/.fastclaw/agents/<id>/policy.json`
+- 存 `~/.fastclaw/agents/<id>/policy.json`，字段 `allowWrite []string`（相对 agent 根的路径前缀）
 - 只能加该 agent 自己目录（`~/.fastclaw/agents/<id>/`）下的子目录——满足"不能影响其他 agent"约束
 - 预置 `temp`/`download`/`data` 子目录入白名单，并写进 agent 上下文告知用途
+- 加载时合并预置目录 + policy.json 配置项
 
-**分级**：
-- file 工具（write_file/edit_file/delete）：严格可靠。workspace 外写 → 按模式处理；读放宽（`resolvePathSandboxed` 已有基础）
-- exec 工具：启发式。静态扫描命令文本里的绝对路径/`..`/`~/`/重定向/写类命令（`rm`/`mv`/`>`/`git clone`/`curl -o`），命中 workspace 外目标 → 按模式处理。可被绕过（变量、子 shell），不保证完美
+**分级**（确认点 1/2）：
+- file 工具（write_file/edit_file/delete）：workspace 外**写** → 按模式处理；workspace 外**读** → **直接允许**（读不改变状态，风险低，不打扰用户）
+- exec 工具：**一律**——workspace 内自由，workspace 外（任何命令，不区分读写）→ 按模式处理。理由：shell 命令是任意字符串，静态区分读/写不可靠（`cat` 能读、`cp` 能写、管道组合更难判定），一律授权比启发式更安全且语义清晰
 
 **授权等待语义（确认点 4 选定）**：
 - 复用 steer 机制（loop.go `DrainSteer`/`appendSteer`）——用户可中途发消息，循环在工具轮次间折入，授权不需要从零造暂停/恢复
@@ -114,23 +125,27 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 
 每阶段独立可测、独立 commit。
 
-### 阶段 1（低风险，立即受益）
-- D1：loop.go 注册 `RegisterSkillInstall`（已改）
-- D2：exec.go host 路径设 `cmd.Dir`（待改）
-- D3：github.go archive 路径 + `FASTCLAW_GH_PROXY`（已改）
-- 验证：编译重启 → 微信对话安装 huashu-design → 落到 `~/.fastclaw/agents/<id>/agent/skills/huashu-design/` 且技能生效
+### 阶段 1（低风险，立即受益）— ✅ 已完成
+- D1：loop.go 注册 `RegisterSkillInstall`
+- D2：exec.go host 路径设 `cmd.Dir` = workspace
+- D3：github.go archive 路径 + `FASTCLAW_GH_PROXY`
+- 验证：对话安装 huashu-design → 落到 `agents/<id>/agent/skills/huashu-design/` 且技能生效 ✓
 
-### 阶段 2（中风险）
-- D4：改 `AgentWorkspaceDir` 返回 `agents/<id>/workspace`
-- 用户手动迁移历史数据
-- 验证：新 agent 的工作产物落在新路径；旧 agent（迁移后）正常
+### 阶段 2（中风险）— ✅ 已完成
+- D4：改 `AgentWorkspaceDir` 返回 `agents/<id>/workspace`（方案 iii，路径同源）
+- 验证：write_file / exec 相对路径 / 文件 API 全部落新路径 ✓
 
 ### 阶段 3（较大）
-- D5：policy.json + 三档模式 + IM 确认（复用 steer）+ web 快捷选项 + 超时拒绝（默认 10 分钟）
-- file 工具分级接入；exec 启发式扫描接入
-- 验证：ask 模式下越界操作触发确认；auto 模式自动拒；yolo 全放行；超时自愈
+- D5 批 A（后端授权核心）：
+  - slash.go 加 `/yes` `/no` `/ask` `/auto` `/yolo`
+  - Session 加 `authMode` 字段（session 级，默认 ask）
+  - policy.json 白名单加载（预置 temp/download/data）
+  - file 工具：workspace 外写 → 按 mode 处理（读直接允许）
+  - exec 工具：workspace 外一律 → 按 mode 处理（不区分读写）
+  - ask 模式授权流程：复用 steer + 超时（默认 10 分钟）拒绝
+- D5 批 B（前端）：web 聊天框授权请求下显示 `/yes` `/no` 快捷按钮
+- 验证：ask 越界触发确认；auto 自动拒；yolo 全放行；/yes 放行；超时自愈
 
 ## 开放问题（实施时再定）
-- exec 启发式的写类命令黑名单具体清单（`rm`/`mv`/`>`/`git clone`/`curl -o`/`tee`/`dd`/...）
-- 预置目录（temp/download/data）的语义说明文案
-- 授权请求在 IM 端的呈现格式（文字 + 选项卡片）
+- 预置目录（temp/download/data）的语义说明文案（写进 agent 上下文）
+- 授权请求消息的具体文案格式
