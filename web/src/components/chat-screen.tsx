@@ -145,30 +145,31 @@ interface UserAttachment {
 
 // Built-in slash commands surfaced in the composer's `/` menu alongside
 // skills. Mirror of the dispatch table in internal/agent/slash.go — keep
-// in sync when commands are added/removed/renamed there.
-type SlashCommand = { name: string; description: string };
+// in sync when commands are added/removed/renamed there. Descriptions are
+// i18n keys (chatScreen.cmd.<name>); resolved via t() at render time.
+type SlashCommand = { name: string; descKey: string };
 const BUILTIN_COMMANDS: SlashCommand[] = [
-  { name: "new", description: "Clear session history" },
-  { name: "reset", description: "Clear session history" },
-  { name: "retry", description: "Re-run last message" },
-  { name: "undo", description: "Undo last turn" },
-  { name: "compact", description: "Compress context window" },
-  { name: "status", description: "Agent status & memory info" },
-  { name: "usage", description: "Session token/turn stats" },
-  { name: "insights", description: "Activity insights (last N days)" },
-  { name: "personality", description: "List or switch personality" },
-  { name: "model", description: "Show or switch LLM model" },
-  { name: "goal", description: "Persistent multi-turn objective" },
-  { name: "help", description: "Show command help" },
-  { name: "version", description: "Show version" },
-  { name: "yes", description: "Approve the pending authorized operation" },
-  { name: "no", description: "Deny the pending authorized operation" },
-  { name: "ask", description: "Prompt before outside-workspace writes (default)" },
-  { name: "auto", description: "Auto-deny outside-workspace writes (no prompt)" },
-  { name: "yolo", description: "Allow all operations (use with caution)" },
+  { name: "new", descKey: "chatScreen.cmd.new" },
+  { name: "reset", descKey: "chatScreen.cmd.reset" },
+  { name: "retry", descKey: "chatScreen.cmd.retry" },
+  { name: "undo", descKey: "chatScreen.cmd.undo" },
+  { name: "compact", descKey: "chatScreen.cmd.compact" },
+  { name: "status", descKey: "chatScreen.cmd.status" },
+  { name: "usage", descKey: "chatScreen.cmd.usage" },
+  { name: "insights", descKey: "chatScreen.cmd.insights" },
+  { name: "personality", descKey: "chatScreen.cmd.personality" },
+  { name: "model", descKey: "chatScreen.cmd.model" },
+  { name: "goal", descKey: "chatScreen.cmd.goal" },
+  { name: "help", descKey: "chatScreen.cmd.help" },
+  { name: "version", descKey: "chatScreen.cmd.version" },
+  { name: "yes", descKey: "chatScreen.cmd.yes" },
+  { name: "no", descKey: "chatScreen.cmd.no" },
+  { name: "ask", descKey: "chatScreen.cmd.ask" },
+  { name: "auto", descKey: "chatScreen.cmd.auto" },
+  { name: "yolo", descKey: "chatScreen.cmd.yolo" },
 ];
 type SlashItem =
-  | ({ kind: "command" } & SlashCommand)
+  | ({ kind: "command"; name: string; description: string })
   | ({ kind: "skill" } & SkillInfo);
 
 interface ChatMessage {
@@ -748,8 +749,8 @@ export function ChatScreen() {
         const match = (name: string, desc: string) =>
           !q || name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
         const cmds: SlashItem[] = BUILTIN_COMMANDS
-          .filter((c) => match(c.name, c.description))
-          .map((c) => ({ kind: "command", ...c }));
+          .map((c) => ({ kind: "command" as const, name: c.name, description: t(c.descKey) }))
+          .filter((c) => match(c.name, c.description));
         const sks: SlashItem[] = skills
           .filter((s) => match(s.name, s.description || ""))
           .map((s) => ({ kind: "skill", ...s }));
