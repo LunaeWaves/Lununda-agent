@@ -161,6 +161,11 @@ const BUILTIN_COMMANDS: SlashCommand[] = [
   { name: "goal", description: "Persistent multi-turn objective" },
   { name: "help", description: "Show command help" },
   { name: "version", description: "Show version" },
+  { name: "yes", description: "Approve the pending authorized operation" },
+  { name: "no", description: "Deny the pending authorized operation" },
+  { name: "ask", description: "Prompt before outside-workspace writes (default)" },
+  { name: "auto", description: "Auto-deny outside-workspace writes (no prompt)" },
+  { name: "yolo", description: "Allow all operations (use with caution)" },
 ];
 type SlashItem =
   | ({ kind: "command" } & SlashCommand)
