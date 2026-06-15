@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/fastclaw-ai/fastclaw/internal/provider"
 )
 
 // slashResult holds the result of a slash command.
@@ -21,6 +22,12 @@ type slashResult struct {
 	handled            bool
 	reply              string
 	continuationQueued bool
+	// continueToLoop: when true, the slash still enters the agent loop
+	// after its reply (rather than short-circuiting). Used by /yes (and
+	// /auto / /yolo when they approve pending calls) so drainApprovedPending
+	// runs and the authorized calls execute immediately, then the LLM
+	// continues the task with their results.
+	continueToLoop bool
 }
 
 // handleSlashCommand checks if the message is a slash command and handles it.
@@ -552,25 +559,27 @@ func truncateSlash(s string, n int) string {
 // proceeds), /no denies it (callback returns a rejection to the LLM).
 // No pending request → tell the user there's nothing to confirm, so a
 // stray /yes doesn't look like it silently did nothing.
+// slashAuthReply handles /yes and /no. /yes pops the waiting calls and
+// marks them approved — the loop executes them at the top of THIS turn
+// (the /yes message itself drives the continuation) and feeds results
+// back to the LLM. /no clears them. No re-statement needed.
 func (a *Agent) slashAuthReply(msg bus.InboundMessage, approved bool) slashResult {
 	sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
 	if sess == nil {
 		return slashResult{handled: true, reply: "⚠️ 找不到当前会话。\nNo active session found."}
 	}
-	desc := sess.PendingDesc()
-	if desc == "" {
+	pending := sess.PopPendingCalls()
+	if len(pending) == 0 {
 		if approved {
-			sess.GrantSingleUseAuth()
-			return slashResult{handled: true, reply: "✅ 已预授权下一次工具调用（仅一次）。\nPre-approved the next tool call (single use)."}
+			return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。\nNo operation is awaiting authorization."}
 		}
 		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。\nNo operation is awaiting authorization."}
 	}
 	if approved {
-		sess.GrantSingleUseAuth()
-		return slashResult{handled: true, reply: "✅ 已授权，下一次同样的操作会放行（仅一次）。请重新描述你的需求让我继续。\nApproved — the next call will go through (single use). Re-state your request to continue."}
+		sess.SetApprovedPending(pending)
+		return slashResult{handled: true, continueToLoop: true, reply: fmt.Sprintf("✅ 已授权 %d 个操作，立即执行…\nApproved %d operation(s), executing now.", len(pending), len(pending))}
 	}
-	sess.ClearSingleUseAuth()
-	return slashResult{handled: true, reply: "🚫 已拒绝该操作。\nDenied."}
+	return slashResult{handled: true, reply: fmt.Sprintf("🚫 已拒绝 %d 个操作。\nDenied %d operation(s).", len(pending), len(pending))}
 }
 
 // slashSetAuthMode switches the current session's authorization mode.
@@ -581,6 +590,20 @@ func (a *Agent) slashSetAuthMode(msg bus.InboundMessage, mode string) slashResul
 		return slashResult{handled: true, reply: "⚠️ 找不到当前会话。\nNo active session found."}
 	}
 	sess.SetAuthMode(mode)
+	// Re-judge any pending calls under the new mode and execute the ones
+	// it now allows (yolo→all, auto→only workspace-internal). /yes semantics
+	// for the survivors still apply; the rest get dropped per the new mode.
+	pending := sess.PopPendingCalls()
+	var approved []provider.ToolCall
+	for _, tc := range pending {
+		dec := a.authGate.evaluateCall(tc.Function.Name, tc.Function.Arguments, mode)
+		if dec.action == authAllow {
+			approved = append(approved, tc)
+		}
+	}
+	if len(approved) > 0 {
+		sess.SetApprovedPending(approved)
+	}
 	desc := map[string][2]string{
 		AuthModeAsk:  {"workspace 外写操作会先问你（/yes 授权，/no 拒绝）", "outside-workspace writes will prompt you (/yes to approve, /no to deny)"},
 		AuthModeAuto: {"workspace 外写操作自动拒绝（不询问）", "outside-workspace writes are auto-denied (no prompt)"},
@@ -590,5 +613,5 @@ func (a *Agent) slashSetAuthMode(msg bus.InboundMessage, mode string) slashResul
 	if desc[1] != "" {
 		reply += "\nSession auth mode set to `" + mode + "` (this session only).\n" + desc[1]
 	}
-	return slashResult{handled: true, reply: reply}
+	return slashResult{handled: true, continueToLoop: len(approved) > 0, reply: reply}
 }

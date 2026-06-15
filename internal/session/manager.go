@@ -65,15 +65,24 @@ type Session struct {
 	// (allow all). /ask /auto /yolo flip it for the current session only;
 	// it is NOT persisted and resets to the agent default on a new session.
 	authMode string
-	// singleUseAuth is a one-shot "next tool call is pre-approved" flag
-	// set by /yes. evaluateCall consumes it on the first call it sees
-	// (hardline excluded) so /yes authorizes exactly one tool call, not
-	// a whole class. Reset to false after consumption / on /no.
-	singleUseAuth bool
-	// pendingDesc records the description of the last intercepted call
-	// awaiting authorization, surfaced so the UI / a re-prompt can show
-	// what's pending. Informational only — the gate doesn't block on it.
+	// pendingCalls holds tool_calls intercepted while waiting for user
+	// authorization (ask mode). Retained wholesale so /yes can execute
+	// them immediately without the LLM having to re-emit. Cleared on
+	// /yes (after execution), /no, or session reset. Kept across ordinary
+	// (non-slash) messages so a user can chat around a pending prompt.
+	pendingCalls []provider.ToolCall
+	// pendingDesc is a human-readable summary of what's pending, surfaced
+	// to the UI / re-prompts. Informational; the gate keys off pendingCalls.
 	pendingDesc string
+	// approvedPending holds tool_calls the user just authorized (/yes, or
+	// /yolo re-judge). The loop drains and executes these at the top of the
+	// next turn, feeds results back to the LLM, and continues the task.
+	approvedPending []provider.ToolCall
+	// pendingSinceTurn records the turn index when pendingCalls was last
+	// added. The loop gives up after maxPendingTurns of idle (user chatting
+	// without /yes//no) and clears the pending request.
+	pendingSinceTurn int
+	maxPendingTurns  int
 }
 
 // SessionKey returns the opaque session_key this Session is bound to.
@@ -131,43 +140,75 @@ func (s *Session) SetAuthMode(mode string) {
 	s.mu.Unlock()
 }
 
-// GrantSingleUseAuth marks the next tool call as pre-approved (/yes).
-// Consumed exactly once by the auth gate (hardline excluded).
-func (s *Session) GrantSingleUseAuth() {
+// SetApprovedPending marks the given calls as user-authorized; the loop
+// drains them at the top of the next turn and executes immediately.
+func (s *Session) SetApprovedPending(calls []provider.ToolCall) {
 	s.mu.Lock()
-	s.singleUseAuth = true
+	s.approvedPending = calls
 	s.mu.Unlock()
 }
 
-// ConsumeSingleUseAuth returns and clears the one-shot approval flag.
-// Returns true at most once per /yes.
-func (s *Session) ConsumeSingleUseAuth() bool {
+// DrainApprovedPending returns and clears the user-authorized calls.
+func (s *Session) DrainApprovedPending() []provider.ToolCall {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	v := s.singleUseAuth
-	s.singleUseAuth = false
-	return v
+	c := s.approvedPending
+	s.approvedPending = nil
+	return c
 }
 
-// ClearSingleUseAuth drops any pending one-shot approval (/no or session reset).
-func (s *Session) ClearSingleUseAuth() {
+// SetMaxPendingTurns configures how many idle turns a pending request
+// survives before the loop gives up and clears it. Default applied here.
+func (s *Session) SetMaxPendingTurns(n int) {
 	s.mu.Lock()
-	s.singleUseAuth = false
+	s.maxPendingTurns = n
 	s.mu.Unlock()
 }
 
-// PendingDesc returns the description of the last intercepted call, or "".
+// PushPendingCalls parks intercepted tool_calls awaiting authorization.
+// A round's waiting calls are a batch; one /yes executes them all.
+func (s *Session) PushPendingCalls(calls []provider.ToolCall, desc string) {
+	s.mu.Lock()
+	s.pendingCalls = append(s.pendingCalls, calls...)
+	if desc != "" {
+		s.pendingDesc = desc
+	}
+	s.mu.Unlock()
+}
+
+// PopPendingCalls returns and clears the waiting tool_calls.
+func (s *Session) PopPendingCalls() []provider.ToolCall {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	calls := s.pendingCalls
+	s.pendingCalls = nil
+	s.pendingDesc = ""
+	return calls
+}
+
+// PendingCalls returns a copy of the waiting tool_calls (without clearing).
+func (s *Session) PendingCalls() []provider.ToolCall {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]provider.ToolCall, len(s.pendingCalls))
+	copy(out, s.pendingCalls)
+	return out
+}
+
+// ClearPendingCalls drops any waiting authorization (used on /no or after
+// execution, and when the pending request has idled out across turns).
+func (s *Session) ClearPendingCalls() {
+	s.mu.Lock()
+	s.pendingCalls = nil
+	s.pendingDesc = ""
+	s.mu.Unlock()
+}
+
+// PendingDesc returns the description of the pending calls, or "".
 func (s *Session) PendingDesc() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.pendingDesc
-}
-
-// SetPendingDesc records what the last intercepted call was (informational).
-func (s *Session) SetPendingDesc(desc string) {
-	s.mu.Lock()
-	s.pendingDesc = desc
-	s.mu.Unlock()
 }
 
 // Manager manages sessions for one (user, agent). Sessions are keyed

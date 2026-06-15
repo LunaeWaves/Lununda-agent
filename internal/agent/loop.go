@@ -1758,12 +1758,18 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		if result.reply != "" {
 			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": result.reply}})
 		}
-		if result.continuationQueued {
+		if result.continueToLoop {
+			// /yes / /yolo with approved pending calls: fall through to the
+			// loop so drainApprovedPending executes them, then the LLM
+			// continues. Don't emit done — the loop owns the turn end.
+		} else if result.continuationQueued {
 			emitEvent(ctx, ChatEvent{Type: "turn_pending"})
 		} else {
 			emitEvent(ctx, ChatEvent{Type: "done"})
 		}
-		return result.reply
+		if !result.continueToLoop {
+			return result.reply
+		}
 	}
 
 	// Plan mode short-circuits the ReAct loop: tools off, the model
@@ -1945,6 +1951,8 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// splits on it (AllowSplit=true) or collapses to newlines otherwise.
 	var replyParts []string
 	var kbIndicator string
+	// Drain user-authorized pending calls (/yes, /yolo) BEFORE the loop.
+	totalToolCalls += a.drainApprovedPending(ctx, sess, &messages)
 	// ReAct loop
 	for i := 0; i < a.maxToolIterations; i++ {
 		slog.Info("agent loop iteration",
@@ -2151,15 +2159,9 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		// Authorization gate (stage 3): split executeCalls into allowed
 		// vs. blocked/prompted before running anything. Blocked calls get
 		// a synthetic tool_result so every tool_use id stays paired.
-		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, executeCalls)
+		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, executeCalls)
 		if promptDesc != "" {
 			a.emitAuthPrompt(ctx, promptDesc)
-		}
-		// Sandbox bypass: outside-workspace writes the user /yes'd this
-		// round relax resolvePathSandboxed for exactly those paths.
-		// Cleared after the round so the authorization never leaks forward.
-		if len(bypassPaths) > 0 {
-			a.registry.SetSandboxBypassPaths(bypassPaths)
 		}
 
 		// Execute tools concurrently via SDK engine
@@ -2606,12 +2608,22 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 	// but silent" — see the HandleMessage twin. Still emit a Done
 	// chunk so callers waiting on the stream don't hang.
 	if result := a.handleSlashCommand(msg); result.handled {
-		ch := make(chan provider.StreamChunk, 2)
-		go func() {
-			ch <- provider.StreamChunk{Content: result.reply, Done: true}
-			close(ch)
-		}()
-		return provider.NewStreamReader(ch)
+		if result.reply != "" {
+			// Emit the slash reply (e.g. "✅ 已授权，立即执行") as a content
+			// chunk on the live stream, then either close (normal slash) or
+			// fall through to the loop (continueToLoop: /yes / /yolo with
+			// approved pending calls — drainApprovedPending executes them
+			// and the LLM continues with the outcomes).
+			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": result.reply}})
+		}
+		if !result.continueToLoop {
+			ch := make(chan provider.StreamChunk, 2)
+			go func() {
+				ch <- provider.StreamChunk{Content: result.reply, Done: true}
+				close(ch)
+			}()
+			return provider.NewStreamReader(ch)
+		}
 	}
 
 	chatterUID := a.chatterUserID(msg)
@@ -2692,6 +2704,11 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 	var lastSig toolCallSig
 	consecutiveCount := 0
 	totalToolCalls := 0
+
+	// Drain user-authorized pending calls (/yes, /yolo) BEFORE the loop:
+	// execute them now, fold results into messages, then the LLM picks up
+	// with the outcomes visible. No re-statement from the user needed.
+	totalToolCalls += a.drainApprovedPending(ctx, sess, &messages)
 
 	// ReAct loop - use Chat for tool iterations
 	for i := 0; i < a.maxToolIterations; i++ {
@@ -2851,12 +2868,9 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		}
 
 		// Authorization gate (stage 3).
-		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, resp.ToolCalls)
+		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, resp.ToolCalls)
 		if promptDesc != "" {
 			a.emitAuthPrompt(ctx, promptDesc)
-		}
-		if len(bypassPaths) > 0 {
-			a.registry.SetSandboxBypassPaths(bypassPaths)
 		}
 
 		// Execute tools concurrently via SDK engine
@@ -3344,34 +3358,22 @@ func (a *Agent) sendMediaFiles(msg bus.InboundMessage, mediaPaths []string) {
 // authorization prompt this round — the caller emits the "⚠️ 回复 /yes"
 // message once per round and records it on the session. Empty desc means
 // no prompt is needed.
-func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string, bypassPaths []string) {
+func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string) {
 	blocked = make(map[string]toolCallResult)
 	if a.authGate == nil {
-		return calls, blocked, "", nil
+		return calls, blocked, ""
 	}
 	mode := sess.AuthMode()
 	if mode == "" {
 		mode = AuthModeAsk
 	}
-	singleUse := sess.ConsumeSingleUseAuth()
 	var promptCandidate string
+	var waiting []provider.ToolCall
 	for _, tc := range calls {
-		dec := a.authGate.evaluateCall(tc.Function.Name, tc.Function.Arguments, mode, singleUse)
-		consumedSingleUse := singleUse && dec.action == authAllow
-		if consumedSingleUse {
-			singleUse = false
-		}
+		dec := a.authGate.evaluateCall(tc.Function.Name, tc.Function.Arguments, mode)
 		switch dec.action {
 		case authAllow:
 			toExec = append(toExec, tc)
-			// Single-use approval that covered an outside-workspace write:
-			// collect the target path so the file-tool sandbox relaxes for
-			// exactly this call (and only this round).
-			if consumedSingleUse {
-				if abs, outside := a.authGate.writeTargetOutsideWorkspace(tc.Function.Name, tc.Function.Arguments); outside {
-					bypassPaths = append(bypassPaths, abs)
-				}
-			}
 		case authBlock:
 			blocked[tc.ID] = toolCallResult{
 				toolCallID: tc.ID,
@@ -3379,22 +3381,26 @@ func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.To
 				result:     denyMessageBypass(dec.reason),
 			}
 		case authPrompt:
+			// Park the call on the session; /yes will execute it directly.
+			// Emit a holding tool_result so the tool_use id stays paired
+			// (no orphan 400) and the LLM knows not to retry immediately.
+			waiting = append(waiting, tc)
 			blocked[tc.ID] = toolCallResult{
 				toolCallID: tc.ID,
 				toolName:   tc.Function.Name,
-				result: "⚠️ 需要授权：" + dec.reason + "。已向用户请求授权，请等待用户回复 /yes 后重新发起此操作。当前请勿重试。\n" +
-					"Authorization required: " + dec.reason + ". The user has been asked to approve. " +
-					"Wait for the user to reply /yes before re-attempting. Do not retry now.",
+				result: "⚠️ 需要授权：" + dec.reason + "。已请求用户授权，等待用户回复 /yes（执行）/ /no（取消）/ /auto / /yolo。请勿自行重试。\n" +
+					"Authorization required: " + dec.reason + ". Waiting for the user to reply " +
+					"/yes (run) / /no (cancel) / /auto / /yolo. Do not retry on your own.",
 			}
 			if promptCandidate == "" {
 				promptCandidate = dec.reason
 			}
 		}
 	}
-	if promptCandidate != "" {
-		sess.SetPendingDesc(promptCandidate)
+	if len(waiting) > 0 {
+		sess.PushPendingCalls(waiting, promptCandidate)
 	}
-	return toExec, blocked, promptCandidate, bypassPaths
+	return toExec, blocked, promptCandidate
 }
 
 // emitAuthPrompt surfaces the "needs authorization" message to the user
@@ -3426,4 +3432,53 @@ func (a *Agent) emitAuthPrompt(ctx context.Context, desc string) {
 		"/auto — 切到自动拒绝 (Auto-deny)\n" +
 		"/yolo — 切到全放行 (Allow all)"
 	emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": content}})
+}
+
+// drainApprovedPending executes tool_calls the user just authorized (/yes
+// or /yolo re-judge) and folds their results into the working message
+// list so the LLM picks up where it left off. Called at the top of the
+// turn — the /yes (or /auto / /yolo) message itself drives this turn.
+//
+// Results are emitted as a fresh assistant(tool_calls)+tool(result) pair
+// with new IDs (the original waiting call already has a holding result
+// paired to its own ID in history; reusing it would double-pair). The
+// LLM sees "the authorized op ran, here's the outcome" and continues.
+func (a *Agent) drainApprovedPending(ctx context.Context, sess *session.Session, messages *[]provider.Message) int {
+	calls := sess.DrainApprovedPending()
+	if len(calls) == 0 {
+		return 0
+	}
+	// bypassPaths: outside-workspace writes the user authorized relax
+	// resolvePathSandboxed for this execution only.
+	var bypassPaths []string
+	for _, tc := range calls {
+		if abs, outside := a.authGate.writeTargetOutsideWorkspace(tc.Function.Name, tc.Function.Arguments); outside {
+			bypassPaths = append(bypassPaths, abs)
+		}
+	}
+	if len(bypassPaths) > 0 {
+		a.registry.SetSandboxBypassPaths(bypassPaths)
+	}
+	results := a.engine.executeToolsConcurrently(ctx, a.registry, calls, a.workspacePath)
+	a.registry.ClearSandboxBypassPaths()
+
+	// Synthesize a fresh tool_calls assistant message + per-call tool
+	// results, so the pair is well-formed regardless of the original IDs.
+ synthID := "authrun-" + fmt.Sprintf("%d", time.Now().UnixNano())
+	var tcs []provider.ToolCall
+	for i, tc := range calls {
+		id := fmt.Sprintf("%s-%d", synthID, i)
+		tcs = append(tcs, provider.ToolCall{ID: id, Type: "function", Function: tc.Function})
+	}
+	asstMsg := provider.Message{Role: "assistant", ToolCalls: tcs}
+	sess.Append(asstMsg)
+	*messages = append(*messages, asstMsg)
+	for i, r := range results {
+		content, _ := extractToolMeta(r.result)
+		toolMsg := provider.Message{Role: "tool", Content: content, ToolCallID: tcs[i].ID, Name: calls[i].Function.Name}
+		sess.Append(toolMsg)
+		*messages = append(*messages, toolMsg)
+		emitEvent(ctx, ChatEvent{Type: "tool_result", Data: map[string]any{"id": tcs[i].ID, "name": calls[i].Function.Name, "result": content}})
+	}
+	return len(results)
 }

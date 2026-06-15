@@ -122,13 +122,7 @@ var execTools = map[string]bool{
 // caller handles prompting and single-use authorization. JSON unmarshal
 // failures fall through to authAllow (the tool itself will report the
 // bad args), so a malformed payload can't lock the agent out.
-func (g *authGate) evaluateCall(toolName, argsJSON, mode string, hasSingleUseAuth bool) authDecision {
-	// Single-use authorization (/yes) consumes on the next call regardless
-	// of tier — except hardline, which is un-approvable.
-	if hasSingleUseAuth {
-		return authDecision{action: authAllow}
-	}
-
+func (g *authGate) evaluateCall(toolName, argsJSON, mode string) authDecision {
 	// exec-family tools: hardline + dangerous + workspace boundary.
 	if execTools[toolName] {
 		command := extractStringArg(argsJSON, "command")
