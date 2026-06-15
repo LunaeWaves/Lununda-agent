@@ -3470,7 +3470,17 @@ func (a *Agent) drainApprovedPending(ctx context.Context, sess *session.Session,
 		id := fmt.Sprintf("%s-%d", synthID, i)
 		tcs = append(tcs, provider.ToolCall{ID: id, Type: "function", Function: tc.Function})
 	}
-	asstMsg := provider.Message{Role: "assistant", ToolCalls: tcs}
+	// Synthesize the assistant(tool_calls) message with a RawAssistant
+	// carrying reasoning_content — DeepSeek's thinking mode requires the
+	// field to round-trip on every assistant message or the next call 400s
+	// with "The reasoning_content in the thinking mode must be passed back".
+	rawAsst := struct {
+		Role             string                   `json:"role"`
+		ReasoningContent string                   `json:"reasoning_content"`
+		ToolCalls        []provider.ToolCall      `json:"tool_calls,omitempty"`
+	}{Role: "assistant", ReasoningContent: " ", ToolCalls: tcs}
+	rawJSON, _ := json.Marshal(rawAsst)
+	asstMsg := provider.Message{Role: "assistant", ToolCalls: tcs, RawAssistant: rawJSON}
 	sess.Append(asstMsg)
 	*messages = append(*messages, asstMsg)
 	for i, r := range results {
