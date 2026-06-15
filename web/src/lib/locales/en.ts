@@ -815,6 +815,8 @@ const en: Record<string, string> = {
   "chatScreen.readOnlyViewing": "Read-only — viewing another user's chat",
   "chatScreen.readOnlyReplyFrom": "Read-only — reply from {channel}",
   "chatScreen.messageAgentSlash": "Message {name}... (\"/\" to pick a skill)",
+  "chatScreen.authRequired": "Authorization required",
+  "chatScreen.authResolved": "Resolved",
   "chatScreen.sendingDisabled": "Sending messages here is disabled.",
   "chatScreen.readOnlyAdmin": "Read-only — you're viewing another user's chat.",
   "chatScreen.conversationLivesOn": "This conversation lives on",

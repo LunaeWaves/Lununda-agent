@@ -1075,7 +1075,8 @@ export interface ChatStreamEvent {
     | "done"
     | "subagent_progress"
     | "indicator"
-    | "regex_hook";
+    | "regex_hook"
+    | "auth_prompt";
   // Per-session monotonic sequence assigned by chat_events. Lets the
   // chat page dedupe events arriving on both the active POST stream
   // and the parallel /api/chat/subscribe SSE connection. -1 means
@@ -1104,6 +1105,10 @@ export interface ChatStreamEvent {
     tools?: string[];
     text?: string;
     regexHook?: string;
+    // auth_prompt event (stage 3 authorization bubble).
+    description?: string;
+    options?: { cmd: string; label_zh: string; label_en: string }[];
+    auth_call_ids?: string[];
   };
 }
 

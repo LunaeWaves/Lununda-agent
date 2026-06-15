@@ -815,6 +815,8 @@ const zhCN: Record<string, string> = {
   "chatScreen.readOnlyViewing": "只读 — 正在查看其他用户的对话",
   "chatScreen.readOnlyReplyFrom": "只读 — 请从 {channel} 回复",
   "chatScreen.messageAgentSlash": "给 {name} 发消息...（\"/\" 选择技能）",
+  "chatScreen.authRequired": "需要授权",
+  "chatScreen.authResolved": "已处理",
   "chatScreen.sendingDisabled": "在此发送消息已被禁用。",
   "chatScreen.readOnlyAdmin": "只读 — 你正在查看其他用户的对话。",
   "chatScreen.conversationLivesOn": "此对话来自",

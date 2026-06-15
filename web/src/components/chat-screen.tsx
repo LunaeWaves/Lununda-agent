@@ -12,7 +12,7 @@ import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { ExternalAnchor } from "@/components/markdown-link";
-import { useT } from "@/lib/i18n";
+import { useT, useLocale } from "@/lib/i18n";
 
 // react-markdown's default urlTransform strips any protocol not in the
 // safe-list (http, https, mailto, ircs, xmpp) — including `data:`. We want
@@ -174,9 +174,12 @@ type SlashItem =
 
 interface ChatMessage {
   id: string;
-  role: "user" | "agent" | "tool-group";
+  role: "user" | "agent" | "tool-group" | "auth-prompt";
   content: string;
   timestamp: number;
+  // auth-prompt role: the authorization request bubble with tappable options.
+  authOptions?: { cmd: string; label_zh: string; label_en: string }[];
+  authResolved?: boolean;
   toolCalls?: { id: string; name: string; arguments: string; result?: string; metadata?: ToolResultMetadata }[];
   files?: ProducedFile[];
   attachments?: UserAttachment[];
@@ -528,6 +531,7 @@ export function ChatScreen() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useT();
+  const { locale } = useLocale();
   // When `?actAs=<uid>` is in the URL, this chat is being opened by a
   // super_admin viewing another user's session (read-only by middleware).
   // Forces the composer into a disabled state and surfaces a banner so
@@ -1610,6 +1614,28 @@ export function ChatScreen() {
             });
             break;
           }
+          case "auth_prompt": {
+            // Authorization request from the agent (ask mode, outside-
+            // workspace write). Render a tappable-options bubble. The
+            // plain-text fallback already arrived as a content event; this
+            // structured one lets the UI show buttons instead.
+            const options = Array.isArray(evt.data?.options)
+              ? (evt.data!.options as { cmd: string; label_zh: string; label_en: string }[])
+              : [];
+            if (options.length > 0) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `auth-${Date.now()}`,
+                  role: "auth-prompt" as const,
+                  content: String(evt.data?.description || ""),
+                  authOptions: options,
+                  timestamp: Date.now(),
+                },
+              ]);
+            }
+            break;
+          }
           case "subagent_progress": {
             // Subagent emitted a heartbeat. Stored as a single
             // "current run state" since delegate_task is registered
@@ -2033,6 +2059,52 @@ export function ChatScreen() {
               const elements: React.ReactNode[] = [];
               for (let i = 0; i < messages.length; i++) {
                 const msg = messages[i];
+                if (msg.role === "auth-prompt") {
+                  elements.push(
+                    <div key={msg.id} className="flex justify-start">
+                      <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 space-y-2">
+                        <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                          ⚠️ {t("chatScreen.authRequired")}
+                        </div>
+                        {msg.content && (
+                          <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                            {msg.content}
+                          </div>
+                        )}
+                        {!msg.authResolved && msg.authOptions && msg.authOptions.length > 0 ? (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {msg.authOptions.map((opt) => (
+                              <button
+                                key={opt.cmd}
+                                type="button"
+                                disabled={sending}
+                                onClick={() => {
+                                  setMessages((prev) =>
+                                    prev.map((m) =>
+                                      m.id === msg.id ? { ...m, authResolved: true } : m,
+                                    ),
+                                  );
+                                  void handleSend(opt.cmd);
+                                }}
+                                className="rounded-full border border-amber-500/50 bg-background px-3 py-1 text-xs font-medium text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-50"
+                              >
+                                <code className="font-mono">{opt.cmd}</code>
+                                <span className="ml-1.5 opacity-70">
+                                  {locale.startsWith("zh") ? opt.label_zh : opt.label_en}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground italic">
+                            {t("chatScreen.authResolved")}
+                          </div>
+                        )}
+                      </div>
+                    </div>,
+                  );
+                  continue;
+                }
                 if (msg.role === "tool-group") {
                   const start = i;
                   while (
