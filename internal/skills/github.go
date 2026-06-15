@@ -37,7 +37,13 @@ func InstallFromGitHubRepo(repo, skillName, targetDir string) (*Result, error) {
 		dest := ""
 		installedName := skillName
 
-		if skillName == "" {
+		// Whole-repo skill when no skillName is given, OR when skillName
+		// equals the repo name — the latter is the common "install this
+		// GitHub repo as a skill" case (LLM passes name=repo, e.g.
+		// name=huashu-design repo=alchaincyf/huashu-design). The skill
+		// lives at the repo root, not in a <skillName>/ subfolder, so
+		// findSkillDirInTarball would miss it and 404.
+		if skillName == "" || skillName == name {
 			// Whole-repo skill: extract the tarball top into targetDir/<name>.
 			installedName = name
 			dest = fmt.Sprintf("%s/%s", strings.TrimRight(targetDir, "/"), installedName)
