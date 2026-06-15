@@ -1755,6 +1755,21 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// the stream closes immediately and the typing indicator vanishes
 	// while the model is still warming up.
 	if result := a.handleSlashCommand(msg); result.handled {
+		// Persist the slash command + its reply into the session history so
+		// the user sees them on refresh (web) and the audit trail is intact.
+		// Without this, /yolo / /auto / /no / /yes etc. were invisible in
+		// the record — only emitted to the live SSE stream.
+		// continueToLoop (/yes with pending) falls through to the loop,
+		// which appends the user message itself — so only stamp the reply
+		// here to avoid a duplicate user bubble.
+		if sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID); sess != nil {
+			if !result.continueToLoop {
+				sess.Append(buildUserMessage(msg))
+			}
+			if result.reply != "" {
+				sess.Append(provider.Message{Role: "assistant", Content: result.reply, Timestamp: time.Now().UnixMilli()})
+			}
+		}
 		if result.reply != "" {
 			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": result.reply}})
 		}
@@ -2611,12 +2626,18 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 	// but silent" — see the HandleMessage twin. Still emit a Done
 	// chunk so callers waiting on the stream don't hang.
 	if result := a.handleSlashCommand(msg); result.handled {
+		// Persist slash + reply into the session history (see HandleMessage
+		// twin for rationale). continueToLoop falls through to the loop,
+		// which appends the user message itself.
+		if sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID); sess != nil {
+			if !result.continueToLoop {
+				sess.Append(buildUserMessage(msg))
+			}
+			if result.reply != "" {
+				sess.Append(provider.Message{Role: "assistant", Content: result.reply, Timestamp: time.Now().UnixMilli()})
+			}
+		}
 		if result.reply != "" {
-			// Emit the slash reply (e.g. "✅ 已授权，立即执行") as a content
-			// chunk on the live stream, then either close (normal slash) or
-			// fall through to the loop (continueToLoop: /yes / /yolo with
-			// approved pending calls — drainApprovedPending executes them
-			// and the LLM continues with the outcomes).
 			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": result.reply}})
 		}
 		if !result.continueToLoop {
