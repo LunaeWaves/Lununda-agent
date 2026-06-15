@@ -573,7 +573,10 @@ func (a *Agent) slashAuthReply(msg bus.InboundMessage, approved bool) slashResul
 		if approved {
 			return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。\nNo operation is awaiting authorization."}
 		}
-		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。\nNo operation is awaiting authorization."}
+		// /no always expresses a denial — say so even when nothing was
+		// pending, so the user's intent is acknowledged rather than met
+		// with "nothing to do".
+		return slashResult{handled: true, reply: "🚫 已拒绝，当前没有待执行的操作。\nDenied — no operation was waiting, but your refusal is noted."}
 	}
 	if approved {
 		sess.SetApprovedPending(pending)
