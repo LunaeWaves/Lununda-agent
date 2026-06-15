@@ -78,37 +78,149 @@ func (g *authGate) reload() {
 	}
 }
 
-// writeDecision classifies how the gate resolved a write attempt.
-type writeDecision int
+// authDecision is the gate's verdict on a single tool call.
+type authDecision struct {
+	// action: allow (run it), block (refuse, un-approvable), or prompt
+	// (outside-workspace/dangerous in ask mode — needs user /yes).
+	action authAction
+	// reason is the human-readable explanation shown to the user/LLM
+	// when the call is blocked or prompted.
+	reason string
+}
+
+type authAction int
 
 const (
-	decisionAllow writeDecision = iota // inside workspace or allowlisted
-	decisionDeny                       // outside, auto mode refuses
-	decisionPrompt                     // outside, ask mode wants user confirmation
+	authAllow  authAction = iota // run the tool
+	authBlock                    // refuse unconditionally (hardline)
+	authPrompt                   // outside-workspace/dangerous, ask mode wants /yes
 )
 
-// checkWrite classifies a write to absPath under the given session mode.
-// yolo always allows; inside-workspace always allows; allowlisted always
-// allows; otherwise auto→deny, ask→prompt.
-func (g *authGate) checkWrite(absPath, mode string) writeDecision {
-	if mode == AuthModeYolo {
-		return decisionAllow
+// fileWriteTools are the built-in tools that mutate the filesystem.
+var fileWriteTools = map[string]bool{
+	"write_file":     true,
+	"create_file":    true,
+	"str_replace":    true,
+	"insert":         true,
+	"apply_patch":    true,
+	"delete_file":    true,
+	"file_edit":      true,
+	"move_file":      true,
+}
+
+// execTools run shell commands — they go through command classification
+// (hardline/dangerous) plus the workspace-boundary rule (anything not
+// obviously inside-workspace is gated in ask/auto).
+var execTools = map[string]bool{
+	"exec":      true,
+	"host_exec": true,
+	"bash":      true,
+}
+
+// evaluateCall classifies a tool call against the three tiers and the
+// session mode. It does NOT touch the session or emit anything — the
+// caller handles prompting and single-use authorization. JSON unmarshal
+// failures fall through to authAllow (the tool itself will report the
+// bad args), so a malformed payload can't lock the agent out.
+func (g *authGate) evaluateCall(toolName, argsJSON, mode string, hasSingleUseAuth bool) authDecision {
+	// Single-use authorization (/yes) consumes on the next call regardless
+	// of tier — except hardline, which is un-approvable.
+	if hasSingleUseAuth {
+		return authDecision{action: authAllow}
 	}
-	if isUnder(absPath, g.workspace) {
-		return decisionAllow
+
+	// exec-family tools: hardline + dangerous + workspace boundary.
+	if execTools[toolName] {
+		command := extractStringArg(argsJSON, "command")
+		if command != "" {
+			if tier, desc := classifyCommand(command); tier == tierHardline {
+				return authDecision{action: authBlock, reason: "hardline: " + desc}
+			} else if tier == tierDangerous {
+				return modeGate(mode, "dangerous command: "+desc)
+			}
+		}
+		// exec commands that didn't trip a pattern are still subject to
+		// the workspace boundary: a shell can write anywhere via absolute
+		// paths, so in ask/auto we gate ALL exec by default and let yolo
+		// through. (Inside-workspace freedom is already enforced by the
+		// exec tool's cmd.Dir; the gate here is about commands that reach
+		// outside it.)
+		return modeGate(mode, "command execution (may touch outside workspace)")
 	}
-	g.mu.RLock()
-	prefixes := g.allowWrite
-	g.mu.RUnlock()
-	for _, p := range prefixes {
-		if isUnder(absPath, p) {
-			return decisionAllow
+
+	// file write tools: workspace boundary on the path argument.
+	if fileWriteTools[toolName] {
+		path := extractStringArg(argsJSON, "path")
+		if path == "" {
+			return authDecision{action: authAllow}
+		}
+		abs := resolveAgainst(g.workspace, path)
+		if isUnder(abs, g.workspace) {
+			return authDecision{action: authAllow}
+		}
+		// Allowlisted (preset dirs + policy.json) writes are fine.
+		g.mu.RLock()
+		for _, p := range g.allowWrite {
+			if isUnder(abs, p) {
+				g.mu.RUnlock()
+				return authDecision{action: authAllow}
+			}
+		}
+		g.mu.RUnlock()
+		return modeGate(mode, "write outside workspace: "+path)
+	}
+
+	// All other tools (read_file, list_dir, web_fetch, mcp_*, ...): allow.
+	return authDecision{action: authAllow}
+}
+
+// modeGate translates "needs authorization" into block/prompt based on the
+// mode. yolo→allow, auto→block (no prompt), ask→prompt.
+func modeGate(mode, reason string) authDecision {
+	switch mode {
+	case AuthModeYolo:
+		return authDecision{action: authAllow}
+	case AuthModeAuto:
+		return authDecision{action: authBlock, reason: "auto mode denied: " + reason}
+	default: // ask
+		return authDecision{action: authPrompt, reason: reason}
+	}
+}
+
+// extractStringArg pulls a string field from a JSON args blob without
+// caring about the rest of the schema. Returns "" on any failure.
+func extractStringArg(argsJSON, key string) string {
+	var m map[string]json.RawMessage
+	if json.Unmarshal([]byte(argsJSON), &m) != nil {
+		return ""
+	}
+	raw, ok := m[key]
+	if !ok {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(raw, &s) != nil {
+		return ""
+	}
+	return s
+}
+
+// resolveAgainst resolves a possibly-relative path against a base dir,
+// tolerating ~ and leaving absolute paths as-is. Used to check whether a
+// file-tool path stays inside the workspace.
+func resolveAgainst(base, path string) string {
+	if path == "" {
+		return base
+	}
+	if strings.HasPrefix(path, "~") {
+		if home, err := os.UserHomeDir(); err == nil {
+			path = filepath.Join(home, strings.TrimPrefix(path, "~"))
 		}
 	}
-	if mode == AuthModeAuto {
-		return decisionDeny
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
 	}
-	return decisionPrompt // ask (default) or unknown → prompt
+	return filepath.Clean(filepath.Join(base, path))
 }
 
 // isUnder reports whether path == root or lives under root/ (lexically,
@@ -210,11 +322,15 @@ func classifyCommand(command string) (commandTier, string) {
 	return tierSafe, ""
 }
 
-// denyMessageBypass returns the standard anti-bypass rejection wording.
-// Hardline and authorization denials both use it so the LLM can't route
-// around a refusal by rephrasing or switching tools — a prompt-injection
-// guardrail borrowed from hermes-agent's "silence is not consent" contract.
+// denyMessageBypass returns the standard anti-bypass rejection wording,
+// bilingual (zh + en) so it works regardless of chatter language. Hardline
+// and authorization denials both use it so the LLM can't route around a
+// refusal by rephrasing or switching tools — a prompt-injection guardrail
+// borrowed from hermes-agent's "silence is not consent" contract.
 func denyMessageBypass(reason string) string {
-	return "BLOCKED: " + reason + ". 用户未授权此操作。不要重试这条命令，不要换措辞，" +
-		"也不要换工具/换路径去达到同样目的。停下当前流程，等用户明确回应后再继续。"
+	return "BLOCKED: " + reason + ".\n" +
+		"用户未授权此操作。不要重试这条命令，不要换措辞，也不要换工具/换路径去达到同样目的。停下当前流程，等用户明确回应后再继续。\n" +
+		"The user has NOT authorized this action. Do NOT retry this command, " +
+		"do NOT rephrase it, and do NOT attempt the same outcome via another tool or path. " +
+		"Stop the current workflow and wait for the user to respond."
 }

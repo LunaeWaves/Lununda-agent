@@ -555,19 +555,22 @@ func truncateSlash(s string, n int) string {
 func (a *Agent) slashAuthReply(msg bus.InboundMessage, approved bool) slashResult {
 	sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
 	if sess == nil {
-		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。"}
+		return slashResult{handled: true, reply: "⚠️ 找不到当前会话。\nNo active session found."}
 	}
-	p := sess.PendingAuth()
-	if p == nil {
-		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。"}
+	desc := sess.PendingDesc()
+	if desc == "" {
+		if approved {
+			sess.GrantSingleUseAuth()
+			return slashResult{handled: true, reply: "✅ 已预授权下一次工具调用（仅一次）。\nPre-approved the next tool call (single use)."}
+		}
+		return slashResult{handled: true, reply: "⚠️ 当前没有等待授权的操作。\nNo operation is awaiting authorization."}
 	}
-	p.Approved = approved
-	sess.SetPendingAuth(nil)
-	close(p.Done) // unblock the waiting tool callback
 	if approved {
-		return slashResult{handled: true, reply: "✅ 已授权，继续执行。"}
+		sess.GrantSingleUseAuth()
+		return slashResult{handled: true, reply: "✅ 已授权，下一次同样的操作会放行（仅一次）。请重新描述你的需求让我继续。\nApproved — the next call will go through (single use). Re-state your request to continue."}
 	}
-	return slashResult{handled: true, reply: "🚫 已拒绝该操作。"}
+	sess.ClearSingleUseAuth()
+	return slashResult{handled: true, reply: "🚫 已拒绝该操作。\nDenied."}
 }
 
 // slashSetAuthMode switches the current session's authorization mode.
@@ -575,13 +578,17 @@ func (a *Agent) slashAuthReply(msg bus.InboundMessage, approved bool) slashResul
 func (a *Agent) slashSetAuthMode(msg bus.InboundMessage, mode string) slashResult {
 	sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
 	if sess == nil {
-		return slashResult{handled: true, reply: "⚠️ 找不到当前会话。"}
+		return slashResult{handled: true, reply: "⚠️ 找不到当前会话。\nNo active session found."}
 	}
 	sess.SetAuthMode(mode)
-	desc := map[string]string{
-		AuthModeAsk:  "workspace 外写操作会先问你（/yes 授权，/no 拒绝）",
-		AuthModeAuto: "workspace 外写操作自动拒绝（不询问）",
-		AuthModeYolo: "全部放行（注意风险）",
+	desc := map[string][2]string{
+		AuthModeAsk:  {"workspace 外写操作会先问你（/yes 授权，/no 拒绝）", "outside-workspace writes will prompt you (/yes to approve, /no to deny)"},
+		AuthModeAuto: {"workspace 外写操作自动拒绝（不询问）", "outside-workspace writes are auto-denied (no prompt)"},
+		AuthModeYolo: {"全部放行（注意风险）", "everything is allowed (use with caution)"},
 	}[mode]
-	return slashResult{handled: true, reply: fmt.Sprintf("🔧 当前会话授权模式已切到 `%s`（仅本会话生效）。\n%s", mode, desc)}
+	reply := fmt.Sprintf("🔧 当前会话授权模式已切到 `%s`（仅本会话生效）。\n%s", mode, desc[0])
+	if desc[1] != "" {
+		reply += "\nSession auth mode set to `" + mode + "` (this session only).\n" + desc[1]
+	}
+	return slashResult{handled: true, reply: reply}
 }

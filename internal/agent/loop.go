@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -56,6 +57,10 @@ type Agent struct {
 	workspacePath   string // working dir where agent creates user files
 	homeDir         string // FastClaw root, ~/.fastclaw
 	ownerUserID     string // the user that owns this agent (for hook namespacing)
+	// authGate enforces the session-scoped write authorization policy
+	// (ask/auto/yolo + allowlist). Built once per agent from agentRoot +
+	// workspace; the session mode is read live at check time.
+	authGate *authGate
 	// admins is the per-channel allowlist of chatters who can run write-
 	// mode slash commands (/new /undo /retry /compact /model /personality).
 	// Keyed by channel name (e.g. "discord" → ["123...", "456..."]). Empty
@@ -392,6 +397,10 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 			slog.Info("registered MCP tools", "agent", rc.ID)
 		}
 	}
+
+	// Auth gate: agentRoot is the parent of rc.Home (agents/<id>/), so
+	// allowlist entries resolve under the per-agent subtree.
+	ag.authGate = newAuthGate(filepath.Dir(rc.Home), workspace)
 
 	return ag
 }
@@ -2139,12 +2148,26 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			)
 		}
 
+		// Authorization gate (stage 3): split executeCalls into allowed
+		// vs. blocked/prompted before running anything. Blocked calls get
+		// a synthetic tool_result so every tool_use id stays paired.
+		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, executeCalls)
+		if promptDesc != "" {
+			a.emitAuthPrompt(ctx, promptDesc)
+		}
+
 		// Execute tools concurrently via SDK engine
 		slog.Info("executing tools concurrently",
 			"agent", a.name,
-			"count", len(executeCalls),
+			"count", len(toExec),
 		)
-		results := a.engine.executeToolsConcurrently(ctx, a.registry, executeCalls, a.workspacePath)
+		results := a.engine.executeToolsConcurrently(ctx, a.registry, toExec, a.workspacePath)
+		// Merge blocked/prompted results (keyed by tool_use id) so they
+		// land at the right index when the padding pass below rebuilds
+		// the results slice against resp.ToolCalls.
+		for _, br := range blockedCalls {
+			results = append(results, br)
+		}
 		// Append synthetic deferred results so every original tool_use
 		// id has a paired tool_result. The deferred message tells the
 		// model exactly why it didn't run — it can re-issue next
@@ -2820,26 +2843,41 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 			a.hooks.Run(ctx, &HookContext{AgentName: a.name, Point: BeforeToolCall, ToolName: tc.Function.Name, ToolArgs: tc.Function.Arguments, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID})
 		}
 
+		// Authorization gate (stage 3).
+		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, resp.ToolCalls)
+		if promptDesc != "" {
+			a.emitAuthPrompt(ctx, promptDesc)
+		}
+
 		// Execute tools concurrently via SDK engine
-		results := a.engine.executeToolsConcurrently(ctx, a.registry, resp.ToolCalls, a.workspacePath)
-		totalToolCalls += len(results)
+		execResults := a.engine.executeToolsConcurrently(ctx, a.registry, toExec, a.workspacePath)
+		totalToolCalls += len(execResults)
+		// Rebuild results aligned to resp.ToolCalls order, filling blocked
+		// slots from blockedCalls so every tool_use id pairs with a result.
+		byID := make(map[string]toolCallResult, len(execResults)+len(blockedCalls))
+		for _, r := range execResults {
+			byID[r.toolCallID] = r
+		}
+		for _, r := range blockedCalls {
+			byID[r.toolCallID] = r
+		}
+		for _, tc := range resp.ToolCalls {
+			if r, ok := byID[tc.ID]; ok {
+				resultContent, meta := extractToolMeta(r.result)
+				a.hooks.Run(ctx, &HookContext{AgentName: a.name, Point: AfterToolCall, ToolName: r.toolName, ToolResult: resultContent, Error: r.err, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID, GoalSessionKey: a.registry.GoalSessionKey(), IsPlanMode: isPlanMode(msg.Params), Source: msg.Source})
 
-		for idx, r := range results {
-			tc := resp.ToolCalls[idx]
-			resultContent, meta := extractToolMeta(r.result)
-			a.hooks.Run(ctx, &HookContext{AgentName: a.name, Point: AfterToolCall, ToolName: r.toolName, ToolResult: resultContent, Error: r.err, Channel: msg.Channel, AccountID: msg.AccountID, ChatID: msg.ChatID, UserID: a.ownerUserID, GoalSessionKey: a.registry.GoalSessionKey(), IsPlanMode: isPlanMode(msg.Params), Source: msg.Source})
+				if r.err != nil {
+					slog.Warn("tool execution error", "agent", a.name, "name", r.toolName, "error", r.err)
+				}
 
-			if r.err != nil {
-				slog.Warn("tool execution error", "agent", a.name, "name", r.toolName, "error", r.err)
+				if mediaPaths := extractMediaPaths(resultContent); len(mediaPaths) > 0 {
+					a.sendMediaFiles(msg, mediaPaths)
+				}
+
+				toolMsg := provider.Message{Role: "tool", Content: resultContent, ToolCallID: tc.ID, Name: r.toolName, Metadata: meta}
+				sess.Append(toolMsg)
+				messages = append(messages, toolMsg)
 			}
-
-			if mediaPaths := extractMediaPaths(resultContent); len(mediaPaths) > 0 {
-				a.sendMediaFiles(msg, mediaPaths)
-			}
-
-			toolMsg := provider.Message{Role: "tool", Content: resultContent, ToolCallID: tc.ID, Name: r.toolName, Metadata: meta}
-			sess.Append(toolMsg)
-			messages = append(messages, toolMsg)
 		}
 	}
 
@@ -3283,4 +3321,89 @@ func (a *Agent) sendMediaFiles(msg bus.InboundMessage, mediaPaths []string) {
 	default:
 		slog.Warn("outbound channel full, dropping media message", "agent", a.name)
 	}
+}
+
+// filterAuthorizedCalls runs the auth gate over a batch of tool calls and
+// splits them into ones to execute vs. ones blocked/prompted. The caller
+// executes toExec and merges blocked into the results map keyed by tool_use
+// id (so every original call still gets a paired tool_result — no orphan
+// ids that would 400 the next LLM request).
+//
+// Returns the (possibly empty) description of a call that needs an
+// authorization prompt this round — the caller emits the "⚠️ 回复 /yes"
+// message once per round and records it on the session. Empty desc means
+// no prompt is needed.
+func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string) {
+	blocked = make(map[string]toolCallResult)
+	if a.authGate == nil {
+		return calls, blocked, ""
+	}
+	mode := sess.AuthMode()
+	if mode == "" {
+		mode = AuthModeAsk
+	}
+	singleUse := sess.ConsumeSingleUseAuth()
+	var promptCandidate string
+	for _, tc := range calls {
+		dec := a.authGate.evaluateCall(tc.Function.Name, tc.Function.Arguments, mode, singleUse)
+		if singleUse && dec.action == authAllow {
+			singleUse = false
+		}
+		switch dec.action {
+		case authAllow:
+			toExec = append(toExec, tc)
+		case authBlock:
+			blocked[tc.ID] = toolCallResult{
+				toolCallID: tc.ID,
+				toolName:   tc.Function.Name,
+				result:     denyMessageBypass(dec.reason),
+			}
+		case authPrompt:
+			blocked[tc.ID] = toolCallResult{
+				toolCallID: tc.ID,
+				toolName:   tc.Function.Name,
+				result: "⚠️ 需要授权：" + dec.reason + "。已向用户请求授权，请等待用户回复 /yes 后重新发起此操作。当前请勿重试。\n" +
+					"Authorization required: " + dec.reason + ". The user has been asked to approve. " +
+					"Wait for the user to reply /yes before re-attempting. Do not retry now.",
+			}
+			if promptCandidate == "" {
+				promptCandidate = dec.reason
+			}
+		}
+	}
+	if promptCandidate != "" {
+		sess.SetPendingDesc(promptCandidate)
+	}
+	return toExec, blocked, promptCandidate
+}
+
+// emitAuthPrompt surfaces the "needs authorization" message to the user
+// via the SSE stream. It deliberately does NOT append an assistant message
+// to the running message list — inserting one between an assistant's
+// tool_calls and the paired tool_results breaks the tool_calls↔tool
+// pairing (LLM APIs reject "tool message without preceding tool_calls").
+// The authorization ask is already embedded in the blocked tool_result,
+// which the model sees as a normal tool response.
+func (a *Agent) emitAuthPrompt(ctx context.Context, desc string) {
+	// Structured event: front-end renders tappable buttons, one per option.
+	// Each option carries the slash command to insert/send so the UI just
+	// needs to fill the input box (or submit directly).
+	options := []map[string]string{
+		{"cmd": "/yes", "label_zh": "授权执行", "label_en": "Approve"},
+		{"cmd": "/no", "label_zh": "拒绝", "label_en": "Deny"},
+		{"cmd": "/auto", "label_zh": "切到自动拒绝", "label_en": "Switch to auto-deny"},
+		{"cmd": "/yolo", "label_zh": "切到全放行", "label_en": "Switch to allow all"},
+	}
+	emitEvent(ctx, ChatEvent{Type: "auth_prompt", Data: map[string]any{
+		"description": desc,
+		"options":     options,
+	}})
+	// Plain-text fallback (one option per line) for channels/web clients
+	// that don't render auth_prompt specially — copy-paste friendly.
+	content := "⚠️ 需要授权：" + desc + "\n" +
+		"/yes — 授权执行 (Approve)\n" +
+		"/no — 拒绝 (Deny)\n" +
+		"/auto — 切到自动拒绝 (Auto-deny)\n" +
+		"/yolo — 切到全放行 (Allow all)"
+	emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": content}})
 }

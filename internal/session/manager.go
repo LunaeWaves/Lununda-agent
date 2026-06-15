@@ -64,20 +64,16 @@ type Session struct {
 	// writes), "auto" (deny outside-workspace without prompting), "yolo"
 	// (allow all). /ask /auto /yolo flip it for the current session only;
 	// it is NOT persisted and resets to the agent default on a new session.
-	// pendingAuth carries an in-flight authorization request awaiting
-	// /yes or /no (see agent auth gate); nil when nothing is pending.
-	authMode   string
-	pendingAuth *PendingAuth
-}
-
-// PendingAuth is an authorization request parked on a Session waiting for
-// the user to reply /yes (approve) or /no (deny). The tool callback that
-// triggered it blocks on Done, which is closed when the user replies or
-// the timeout fires (with Approved set accordingly).
-type PendingAuth struct {
-	Description string  // human-readable op summary shown in the prompt
-	Approved    bool
-	Done        chan struct{}
+	authMode string
+	// singleUseAuth is a one-shot "next tool call is pre-approved" flag
+	// set by /yes. evaluateCall consumes it on the first call it sees
+	// (hardline excluded) so /yes authorizes exactly one tool call, not
+	// a whole class. Reset to false after consumption / on /no.
+	singleUseAuth bool
+	// pendingDesc records the description of the last intercepted call
+	// awaiting authorization, surfaced so the UI / a re-prompt can show
+	// what's pending. Informational only — the gate doesn't block on it.
+	pendingDesc string
 }
 
 // SessionKey returns the opaque session_key this Session is bound to.
@@ -135,17 +131,42 @@ func (s *Session) SetAuthMode(mode string) {
 	s.mu.Unlock()
 }
 
-// PendingAuth returns the in-flight authorization request, or nil.
-func (s *Session) PendingAuth() *PendingAuth {
+// GrantSingleUseAuth marks the next tool call as pre-approved (/yes).
+// Consumed exactly once by the auth gate (hardline excluded).
+func (s *Session) GrantSingleUseAuth() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.pendingAuth
+	s.singleUseAuth = true
+	s.mu.Unlock()
 }
 
-// SetPendingAuth parks / clears an in-flight authorization request.
-func (s *Session) SetPendingAuth(p *PendingAuth) {
+// ConsumeSingleUseAuth returns and clears the one-shot approval flag.
+// Returns true at most once per /yes.
+func (s *Session) ConsumeSingleUseAuth() bool {
 	s.mu.Lock()
-	s.pendingAuth = p
+	defer s.mu.Unlock()
+	v := s.singleUseAuth
+	s.singleUseAuth = false
+	return v
+}
+
+// ClearSingleUseAuth drops any pending one-shot approval (/no or session reset).
+func (s *Session) ClearSingleUseAuth() {
+	s.mu.Lock()
+	s.singleUseAuth = false
+	s.mu.Unlock()
+}
+
+// PendingDesc returns the description of the last intercepted call, or "".
+func (s *Session) PendingDesc() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pendingDesc
+}
+
+// SetPendingDesc records what the last intercepted call was (informational).
+func (s *Session) SetPendingDesc(desc string) {
+	s.mu.Lock()
+	s.pendingDesc = desc
 	s.mu.Unlock()
 }
 
