@@ -934,6 +934,36 @@ export async function updateProject(
 // deleteProject returns a structured shape because the server replies
 // 409 when the project still owns chats — surface sessionCount so the
 // caller can render a useful prompt instead of just "delete failed".
+export function fileUrl(agentId: string, path: string, download = false): string {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const params = new URLSearchParams();
+  if (download) params.set("download", "1");
+  const qs = params.toString();
+  return `/api/agents/${agentId}/files/${encoded}${qs ? "?" + qs : ""}`;
+}
+
+export interface ScopePreview {
+  previewUrl?: string;
+  status: string; // none|scaffolding|starting|running|sleeping|crashed
+}
+
+export async function getScopePreview(
+  agentId: string,
+  sessionId?: string,
+  projectId?: string,
+): Promise<ScopePreview> {
+  const params = new URLSearchParams();
+  if (sessionId) params.set("sessionId", sessionId);
+  if (projectId) params.set("projectId", projectId);
+  const qs = params.toString();
+  const res = await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/preview${qs ? "?" + qs : ""}`,
+  );
+  if (!res.ok) return { status: "none" };
+  const data = await res.json().catch(() => ({ status: "none" }));
+  return { previewUrl: data.previewUrl as string | undefined, status: (data.status as string) || "none" };
+}
+
 export async function deleteProject(
   agentId: string,
   projectId: string,

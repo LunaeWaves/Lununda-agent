@@ -5,13 +5,10 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getAgent, getChatHistoryWithCursor, getChatSessions, getChatTodo, getMe, listAgentFiles, listProjects, renameChatSession, revealAgentWorkspace, sendChatStream, steerChat, uploadAgentFiles, getSkills, type ChatHistoryMessage, type ChatStreamEvent, type SkillInfo, type TodoItem, type ToolResultMetadata, type WorkspaceFile } from "@/lib/api";
+import { fileUrl, getAgent, getChatHistoryWithCursor, getChatSessions, getChatTodo, getMe, listAgentFiles, listProjects, renameChatSession, revealAgentWorkspace, sendChatStream, steerChat, uploadAgentFiles, getSkills, type ChatHistoryMessage, type ChatStreamEvent, type SkillInfo, type TodoItem, type ToolResultMetadata, type WorkspaceFile } from "@/lib/api";
 import { Bot, Send, Copy, Check, Pencil, Wrench, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal, Zap } from "lucide-react";
 import Link from "next/link";
-import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import { ExternalAnchor } from "@/components/markdown-link";
+import { ChatMarkdown } from "@/components/chat-markdown";
 import { useT, useLocale } from "@/lib/i18n";
 
 // react-markdown's default urlTransform strips any protocol not in the
@@ -20,7 +17,9 @@ import { useT, useLocale } from "@/lib/i18n";
 // everything else.
 function urlTransform(url: string, key: string): string {
   if (key === "src" && url.startsWith("data:image/")) return url;
-  return defaultUrlTransform(url);
+  // Strip protocols not in the safe-list (same as streamdown/rehype-sanitize default).
+const unsafe = /^(javascript|vbscript|data:(?!image\/))/i;
+return unsafe.test(url) ? "" : url;
 }
 
 // makeUrlTransform builds a urlTransform that also remaps sandbox
@@ -43,7 +42,9 @@ function makeUrlTransform(agentId: string, sessionId: string) {
       const scoped = sessionId ? `sessions/${sessionId}/${rel}` : rel;
       return fileUrl(agentId, scoped, false);
     }
-    return defaultUrlTransform(url);
+    // Strip protocols not in the safe-list (same as streamdown/rehype-sanitize default).
+const unsafe = /^(javascript|vbscript|data:(?!image\/))/i;
+return unsafe.test(url) ? "" : url;
   };
 }
 
@@ -118,9 +119,7 @@ function renderContentWithDataImages(
           );
         }
         return (
-          <ReactMarkdown key={i} remarkPlugins={[remarkGfm, remarkBreaks]} urlTransform={urlTransformFn} components={{ a: ExternalAnchor }}>
-            {p.text}
-          </ReactMarkdown>
+          <ChatMarkdown text={p.text} />
         );
       })}
     </>
@@ -2270,9 +2269,7 @@ export function ChatScreen() {
                             (attachedImages.get(msg.id)?.length ?? 0) > 0,
                             makeUrlTransform(selectedAgent, sessionId),
                           ) ?? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} urlTransform={makeUrlTransform(selectedAgent, sessionId)} components={{ a: ExternalAnchor }}>
-                              {msg.content}
-                            </ReactMarkdown>
+                            <ChatMarkdown text={msg.content} agentId={selectedAgent} sessionId={sessionId} />
                           )}
                         </div>
                       )}
@@ -2838,9 +2835,7 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
         <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5">
           <div className={CHAT_PROSE_CLASS}>
             {renderContentWithDataImages(msg.content, surfacedSrcs, false, makeUrlTransform(agentId, sessionId)) ?? (
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} urlTransform={makeUrlTransform(agentId, sessionId)} components={{ a: ExternalAnchor }}>
-                {msg.content}
-              </ReactMarkdown>
+              <ChatMarkdown text={msg.content} agentId={agentId} sessionId={sessionId} />
             )}
           </div>
         </div>
@@ -3085,25 +3080,6 @@ function formatBytes(n?: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
-
-// fileUrl / zipUrl deliberately do NOT carry the bearer token in the
-// query string anymore. The web UI runs same-origin and the auth
-// middleware reads the session cookie set at login, so <img src>,
-// <a href>, and direct downloads authenticate via cookie just like
-// every other API call. Pre-fix we appended `?token=<bearer>` so
-// programmatic-bearer-only clients could render images, but that
-// token is a full API credential — putting it in URLs leaked it
-// via Referer (when a workspace HTML file linked to a 3rd-party
-// site), browser history, and reverse-proxy access logs. The
-// server still accepts `?token=` for back-compat with CLI scripts
-// that build their own URLs; the frontend just stops feeding it.
-function fileUrl(agentId: string, path: string, download: boolean): string {
-  const encoded = path.split("/").map(encodeURIComponent).join("/");
-  const params = new URLSearchParams();
-  if (download) params.set("download", "1");
-  const qs = params.toString();
-  return `/api/agents/${agentId}/files/${encoded}${qs ? "?" + qs : ""}`;
 }
 
 function zipUrl(agentId: string, sessionId: string, projectId?: string): string {
@@ -3524,7 +3500,7 @@ function FilePreview({ agentId, file, onClose }: { agentId: string; file: Produc
             : text === null ? <p className="text-sm text-muted-foreground">{t("chatScreen.loading")}</p>
             : (
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ExternalAnchor }}>{text}</ReactMarkdown>
+                <ChatMarkdown text={text} />
               </div>
             )
           )}

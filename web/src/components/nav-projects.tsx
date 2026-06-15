@@ -1,5 +1,4 @@
 "use client";
-import { useT } from "@/lib/i18n";
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -10,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { MoreHorizontal } from "lucide-react";
+import { ChevronRightIcon, MoreHorizontal } from "lucide-react";
 import { moveChatSessionToProject } from "@/lib/api";
 import { ChannelIcon, channelLabel } from "@/components/channel-icon";
 import { ChatRowActions } from "@/components/chat-row-actions";
@@ -48,7 +47,6 @@ export function NavSessions({
   agentId: string | null;
   sessions: SessionItem[];
 }) {
-  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   // Drop-zone state for "drag a project chat back out into Chats".
@@ -59,6 +57,8 @@ export function NavSessions({
   // self-evident). Hook must run before the early-return below to
   // keep call order stable across renders.
   const [chatsDropActive, setChatsDropActive] = React.useState(false);
+  // Whole-section collapse: clicking the "Chats" header hides the list.
+  const [sectionCollapsed, setSectionCollapsed] = React.useState(false);
 
   // Dedupe rapid double-clicks on the same chat row — see the matching
   // block in nav-projects-list.tsx for the connection-pool starvation
@@ -117,7 +117,7 @@ export function NavSessions({
       // so a console error + alert keeps the user from silently losing
       // the action.
       console.error("move chat to loose failed:", res.error);
-      window.alert(t("sidebar.moveFailed") + ": " + res.error);
+      window.alert(`Failed to move chat: ${res.error}`);
       return;
     }
     broadcastChange();
@@ -131,7 +131,19 @@ export function NavSessions({
         onDragLeave={onChatsDragLeave}
         onDrop={onChatsDrop}
       >
-        <SidebarGroupLabel>{t("sidebar.chats")}</SidebarGroupLabel>
+        <SidebarGroupLabel
+          onClick={() => setSectionCollapsed((c) => !c)}
+          className="cursor-pointer select-none hover:text-sidebar-foreground"
+        >
+          <ChevronRightIcon
+            className={
+              "mr-1 transition-transform " +
+              (sectionCollapsed ? "rotate-0" : "rotate-90")
+            }
+          />
+          Chats
+        </SidebarGroupLabel>
+        {!sectionCollapsed && (
         <SidebarMenu
           className={
             chatsDropActive
@@ -163,22 +175,23 @@ export function NavSessions({
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => navigateOnce(`/agents/${agentId}/chats`)}
-                tooltip={t("sidebar.seeAllChats")}
+                tooltip="See all chats"
                 className="text-muted-foreground"
               >
                 <MoreHorizontal className="size-4" />
-                <span>{t("sidebar.more")}</span>
+                <span>More</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
           {sessions.length === 0 && (
             <SidebarMenuItem>
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                {t("sidebar.noChats")}
+                No chats yet
               </div>
             </SidebarMenuItem>
           )}
         </SidebarMenu>
+        )}
       </SidebarGroup>
     </>
   );

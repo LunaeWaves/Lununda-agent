@@ -1,5 +1,4 @@
 "use client";
-import { useT } from "@/lib/i18n";
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -96,7 +95,6 @@ export function NavProjectsList({
   // Project state lives one level up in AppSidebar.
   onChanged: () => void;
 }) {
-  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -107,6 +105,10 @@ export function NavProjectsList({
   // Open project IDs: clicking a project toggles its expand state. We
   // keep this as a Set so multiple projects can be expanded at once.
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  // Whole-section collapse: clicking the "Projects" header hides the
+  // list. Separate from per-project `expanded` above. AppSidebar stays
+  // mounted across navigation so this in-memory state persists.
+  const [sectionCollapsed, setSectionCollapsed] = React.useState(false);
 
   // useMemo must run before the early-return below or hook order
   // changes between renders when the active agent comes / goes.
@@ -239,9 +241,20 @@ export function NavProjectsList({
   return (
     <>
       <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel>{t("sidebar.projects")}</SidebarGroupLabel>
+        <SidebarGroupLabel
+          onClick={() => setSectionCollapsed((c) => !c)}
+          className="cursor-pointer select-none hover:text-sidebar-foreground"
+        >
+          <ChevronRightIcon
+            className={
+              "mr-1 transition-transform " +
+              (sectionCollapsed ? "rotate-0" : "rotate-90")
+            }
+          />
+          Projects
+        </SidebarGroupLabel>
         <SidebarGroupAction
-          aria-label={t("sidebar.newProject")}
+          aria-label="New project"
           onClick={() => setCreateOpen(true)}
           render={
             <button>
@@ -249,11 +262,12 @@ export function NavProjectsList({
             </button>
           }
         />
+        {!sectionCollapsed && (
         <SidebarMenu>
           {projects.length === 0 && (
             <SidebarMenuItem>
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                {t("sidebar.noProjects")}
+                No projects yet
               </div>
             </SidebarMenuItem>
           )}
@@ -294,6 +308,7 @@ export function NavProjectsList({
             );
           })}
         </SidebarMenu>
+        )}
       </SidebarGroup>
 
       <CreateProjectDialog
@@ -359,7 +374,6 @@ function ProjectRow({
   agentId: string;
   onMoved: () => void;
 }) {
-  const t = useT();
   const { isMobile } = useSidebar();
   const [dropActive, setDropActive] = React.useState(false);
   const onDragOver = (e: React.DragEvent) => {
@@ -438,19 +452,19 @@ function ProjectRow({
         >
           <DropdownMenuItem onClick={onNewChat}>
             <PlusIcon className="text-muted-foreground" />
-            <span>{t("sidebar.newChatInProject")}</span>
+            <span>New chat in project</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onEdit}>
             <PencilIcon className="text-muted-foreground" />
-            <span>{t("sidebar.editProject")}</span>
+            <span>Edit</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onDelete}
             className="text-destructive focus:text-destructive"
           >
             <Trash2Icon className="text-destructive" />
-            <span>{t("sidebar.deleteProject")}</span>
+            <span>Delete</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -506,7 +520,6 @@ function CreateProjectDialog({
   onOpenChange: (v: boolean) => void;
   onCreated: () => void;
 }) {
-  const t = useT();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -539,14 +552,15 @@ function CreateProjectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("sidebar.newProject")}</DialogTitle>
+          <DialogTitle>New project</DialogTitle>
           <DialogDescription>
-            {t("sidebar.newProjectDesc")}
+            Group chats that share research, files, or context. Every chat
+            in a project sees the same workspace folder.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium">{t("sidebar.projectNameLabel")}</label>
+            <label className="mb-1 block text-xs font-medium">Name</label>
             <Input
               autoFocus
               value={name}
@@ -556,12 +570,12 @@ function CreateProjectDialog({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium">
-              {t("sidebar.projectDescOptional")}
+              Description (optional)
             </label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("sidebar.projectPlaceholder")}
+              placeholder="What this project is for…"
               rows={3}
             />
           </div>
@@ -572,10 +586,10 @@ function CreateProjectDialog({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            {t("common.cancel")}
+            Cancel
           </Button>
           <Button onClick={save} disabled={saving || !name.trim()}>
-            {saving ? t("sidebar.creating") : t("sidebar.createProject")}
+            {saving ? "Creating…" : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -594,7 +608,6 @@ function EditProjectDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const t = useT();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -627,14 +640,15 @@ function EditProjectDialog({
     <Dialog open={!!target} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("sidebar.editProject")}</DialogTitle>
+          <DialogTitle>Edit project</DialogTitle>
           <DialogDescription>
-            {t("sidebar.editProjectDesc")}
+            Rename or update the description. The workspace folder stays
+            the same — files aren&apos;t moved.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium">{t("sidebar.projectNameLabel")}</label>
+            <label className="mb-1 block text-xs font-medium">Name</label>
             <Input
               autoFocus
               value={name}
@@ -643,7 +657,7 @@ function EditProjectDialog({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium">
-              {t("sidebar.projectDescLabel")}
+              Description
             </label>
             <Textarea
               value={description}
@@ -654,10 +668,10 @@ function EditProjectDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>
-            {t("common.cancel")}
+            Cancel
           </Button>
           <Button onClick={save} disabled={saving || !name.trim()}>
-            {saving ? t("sidebar.saving") : t("sidebar.saveProject")}
+            {saving ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -676,7 +690,6 @@ function DeleteProjectDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
-  const t = useT();
   const [error, setError] = React.useState<string>("");
   const [busy, setBusy] = React.useState(false);
 
@@ -712,7 +725,7 @@ function DeleteProjectDialog({
     <AlertDialog open={!!target} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("sidebar.deleteProjectTitle")}</AlertDialogTitle>
+          <AlertDialogTitle>Delete project</AlertDialogTitle>
           <AlertDialogDescription>
             Delete <strong>{target?.name}</strong>? Chats inside the project
             must be removed first — this won&apos;t cascade. The workspace
@@ -725,13 +738,13 @@ function DeleteProjectDialog({
           </div>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>{t("sidebar.cancel")}</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={busy}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {busy ? t("sidebar.deleting") : t("sidebar.deleteProject")}
+            {busy ? "Deleting…" : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

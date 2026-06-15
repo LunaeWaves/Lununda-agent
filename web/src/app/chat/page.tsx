@@ -6,10 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { getStatus, getChatHistory, getChatSessions, sendChatStream, type AgentInfo, type ChatHistoryMessage, type ChatStreamEvent } from "@/lib/api";
 import { useAgentName } from "@/hooks/use-agent-name";
 import { Bot, Send, Copy, Check, SquarePen, MessageSquare, Wrench, ChevronDown, ChevronRight } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { ExternalAnchor } from "@/components/markdown-link";
-import { useT } from "@/lib/i18n";
+import { ChatMarkdown } from "@/components/chat-markdown";
 
 interface ChatMessage {
   id: string;
@@ -82,7 +79,6 @@ export default function ChatPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const t = useT();
 
   // Load agents on mount
   useEffect(() => {
@@ -322,7 +318,7 @@ export default function ChatPage() {
       <div className="hidden w-56 flex-col border-r border-border bg-card/30 lg:flex">
         <div className="flex items-center justify-between border-b border-border p-3">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {t("chat.agents")}
+            Agents
           </p>
         </div>
         <div className="overflow-auto p-2 space-y-1">
@@ -350,7 +346,7 @@ export default function ChatPage() {
           <>
             <div className="flex items-center justify-between border-t border-b border-border p-3">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {t("chat.history")}
+                History
               </p>
             </div>
             <div className="flex-1 overflow-auto p-2 space-y-1">
@@ -382,7 +378,7 @@ export default function ChatPage() {
               <Bot className="h-4 w-4 text-primary" />
             </div>
             <span className="text-sm font-semibold">
-              {selectedAgent || t("chat.selectAgent")}
+              {selectedAgent || "Select an agent"}
             </span>
             {currentAgent && (
               <Badge variant="secondary" className="font-mono text-[10px]">
@@ -410,7 +406,7 @@ export default function ChatPage() {
             <button
               onClick={handleNewChat}
               className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title={t("chat.newChatTitle")}
+              title="New Chat"
             >
               <SquarePen className="h-4 w-4" />
             </button>
@@ -426,10 +422,10 @@ export default function ChatPage() {
                   <Bot className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="text-lg font-medium mb-1">
-                  {t("chat.chatWith", { name: agentName || selectedAgent || t("chat.selectAgent") })}
+                  Chat with {agentName || selectedAgent || "your agent"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {t("chat.startConversation")}
+                  Send a message to start a conversation
                 </p>
               </div>
             )}
@@ -454,11 +450,7 @@ export default function ChatPage() {
                           : "bg-muted rounded-bl-md"
                       }`}
                     >
-                      <div className="text-[15px] leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-ul:my-1 prose-ol:my-1">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ExternalAnchor }}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
+                      <ChatMarkdown text={msg.content} />
                     </div>
                     <div
                       className={`flex items-center gap-1.5 mt-1 ${
@@ -474,7 +466,7 @@ export default function ChatPage() {
                         <button
                           onClick={() => handleCopy(msg)}
                           className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground/60 hover:text-muted-foreground transition-all"
-                          title={t("chat.copy")}
+                          title="Copy"
                         >
                           {copiedId === msg.id ? (
                             <Check className="h-3 w-3 text-emerald-500" />
@@ -516,8 +508,8 @@ export default function ChatPage() {
                 onKeyDown={handleKeyDown}
                 placeholder={
                   selectedAgent
-                    ? t("chat.messageAgent", { name: agentName || selectedAgent })
-                    : t("chat.selectAgentFirst")
+                    ? `Message ${agentName || selectedAgent}...`
+                    : "Select an agent first"
                 }
                 disabled={!selectedAgent || sending}
                 rows={1}
@@ -534,7 +526,7 @@ export default function ChatPage() {
               </Button>
             </div>
             <p className="text-center text-[11px] text-muted-foreground/50 mt-2">
-              {t("chat.enterToSend")}
+              Enter to send, Shift+Enter for new line
             </p>
           </div>
         </div>
@@ -547,7 +539,6 @@ export default function ChatPage() {
 function ToolCallGroup({ msg }: { msg: ChatMessage }) {
   const [groupOpen, setGroupOpen] = useState(false);
   const [expandedTool, setExpandedTool] = useState<Record<string, boolean>>({});
-  const t = useT();
 
   const tools = msg.toolCalls || [];
   const doneCount = tools.filter((tc) => tc.result != null).length;
@@ -562,11 +553,7 @@ function ToolCallGroup({ msg }: { msg: ChatMessage }) {
         {/* Content before tools */}
         {msg.content && (
           <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5">
-            <div className="text-[15px] leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-p:my-1">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ExternalAnchor }}>
-                {msg.content}
-              </ReactMarkdown>
-            </div>
+            <ChatMarkdown text={msg.content} />
           </div>
         )}
         {/* Collapsed tool group summary */}
@@ -582,8 +569,8 @@ function ToolCallGroup({ msg }: { msg: ChatMessage }) {
             )}
             <span className="font-medium text-foreground">
               {allDone
-                ? t("chatScreen.executedN", { count: tools.length })
-                : t("chatScreen.runningN", { done: doneCount, total: tools.length })}
+                ? `Executed ${tools.length} tool${tools.length > 1 ? "s" : ""}`
+                : `Running tools (${doneCount}/${tools.length})...`}
             </span>
             <span className="text-muted-foreground/60 text-[11px] flex-1 text-left truncate">
               {tools.map((tc) => tc.name).join(", ")}
@@ -628,7 +615,7 @@ function ToolCallGroup({ msg }: { msg: ChatMessage }) {
                   {expandedTool[tc.id] && (
                     <div className="px-3 py-2 space-y-2 bg-muted/20">
                       <div>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">{t("chatScreen.inputLabel")}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Input</p>
                         <pre className="text-xs font-mono bg-muted/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-40">
                           {(() => {
                             try { return JSON.stringify(JSON.parse(tc.arguments), null, 2); }
@@ -638,13 +625,13 @@ function ToolCallGroup({ msg }: { msg: ChatMessage }) {
                       </div>
                       {tc.result != null ? (
                         <div>
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">{t("chatScreen.outputLabel")}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Output</p>
                           <pre className="text-xs font-mono bg-muted/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-60">
                             {tc.result.length > 2000 ? tc.result.slice(0, 2000) + "..." : tc.result}
                           </pre>
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground/60 italic">{t("chatScreen.executingEllipsis")}</p>
+                        <p className="text-xs text-muted-foreground/60 italic">Executing...</p>
                       )}
                     </div>
                   )}

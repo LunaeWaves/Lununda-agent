@@ -41,6 +41,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { ExternalAnchor } from "@/components/markdown-link";
+import { ChatMarkdown } from "@/components/chat-markdown";
 import {
   type WikiPage,
   type WikiStats,
