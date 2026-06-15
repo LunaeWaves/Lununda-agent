@@ -2159,9 +2159,12 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		// Authorization gate (stage 3): split executeCalls into allowed
 		// vs. blocked/prompted before running anything. Blocked calls get
 		// a synthetic tool_result so every tool_use id stays paired.
-		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, executeCalls)
+		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, executeCalls)
 		if promptDesc != "" {
 			a.emitAuthPrompt(ctx, promptDesc)
+		}
+		if len(bypassPaths) > 0 {
+			a.registry.SetSandboxBypassPaths(bypassPaths)
 		}
 
 		// Execute tools concurrently via SDK engine
@@ -2868,9 +2871,12 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		}
 
 		// Authorization gate (stage 3).
-		toExec, blockedCalls, promptDesc := a.filterAuthorizedCalls(sess, resp.ToolCalls)
+		toExec, blockedCalls, promptDesc, bypassPaths := a.filterAuthorizedCalls(sess, resp.ToolCalls)
 		if promptDesc != "" {
 			a.emitAuthPrompt(ctx, promptDesc)
+		}
+		if len(bypassPaths) > 0 {
+			a.registry.SetSandboxBypassPaths(bypassPaths)
 		}
 
 		// Execute tools concurrently via SDK engine
@@ -3358,10 +3364,10 @@ func (a *Agent) sendMediaFiles(msg bus.InboundMessage, mediaPaths []string) {
 // authorization prompt this round — the caller emits the "⚠️ 回复 /yes"
 // message once per round and records it on the session. Empty desc means
 // no prompt is needed.
-func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string) {
+func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.ToolCall) (toExec []provider.ToolCall, blocked map[string]toolCallResult, promptDesc string, bypassPaths []string) {
 	blocked = make(map[string]toolCallResult)
 	if a.authGate == nil {
-		return calls, blocked, ""
+		return calls, blocked, "", nil
 	}
 	mode := sess.AuthMode()
 	if mode == "" {
@@ -3374,6 +3380,11 @@ func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.To
 		switch dec.action {
 		case authAllow:
 			toExec = append(toExec, tc)
+			// yolo/auto can ALLOW an outside-workspace write — relax the
+			// file-tool sandbox for it this round.
+			if abs, outside := a.authGate.writeTargetOutsideWorkspace(tc.Function.Name, tc.Function.Arguments); outside {
+				bypassPaths = append(bypassPaths, abs)
+			}
 		case authBlock:
 			blocked[tc.ID] = toolCallResult{
 				toolCallID: tc.ID,
@@ -3400,7 +3411,7 @@ func (a *Agent) filterAuthorizedCalls(sess *session.Session, calls []provider.To
 	if len(waiting) > 0 {
 		sess.PushPendingCalls(waiting, promptCandidate)
 	}
-	return toExec, blocked, promptCandidate
+	return toExec, blocked, promptCandidate, bypassPaths
 }
 
 // emitAuthPrompt surfaces the "needs authorization" message to the user
