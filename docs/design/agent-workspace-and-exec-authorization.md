@@ -104,7 +104,34 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 
 **拒绝消息防绕过措辞**：所有拒绝（hardline / auto 拒 / /no / 超时）的 tool_result 明确告诉 LLM「用户未授权，不要重试、不要换措辞、不要换工具绕过，停下等用户」。防 prompt injection 换方式绕过（参考 hermes 的 "silence is not consent" 契约）。
 
-**授权流程（一次确认即执行，waiting call 留存）**：
+**授权流程（auth-as-tool，loop 自动插入 request_authorization）**：
+授权表达成对话里的一个**真正的 tool_call** `request_authorization`，由 loop 在检测到需授权的操作时**自动插入**，LLM 和用户都能在对话历史里看到它。它是一个高权限"守门人" tool——它的 result 决定后续被守护的 call 是否执行。
+
+1. LLM 发 tool_call（写 workspace 外 / dangerous）→ loop 检测需授权 → **拦截原 call，替换为 `request_authorization` tool_call**（携带原 call 的描述/目标）
+2. `request_authorization` 的"执行"按 session 模式：
+   - **yolo**：自动执行（hardline 仍拦）→ result="approved"
+   - **auto**：按路径/命令自动判断 → result="approved" 或 "denied"
+   - **ask**（默认）：暂停，弹出授权气泡（4 选项 `/yes`/`/no`/`/auto`/`/yolo` 可点击）→ 等用户回复
+3. `request_authorization` 返回 approved → **loop 在同轮立即执行原 call**（设 bypassPaths）；denied → 原 call 不执行，生成拒绝 result
+
+**对话历史**（LLM 看到的，清晰连贯）：
+```
+assistant: tool_calls: [request_authorization(写 C:\Temp\x, reason: outside workspace)]
+tool: "approved"
+assistant: tool_calls: [write_file(C:\Temp\x)]
+tool: "written"
+```
+无 orphan 配对难题（每个 call 含 auth 都有 result）、无合成消息、无 thinking 字段问题——auth 是对话的自然部分。
+
+**模式随时可切**：`/auto`/`/yolo`/`/ask` 任何时候发 → 切 session 模式 → 后续 `request_authorization` 按新模式自动判定。不依赖 pending 存在。
+
+**ask 模式的跨 turn 协调**：auth tool_call 发出后 turn 结束（等用户）。用户 `/yes`（新 turn）→ 该 turn 顶部，loop 看到未完成的 auth call → 填 "approved" result → 执行原 call → 续跑。session 用 authPending 记录"等授权的原 call + auth tool_use id"。
+
+**前端气泡**：识别 `request_authorization` tool_call，渲染带 4 按钮（`/yes`/`/no`/`/auto`/`/yolo`）的卡片，点击 = 发对应 slash。后端 emit `auth_prompt` 事件含选项。
+
+**询问的固定格式**：ask 模式每次给全部 4 选项（不论当前模式），用户随时切。
+
+（以下旧 pendingCalls 描述已废弃，保留供参考）
 授权是"标记 → 用户确认 → 立即执行"的一次连续流程，**不是二次确认**。waiting 的 tool_call 完整留存在 session，用户一次 slash 确认后系统立即执行，不让用户重述需求、不靠 LLM 重发。
 
 1. LLM 发出 tool_call → loop 检查（hardline → dangerous → workspace 边界）
