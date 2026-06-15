@@ -67,31 +67,30 @@ func RegisterSkillInstall(r *Registry, agentSkillsDir string, onReload func()) {
 
 	r.Register(
 		"install_skill",
-		"Install a skill into THIS agent's private skills directory. Tries skills.sh first, then clawhub.ai. If neither has it, returns a not-found error — at that point ask the user whether to build a custom skill with the skill-creator skill instead of retrying. Installed skills are scoped to this agent only; they do not affect other agents.",
+		"Install a skill into THIS agent's private skills directory. The `source` argument accepts anything the user gives you verbatim:\n"+
+			"- a GitHub URL: https://github.com/owner/repo (optionally behind a mirror prefix like https://ghfast.top/https://github.com/...)\n"+
+			"- a GitHub 'owner/repo' shorthand\n"+
+			"- a skills.sh / clawhub.ai slug\n"+
+			"You don't need to parse or transform the input — pass it through as-is. Installed skills are scoped to this agent only; they do not affect other agents.",
 		map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"name": map[string]interface{}{
+				"source": map[string]interface{}{
 					"type":        "string",
-					"description": "Skill name/slug (what you'd see listed on skills.sh or clawhub). For GitHub installs, use 'owner/repo' in the `repo` field instead.",
-				},
-				"repo": map[string]interface{}{
-					"type":        "string",
-					"description": "Optional: GitHub 'owner/repo' to install from a specific repo instead of the public registries. When set, `name` is the skill folder inside the repo (omit for whole-repo skills).",
+					"description": "The skill source: a GitHub URL, owner/repo, or skills.sh/clawhub slug. Pass the user's input verbatim.",
 				},
 			},
-			"required": []string{"name"},
+			"required": []string{"source"},
 		},
 		func(ctx context.Context, args json.RawMessage) (string, error) {
 			var params struct {
-				Name string `json:"name"`
-				Repo string `json:"repo"`
+				Source string `json:"source"`
 			}
 			if err := json.Unmarshal(args, &params); err != nil {
 				return "", err
 			}
-			if params.Name == "" && params.Repo == "" {
-				return "", fmt.Errorf("name or repo is required")
+			if params.Source == "" {
+				return "", fmt.Errorf("source is required")
 			}
 			if agentSkillsDir == "" {
 				return "", fmt.Errorf("agent skills directory not configured")
@@ -101,11 +100,14 @@ func RegisterSkillInstall(r *Registry, agentSkillsDir string, onReload func()) {
 				result *skills.Result
 				err    error
 			)
-			switch {
-			case params.Repo != "":
-				result, err = skills.InstallFromGitHubRepo(params.Repo, params.Name, agentSkillsDir)
-			default:
-				result, err = skills.InstallAuto(params.Name, agentSkillsDir)
+			if looksLikeGitHubSource(params.Source) {
+				// Empty skillName = whole-repo install. The vast majority of
+				// "install this GitHub repo" requests are repo-as-skill, and
+				// findSkillDirInTarball would 404 on those. Nested skills are
+				// rare and covered by skills.sh installs instead.
+				result, err = skills.InstallFromGitHubRepo(params.Source, "", agentSkillsDir)
+			} else {
+				result, err = skills.InstallAuto(params.Source, agentSkillsDir)
 			}
 			if err != nil {
 				return "", fmt.Errorf("%w — if the user still wants this capability, offer to build a custom skill using the skill-creator skill", err)
@@ -122,4 +124,26 @@ func RegisterSkillInstall(r *Registry, agentSkillsDir string, onReload func()) {
 			return msg, nil
 		},
 	)
+}
+
+// looksLikeGitHubSource reports whether source refers to a GitHub repo:
+// a github.com URL (possibly behind a mirror like ghfast.top), or an
+// "owner/repo" shorthand (exactly one slash, no scheme). Anything else
+// is treated as a skills.sh / clawhub slug.
+func looksLikeGitHubSource(source string) bool {
+	s := strings.TrimSpace(source)
+	if s == "" {
+		return false
+	}
+	if strings.Contains(s, "github.com") {
+		return true
+	}
+	// owner/repo shorthand: exactly one '/', no scheme, no spaces.
+	if strings.Contains(s, "://") {
+		return false
+	}
+	if strings.Count(s, "/") == 1 && !strings.ContainsAny(s, " \t") {
+		return true
+	}
+	return false
 }

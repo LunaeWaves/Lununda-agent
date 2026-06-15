@@ -85,8 +85,17 @@ func InstallFromGitHubRepo(repo, skillName, targetDir string) (*Result, error) {
 }
 
 // normalizeGitHubRepo strips common wrapper prefixes/suffixes so callers can
-// pass things like "https://github.com/owner/repo.git" directly.
+// pass things like "https://github.com/owner/repo.git" directly, including
+// when wrapped behind a mirror like "https://ghfast.top/https://github.com/...".
 func normalizeGitHubRepo(repo string) string {
+	// Unwrap mirror prefixes: anything before an embedded github.com URL.
+	// e.g. "https://ghfast.top/https://github.com/owner/repo" -> "https://github.com/owner/repo"
+	for _, marker := range []string{"https://github.com/", "http://github.com/", "github.com/"} {
+		if idx := strings.Index(repo, marker); idx > 0 {
+			repo = repo[idx:]
+			break
+		}
+	}
 	repo = strings.TrimPrefix(repo, "https://github.com/")
 	repo = strings.TrimPrefix(repo, "http://github.com/")
 	repo = strings.TrimPrefix(repo, "github.com/")
