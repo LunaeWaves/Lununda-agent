@@ -40,7 +40,6 @@ var dangerousCommands = []string{
 type SandboxConfig struct {
 	Enabled   bool
 	Image     string
-	Pool      *sandbox.SandboxPool
 	Workspace string
 	AgentID   string
 	Policy    *sandbox.Policy
@@ -176,11 +175,6 @@ func makeExecToolFull(r *Registry, sbCfg *SandboxConfig, envProvider SkillEnvPro
 			return fmt.Sprintf("Started background shell %s for command: %s\nUse bash_output(bash_id=%q) to read output, kill_shell(bash_id=%q) to terminate.", s.id, args.Command, s.id, s.id), nil
 		}
 
-		if useSandbox && sbCfg != nil && sbCfg.Pool != nil {
-			sb := sbCfg.Pool.Get(sbCfg.AgentID, sbCfg.Image, sbCfg.Workspace, sbCfg.Policy)
-			out, err := sb.Exec(execCtx, command, "/workspace")
-			return MetaSandboxPrefix + out, err
-		}
 		// Sandbox was requested but no executor is wired — refuse rather
 		// than running on the host shell. SetExecutor swaps this closure
 		// for the sandboxed variant on successful session bind, so we
