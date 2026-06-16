@@ -1,6 +1,9 @@
 ##
 ## Lununda Agent — single-machine deployment with Postgres.
 ##
+## Builds the image from local source. For a faster, no-source setup
+## using the pre-built GHCR image, use docker-compose.ghcr.yml instead.
+##
 ## Quick start:
 ##   docker compose up -d
 ##   open http://localhost:18953        # walks the onboard wizard:

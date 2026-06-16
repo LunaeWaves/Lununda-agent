@@ -1,0 +1,38 @@
+##
+## Docker sandbox override — apply on top of docker-compose.yml.
+##
+##   docker compose -f docker-compose.yml -f docker-compose.sandbox.yml up -d
+##
+## Lets the agent run `exec` tool calls inside an isolated container.
+## The sandbox image (ghcr.io/lunaewaves/lununda-sandbox) is pre-baked
+## with Python 3, Node 22, Camoufox (anti-detect Firefox), and the
+## usual fetch/parse/preview deps — bundled skills work on turn 1.
+##
+## NOTE: Running Docker-in-Docker requires the host's docker.sock to be
+## mounted into the Lununda Agent container. The sandbox containers are
+## siblings of the Lununda Agent container, NOT nested inside it. This
+## is the standard pattern for DinD without --privileged.
+##
+## For production, prefer a remote sandbox backend (E2B or Boxlite)
+## instead of mounting docker.sock — see README → Tools & Sandbox.
+##
+services:
+  lununda:
+    environment:
+      LUNUNDA_SANDBOX_ENABLED: "true"
+      LUNUNDA_SANDBOX_BACKEND: docker
+      LUNUNDA_SANDBOX_IMAGE: ${LUNUNDA_SANDBOX_IMAGE:-ghcr.io/lunaewaves/lununda-sandbox:latest}
+    volumes:
+      # Sibling-container pattern: the gateway talks to the host Docker
+      # daemon. Sandbox containers spawn on the host, not inside the
+      # gateway container. They share the agent's workspace via the
+      # named volume below.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - lununda-data:/data/.lununda
+    # The gateway needs to pull the sandbox image and create sibling
+      # containers. On most Docker hosts the sock has enough perms by
+      # default; if not, add the gateway to the `docker` group on the
+      # host or grant the container CAP_DAC_READ_SEARCH.
+
+volumes:
+  lununda-data:

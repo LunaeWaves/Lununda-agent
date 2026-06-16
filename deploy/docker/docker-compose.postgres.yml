@@ -1,0 +1,35 @@
+##
+## Postgres backend override — apply on top of docker-compose.yml.
+##
+##   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+##
+## Switches Lununda Agent from the embedded SQLite to a managed Postgres
+## instance. Use this when you have multiple replicas, large history, or
+## need point-in-time DB backups.
+##
+services:
+  lununda:
+    environment:
+      LUNUNDA_STORAGE_TYPE: postgres
+      LUNUNDA_STORAGE_DSN: "postgres://lununda:${POSTGRES_PASSWORD:-lununda-secret}@postgres:5432/lununda?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lununda
+      POSTGRES_USER: lununda
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lununda-secret}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lununda"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres-data:
