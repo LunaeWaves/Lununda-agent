@@ -35,9 +35,22 @@ export const metadata: Metadata = {
   title: "Lununda Agent",
   description: "AI Agent Framework",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-48x48.png", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-64x64.png", type: "image/png", sizes: "64x64" },
+      { url: "/favicon-128x128.png", type: "image/png", sizes: "128x128" },
+      { url: "/favicon-180x180.png", type: "image/png", sizes: "180x180" },
+      { url: "/favicon-192x192.png", type: "image/png", sizes: "192x192" },
+      { url: "/favicon-256x256.png", type: "image/png", sizes: "256x256" },
+      { url: "/favicon-512x512.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180" },
+    ],
   },
   manifest: "/site.webmanifest",
   openGraph: {
