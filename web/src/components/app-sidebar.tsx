@@ -296,7 +296,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {activeAgentId ? (
           <NavMain
-            label="Agent"
+            label={t("nav.group.agent")}
             items={[
               ...AGENT_NAV(activeAgentId, pathname, hasOpenSession, t),
               // Settings sits directly under New chat on agent routes
@@ -317,11 +317,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <>
             <NavMain items={[OVERVIEW_ITEM]} />
             <NavMain
-              label="Agent"
+              label={t("nav.group.agent")}
               items={isAdmin ? ADMIN_AGENT_GROUP : USER_AGENT_GROUP}
             />
             <NavMain
-              label="User"
+              label={t("nav.group.user")}
               items={isAdmin ? ADMIN_USER_GROUP : USER_USER_GROUP}
             />
           </>
@@ -357,7 +357,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 }}
               >
                 <SettingsIcon />
-                <span>Settings</span>
+                <span>{t("nav.settings")}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

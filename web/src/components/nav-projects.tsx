@@ -177,11 +177,11 @@ export function NavSessions({
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => navigateOnce(`/agents/${agentId}/chats`)}
-                tooltip="See all chats"
+                tooltip={t("sidebar.seeAllChats")}
                 className="text-muted-foreground"
               >
                 <MoreHorizontal className="size-4" />
-                <span>More</span>
+                <span>{t("sidebar.more")}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
