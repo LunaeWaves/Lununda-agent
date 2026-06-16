@@ -40,7 +40,14 @@ RUN CGO_ENABLED=0 go build \
 
 # --- Stage 3: Runtime ---
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates tzdata
+# docker-cli is required when LUNUNDA_SANDBOX_BACKEND=docker: the agent
+# runtime shells out to `docker create/start/exec/rm` to spawn sibling
+# sandbox containers on the host daemon (via the mounted
+# /var/run/docker.sock). Without the CLI binary the gateway can't
+# create sandboxes even if the socket is reachable. docker-cli is the
+# Alpine package that ships ONLY the client binary, no dockerd — keeps
+# the runtime image lean. See internal/sandbox/docker.go.
+RUN apk add --no-cache ca-certificates tzdata docker-cli
 COPY --from=go-builder /lununda /usr/local/bin/lununda
 
 # Default data directory. Override at runtime with LUNUNDA_HOME, but the
