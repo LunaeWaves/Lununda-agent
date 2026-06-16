@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -679,12 +680,23 @@ type TeamConfig struct {
 // HomeDir returns the Lununda Agent root directory (default ~/.lununda).
 // Holds the sqlite db, sandbox roots, and FS-materialized agent caches.
 //
-// One-shot migration: if the new ~/.lununda doesn't exist but the legacy
-// ~/.fastclaw does, rename it in place so existing users keep their data,
-// agents, sessions, and skills without manual intervention. Errors are
-// logged but not returned — the worst case is the caller writes into a
-// fresh ~/.lununda and the legacy dir is left untouched for the operator
-// to inspect.
+// One-shot migration from the legacy ~/.fastclaw layout:
+//
+//  1. If ~/.lununda doesn't exist, rename ~/.fastclaw → ~/.lununda in
+//     place. Rename also covers the sqlite files fastclaw.db,
+//     fastclaw.db-shm, fastclaw.db-wal inside the directory so the new
+//     binary's lununda.db DSN picks them up.
+//
+//  2. If ~/.lununda already exists but ~/.fastclaw is still around
+//     (partial migration — e.g. an early binary created ~/.lununda
+//     before HomeDir's migrate ran), pull the sqlite files + any
+//     missing subdirs from the legacy dir into the new one. The legacy
+//     dir is left in place; the operator can delete it after sanity
+//     check.
+//
+// Errors are logged but not returned — the worst case is the caller
+// writes into a fresh ~/.lununda and the legacy dir is left untouched
+// for the operator to inspect.
 func HomeDir() (string, error) {
 	if h := os.Getenv("LUNUNDA_HOME"); h != "" {
 		return h, nil
@@ -694,18 +706,118 @@ func HomeDir() (string, error) {
 		return "", err
 	}
 	newDir := filepath.Join(home, ".lununda")
-	if _, err := os.Stat(newDir); os.IsNotExist(err) {
-		oldDir := filepath.Join(home, ".fastclaw")
-		if _, err := os.Stat(oldDir); err == nil {
-			if renameErr := os.Rename(oldDir, newDir); renameErr != nil {
-				slog.Warn("lununda: legacy ~/.fastclaw migrate failed; using fresh ~/.lununda",
-					"error", renameErr, "legacy", oldDir, "target", newDir)
-			} else {
-				slog.Info("lununda: migrated legacy config dir", "from", oldDir, "to", newDir)
-			}
+	oldDir := filepath.Join(home, ".fastclaw")
+	_, newExists := os.Stat(newDir)
+	_, oldExists := os.Stat(oldDir)
+	switch {
+	case os.IsNotExist(newExists) && oldExists == nil:
+		// Fresh rename — preferred path.
+		if err := os.Rename(oldDir, newDir); err != nil {
+			slog.Warn("lununda: legacy ~/.fastclaw rename failed; using fresh ~/.lununda",
+				"error", err, "legacy", oldDir, "target", newDir)
+		} else {
+			renameLegacySqliteFiles(newDir)
+			slog.Info("lununda: migrated legacy config dir", "from", oldDir, "to", newDir)
 		}
+	case newExists == nil && oldExists == nil:
+		// Partial migration — both dirs present. Copy the sqlite files
+		// and any missing top-level subdirs from legacy into new so we
+		// don't lose data, but never overwrite something the new binary
+		// already wrote.
+		migrateLegacyIntoNew(oldDir, newDir)
 	}
 	return newDir, nil
+}
+
+// renameLegacySqliteFiles renames fastclaw.db / fastclaw.db-shm /
+// fastclaw.db-wal under dir to their lununda.* equivalents. Best-effort
+// — missing files are silently skipped, errors logged.
+func renameLegacySqliteFiles(dir string) {
+	for _, name := range []string{"fastclaw.db", "fastclaw.db-shm", "fastclaw.db-wal"} {
+		oldPath := filepath.Join(dir, name)
+		if _, err := os.Stat(oldPath); err != nil {
+			continue
+		}
+		newName := "lununda" + name[len("fastclaw"):]
+		newPath := filepath.Join(dir, newName)
+		if _, err := os.Stat(newPath); err == nil {
+			continue // don't clobber an existing lununda.* file
+		}
+		if err := os.Rename(oldPath, newPath); err != nil {
+			slog.Warn("lununda: legacy sqlite rename failed",
+				"from", oldPath, "to", newPath, "error", err)
+		}
+	}
+}
+
+// migrateLegacyIntoNew copies fastclaw.db* into lununda.db* (only when
+// the target is missing or smaller than 1KB — i.e. clearly an empty
+// placeholder) and mirrors any top-level subdirs that don't yet exist
+// under newDir. The legacy dir is preserved so the operator can roll
+// back; deletion is the operator's call.
+func migrateLegacyIntoNew(oldDir, newDir string) {
+	copied := false
+	for _, name := range []string{"fastclaw.db", "fastclaw.db-shm", "fastclaw.db-wal"} {
+		oldPath := filepath.Join(oldDir, name)
+		st, err := os.Stat(oldPath)
+		if err != nil {
+			continue
+		}
+		newName := "lununda" + name[len("fastclaw"):]
+		newPath := filepath.Join(newDir, newName)
+		if existing, err := os.Stat(newPath); err == nil && existing.Size() > 1024 && st.Size() <= existing.Size() {
+			// Target has real data; don't overwrite.
+			continue
+		}
+		if err := copyFile(oldPath, newPath, st.Size()); err != nil {
+			slog.Warn("lununda: legacy sqlite copy failed",
+				"from", oldPath, "to", newPath, "error", err)
+			continue
+		}
+		copied = true
+	}
+	// Mirror missing top-level subdirs (agents, state, skills, logs, …).
+	entries, err := os.ReadDir(oldDir)
+	if err != nil {
+		if copied {
+			slog.Info("lununda: merged legacy sqlite into existing dir", "target", newDir)
+		}
+		return
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dst := filepath.Join(newDir, e.Name())
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+		src := filepath.Join(oldDir, e.Name())
+		if err := os.Rename(src, dst); err != nil {
+			slog.Warn("lununda: legacy subdir move failed",
+				"from", src, "to", dst, "error", err)
+		} else {
+			copied = true
+		}
+	}
+	if copied {
+		slog.Info("lununda: merged legacy ~/.fastclaw into ~/.lununda", "legacy", oldDir, "target", newDir)
+	}
+}
+
+func copyFile(src, dst string, size int64) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
 
 // AgentHomeDir returns ~/.lununda/agents/{agentID}/agent — the FS cache

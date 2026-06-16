@@ -11,6 +11,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
 )
 
 //go:embed all:bundled_skills
@@ -259,14 +261,11 @@ func writeBundledHash(targetDir, hash string) error {
 // Mirrors lunundaManagedDir in internal/agent/skills.go but kept local
 // here so this file's only dependency is os/filepath.
 func managedSkillsDir() string {
-	if h := os.Getenv("LUNUNDA_HOME"); h != "" {
-		return filepath.Join(h, "skills")
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
+	homeDir, err := config.HomeDir()
+	if err != nil || homeDir == "" {
 		return ""
 	}
-	return filepath.Join(home, ".lununda", "skills")
+	return filepath.Join(homeDir, "skills")
 }
 
 // copyEmbedTree walks src in the embed.FS and writes every regular file under
