@@ -540,6 +540,8 @@ const en: Record<string, string> = {
   "tools.providerLabel": "Provider",
   "tools.apiKeyLabel": "API key",
   "tools.endpoint": "Endpoint",
+  "tools.endpointRequired": "(required)",
+  "tools.endpointOptional": "(optional, blank = official API)",
   "tools.defaultModel": "Default model",
   "tools.showAdvanced": "Show advanced options",
   "tools.hideAdvanced": "Hide advanced options",

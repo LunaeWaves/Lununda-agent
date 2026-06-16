@@ -48,7 +48,13 @@ func (f *Firecrawl) Execute(ctx context.Context, req toolproviders.Request) (too
 		"formats": []string{format},
 	}
 	buf, _ := json.Marshal(body)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, firecrawlURL, bytes.NewReader(buf))
+	// Default Firecrawl endpoint. Override via Config.Endpoint for
+	// self-hosted Firecrawl-compatible services.
+	endpoint := firecrawlURL
+	if req.Config.Endpoint != "" {
+		endpoint = strings.TrimRight(req.Config.Endpoint, "/") + "/v1/scrape"
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(buf))
 	if err != nil {
 		return toolproviders.Response{}, err
 	}

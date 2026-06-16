@@ -96,6 +96,10 @@ type Store interface {
 	// path resolver to pick projects/<id>/ over sessions/<chat>/ when
 	// mounting the sandbox.
 	LookupSessionProject(ctx context.Context, userID, agentID, sessionKey string) (string, error)
+	// LookupSessionTitle returns the user-set title of a session row,
+	// or "" when never renamed. The auto-title PostTurn hook treats
+	// empty as "may fire" and non-empty as "user named it, leave alone".
+	LookupSessionTitle(ctx context.Context, userID, agentID, sessionKey string) (string, error)
 
 	// --- Projects (per user, per agent — workspace folder grouping) ---
 	//

@@ -344,10 +344,21 @@ function ProviderFields({
       )}
       {provider.needsUrl && (
         <div className="space-y-2">
-          <Label>{t("tools.endpoint")}</Label>
+          <Label>
+            {t("tools.endpoint")}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              {provider.name === "searxng"
+                ? t("tools.endpointRequired")
+                : t("tools.endpointOptional")}
+            </span>
+          </Label>
           <Input
             type="url"
-            placeholder="https://searxng.example.com"
+            placeholder={
+              provider.name === "searxng"
+                ? "https://searxng.example.com"
+                : "https://your-proxy.example.com (blank = official API)"
+            }
             value={settings.endpoint || ""}
             onChange={(e) => onChange({ endpoint: e.target.value })}
             className="font-mono text-sm"

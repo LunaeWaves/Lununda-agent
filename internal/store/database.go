@@ -2204,6 +2204,22 @@ func (d *DBStore) LookupSessionProject(ctx context.Context, userID, agentID, ses
 	return pid, nil
 }
 
+// LookupSessionTitle returns the user-set title of a session row.
+// Empty string when the user never renamed it (the auto-title hook
+// treats that as "may fire"). Errors are scan errors — caller wraps.
+func (d *DBStore) LookupSessionTitle(ctx context.Context, userID, agentID, sessionKey string) (string, error) {
+	row := d.db.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT title FROM sessions
+			WHERE user_id = %s AND agent_id = %s AND session_key = %s`,
+			d.ph(1), d.ph(2), d.ph(3)),
+		userID, agentID, sessionKey)
+	var title string
+	if err := row.Scan(&title); err != nil {
+		return "", scanErr(err)
+	}
+	return title, nil
+}
+
 // ResolveActiveSessionKey returns the most recently updated session_key
 // for the (channel, account_id, chat_id) triple within (user, agent), or
 // ErrNotFound. The triple is the natural address for IM routing — IM

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
@@ -28,7 +29,13 @@ func (b *Brave) Execute(ctx context.Context, req toolproviders.Request) (toolpro
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.search.brave.com/res/v1/web/search", nil)
+	// Default Brave endpoint. Override via Config.Endpoint for self-hosted
+	// Brave-compatible services.
+	endpoint := "https://api.search.brave.com/res/v1/web/search"
+	if req.Config.Endpoint != "" {
+		endpoint = strings.TrimRight(req.Config.Endpoint, "/") + "/res/v1/web/search"
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return toolproviders.Response{}, err
 	}

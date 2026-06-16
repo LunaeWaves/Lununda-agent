@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
@@ -51,7 +52,13 @@ func (e *ElevenLabs) Execute(ctx context.Context, req toolproviders.Request) (to
 		"model_id": model,
 	}
 	buf, _ := json.Marshal(body)
-	url := "https://api.elevenlabs.io/v1/text-to-speech/" + voice + "?output_format=mp3_44100_128"
+	// Default ElevenLabs endpoint. Override via Config.Endpoint for
+	// self-hosted proxies.
+	baseURL := "https://api.elevenlabs.io/v1"
+	if req.Config.Endpoint != "" {
+		baseURL = strings.TrimRight(req.Config.Endpoint, "/")
+	}
+	url := baseURL + "/text-to-speech/" + voice + "?output_format=mp3_44100_128"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return toolproviders.Response{}, err

@@ -31,13 +31,20 @@ type providerCatalog struct {
 // builtinCatalog lists every tool category + provider pair that the binary
 // knows how to run. Providers not present in the runtime Registry are
 // filtered out at response time, so this is safe to list optimistically.
+//
+// NeedsURL semantics: the UI shows an "Endpoint" input field whenever
+// NeedsURL is true. For SearxNG the field is required (the provider errors
+// out if blank); for everything else it's optional and the provider falls
+// back to its official API when left blank. This lets admins point any
+// provider at a self-hosted proxy or third-party-compatible service without
+// forking the binary.
 var builtinCatalog = []categoryCatalog{
 	{
 		Name:  "web_search",
 		Label: "Web Search",
 		Providers: []providerCatalog{
-			{Name: "exa", Label: "Exa", NeedsKey: true, Models: []string{"auto", "neural", "keyword"}},
-			{Name: "brave", Label: "Brave Search", NeedsKey: true, Models: []string{"web"}},
+			{Name: "exa", Label: "Exa", NeedsKey: true, NeedsURL: true, Models: []string{"auto", "neural", "keyword"}},
+			{Name: "brave", Label: "Brave Search", NeedsKey: true, NeedsURL: true, Models: []string{"web"}},
 			{Name: "searxng", Label: "SearxNG (self-hosted)", NeedsURL: true, Models: []string{"default"}},
 			// "none" is a sentinel: when picked, web_search is not exposed
 			// to the model at all. There's no external backend — the model
@@ -55,17 +62,17 @@ var builtinCatalog = []categoryCatalog{
 			// quota, but the chain runtime treats blank as valid because
 			// the provider implements CredentialFree.
 			{Name: "direct", Label: "Direct (built-in)", Models: []string{"default"}},
-			{Name: "jina", Label: "Jina Reader", NeedsKey: true, Models: []string{"default"}},
-			{Name: "firecrawl", Label: "Firecrawl", NeedsKey: true, Models: []string{"default"}},
+			{Name: "jina", Label: "Jina Reader", NeedsKey: true, NeedsURL: true, Models: []string{"default"}},
+			{Name: "firecrawl", Label: "Firecrawl", NeedsKey: true, NeedsURL: true, Models: []string{"default"}},
 		},
 	},
 	{
 		Name:  "image_gen",
 		Label: "Image Generation",
 		Providers: []providerCatalog{
-			{Name: "openai", Label: "OpenAI", NeedsKey: true, Models: []string{"gpt-image-1", "dall-e-3"}},
-			{Name: "replicate", Label: "Replicate", NeedsKey: true, Models: []string{"flux-schnell", "flux-dev", "flux-pro", "sdxl", "ideogram"}},
-			{Name: "fal", Label: "Fal", NeedsKey: true, Models: []string{"flux-dev", "flux-schnell", "flux-pro"}},
+			{Name: "openai", Label: "OpenAI", NeedsKey: true, NeedsURL: true, Models: []string{"gpt-image-1", "dall-e-3"}},
+			{Name: "replicate", Label: "Replicate", NeedsKey: true, NeedsURL: true, Models: []string{"flux-schnell", "flux-dev", "flux-pro", "sdxl", "ideogram"}},
+			{Name: "fal", Label: "Fal", NeedsKey: true, NeedsURL: true, Models: []string{"flux-dev", "flux-schnell", "flux-pro"}},
 			// "none" is a sentinel: when picked, image_gen is not exposed
 			// to the model at all. The model falls back to its own native
 			// image-generation capability if it has one.
@@ -76,10 +83,10 @@ var builtinCatalog = []categoryCatalog{
 		Name:  "tts",
 		Label: "Text-to-Speech",
 		Providers: []providerCatalog{
-			{Name: "openai", Label: "OpenAI", NeedsKey: true, Models: []string{"tts-1", "tts-1-hd"}},
-			{Name: "elevenlabs", Label: "ElevenLabs", NeedsKey: true, Models: []string{"eleven_multilingual_v2", "eleven_turbo_v2_5", "eleven_flash_v2_5"}},
-			{Name: "fish", Label: "Fish Audio", NeedsKey: true, Models: []string{"s1", "speech-1.5", "speech-1.6"}},
-			{Name: "minimax", Label: "MiniMax", NeedsKey: true, Models: []string{"speech-02-hd", "speech-02-turbo"}},
+			{Name: "openai", Label: "OpenAI", NeedsKey: true, NeedsURL: true, Models: []string{"tts-1", "tts-1-hd"}},
+			{Name: "elevenlabs", Label: "ElevenLabs", NeedsKey: true, NeedsURL: true, Models: []string{"eleven_multilingual_v2", "eleven_turbo_v2_5", "eleven_flash_v2_5"}},
+			{Name: "fish", Label: "Fish Audio", NeedsKey: true, NeedsURL: true, Models: []string{"s1", "speech-1.5", "speech-1.6"}},
+			{Name: "minimax", Label: "MiniMax", NeedsKey: true, NeedsURL: true, Models: []string{"speech-02-hd", "speech-02-turbo"}},
 			// "none" is a sentinel: when picked, tts is not exposed to the
 			// model at all. The model falls back to its own native audio
 			// capability if it has one.

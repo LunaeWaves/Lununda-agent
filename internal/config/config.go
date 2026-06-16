@@ -243,6 +243,7 @@ type RateLimitCfg struct {
 
 type MemoryCfg struct {
 	AutoPersist AutoPersistCfg `json:"autoPersist,omitempty"`
+	AutoTitle   AutoTitleCfg   `json:"autoTitle,omitempty"`
 	FTS         FTSCfg         `json:"fts,omitempty"`
 }
 
@@ -250,6 +251,21 @@ type AutoPersistCfg struct {
 	Enabled     bool   `json:"enabled"`
 	EveryNTurns int    `json:"everyNTurns,omitempty"`
 	Model       string `json:"model,omitempty"`
+}
+
+// AutoTitleCfg drives the PostTurn hook that asks the LLM to summarise
+// the first N turns of a chat into a short title and writes it back to
+// sessions.title. Default-on so new installs get sensible titles out of
+// the box; the hook skips any session whose title is already non-empty
+// (i.e. the user renamed it manually), so auto-title never clobbers a
+// human choice.
+type AutoTitleCfg struct {
+	Enabled     bool   `json:"enabled"`
+	AfterRounds int    `json:"afterRounds,omitempty"` // default 3
+	Model       string `json:"model,omitempty"`       // default: agent's primary model
+	// MaxChars caps the generated title. Default 30 — long enough for a
+	// short summary, short enough to fit the sidebar without ellipsis.
+	MaxChars int `json:"maxChars,omitempty"`
 }
 
 type FTSCfg struct {
@@ -663,6 +679,9 @@ type ResolvedAgent struct {
 	AutoPersist *bool
 	// KB auto-query config forwarded from AgentFileConfig.KB.
 	KB *AgentKBCfg
+	// AutoTitle forwarded from MemoryCfg.AutoTitle. The PostTurn hook
+	// reads this to decide whether to fire the summariser.
+	AutoTitle AutoTitleCfg
 }
 
 type TeamEntry struct {

@@ -252,6 +252,12 @@ type SessionStore interface {
 	// project context onto inbound messages so the workspace store and
 	// sandbox both route to projects/<pid>/.
 	LookupSessionProject(ctx context.Context, agentID, sessionKey string) (string, error)
+	// LookupSessionTitle returns the user-set title of a session row
+	// (empty when the user never renamed it — ListWebSessions falls back
+	// to the first user message in that case). Used by the auto-title
+	// PostTurn hook to decide whether to fire: empty = auto-title may
+	// run, non-empty = the user already named it, leave alone.
+	LookupSessionTitle(ctx context.Context, agentID, sessionKey string) (string, error)
 }
 
 type Manager struct {
@@ -389,6 +395,17 @@ func (m *Manager) LookupSessionProject(sessionKey string) string {
 		return ""
 	}
 	return pid
+}
+
+// LookupSessionTitle returns the user-set title of a session row, or
+// "" when never renamed. The auto-title PostTurn hook reads this to
+// decide whether to fire — empty = OK to summarise, non-empty =
+// user named it, leave alone.
+func (m *Manager) LookupSessionTitle(sessionKey string) (string, error) {
+	if m.store == nil || sessionKey == "" {
+		return "", nil
+	}
+	return m.store.LookupSessionTitle(m.ctx(), m.agentID, sessionKey)
 }
 
 // LookupSessionTriple forwards to the store's session_key → triple

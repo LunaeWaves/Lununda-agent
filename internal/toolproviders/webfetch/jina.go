@@ -37,7 +37,13 @@ func (j *Jina) Execute(ctx context.Context, req toolproviders.Request) (toolprov
 
 	// r.jina.ai expects the target URL appended verbatim (not query-
 	// escaped) — query-escaping breaks their router and yields 4xx.
-	target := jinaBase + strings.TrimSpace(a.URL)
+	// Default Jina endpoint. Override via Config.Endpoint for self-hosted
+	// Jina-compatible proxies.
+	base := jinaBase
+	if req.Config.Endpoint != "" {
+		base = strings.TrimRight(req.Config.Endpoint, "/") + "/"
+	}
+	target := base + strings.TrimSpace(a.URL)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return toolproviders.Response{}, err

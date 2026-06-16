@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
@@ -54,7 +55,13 @@ func (f *Fal) Execute(ctx context.Context, req toolproviders.Request) (toolprovi
 		body["image_size"] = a.Size
 	}
 	buf, _ := json.Marshal(body)
-	url := "https://fal.run/" + path
+	// Default Fal endpoint. Override via Config.Endpoint for self-hosted
+	// proxies or Fal-compatible third-party services.
+	baseURL := "https://fal.run"
+	if req.Config.Endpoint != "" {
+		baseURL = strings.TrimRight(req.Config.Endpoint, "/")
+	}
+	url := baseURL + "/" + path
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return toolproviders.Response{}, err

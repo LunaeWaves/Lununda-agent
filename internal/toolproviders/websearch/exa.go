@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
@@ -40,7 +41,13 @@ func (e *Exa) Execute(ctx context.Context, req toolproviders.Request) (toolprovi
 		"type":       mode,
 	}
 	buf, _ := json.Marshal(body)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.exa.ai/search", bytes.NewReader(buf))
+	// Default Exa endpoint. Override via Config.Endpoint for self-hosted
+	// Exa-compatible services.
+	endpoint := "https://api.exa.ai/search"
+	if req.Config.Endpoint != "" {
+		endpoint = strings.TrimRight(req.Config.Endpoint, "/") + "/search"
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(buf))
 	if err != nil {
 		return toolproviders.Response{}, err
 	}

@@ -128,6 +128,20 @@ func (a *StoreAdapter) LookupSessionProject(ctx context.Context, agentID, sessio
 	return pid, nil
 }
 
+// LookupSessionTitle mirrors LookupSessionProject's not-found-as-empty
+// convention so the auto-title hook can branch on "" without juggling
+// error types.
+func (a *StoreAdapter) LookupSessionTitle(ctx context.Context, agentID, sessionKey string) (string, error) {
+	title, err := a.st.LookupSessionTitle(ctx, a.userID, agentID, sessionKey)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return "", nil
+		}
+		return "", err
+	}
+	return title, nil
+}
+
 // AppendMessage persists one turn into session_messages — the append-only
 // archive parallel to the sessions blob. Called from Session.Append on
 // every Append, in addition to SaveSession.

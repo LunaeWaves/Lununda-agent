@@ -431,3 +431,121 @@ func stripJSONFence(s string) string {
 	s = strings.TrimSuffix(strings.TrimSpace(s), "```")
 	return strings.TrimSpace(s)
 }
+
+// maybeAutoTitle asks the LLM to summarise the first N turns of the
+// conversation into a short title and writes it to sessions.title.
+// Called once per session at AutoTitleCfg.AfterRounds.
+//
+// Skips silently when:
+//   - the session already has a non-empty title (user renamed it, or a
+//     previous auto-title run landed)
+//   - the LLM call fails (network error, bad model, etc.)
+//   - the LLM returns an empty/whitespace title
+//
+// This is best-effort background work — it must never break the chat
+// flow. Every error path logs at debug/warn level and returns.
+func (a *Agent) maybeAutoTitle(sessionKey string, messages []provider.Message) {
+	if a.dataStore == nil {
+		return
+	}
+	ctx := context.Background()
+	// Look up the current title via the session manager. ListWebSessions
+	// is overkill (scans every session); we only need this one.
+	current, err := a.sessions.LookupSessionTitle(sessionKey)
+	if err != nil {
+		slog.Debug("auto-title: lookup failed", "agent", a.name, "session", sessionKey, "error", err)
+		return
+	}
+	if strings.TrimSpace(current) != "" {
+		// Already titled — user renamed it OR a previous auto-title run
+		// landed. Don't clobber.
+		return
+	}
+
+	// Build a compact transcript for the summariser. Skip system / tool
+	// messages — they're scaffolding the LLM shouldn't base a title on.
+	const maxMessages = 12
+	var sb strings.Builder
+	count := 0
+	for _, m := range messages {
+		if m.Role != "user" && m.Role != "assistant" {
+			continue
+		}
+		text := strings.TrimSpace(m.TextContent())
+		if text == "" {
+			continue
+		}
+		// Truncate long messages so the prompt stays cheap.
+		if len(text) > 600 {
+			text = text[:600] + "…"
+		}
+		who := "User"
+		if m.Role == "assistant" {
+			who = "Assistant"
+		}
+		sb.WriteString(who)
+		sb.WriteString(": ")
+		sb.WriteString(text)
+		sb.WriteString("\n")
+		count++
+		if count >= maxMessages {
+			break
+		}
+	}
+	if count == 0 {
+		return
+	}
+
+	model := a.autoTitleCfg.Model
+	if model == "" {
+		model = a.model
+	}
+	maxChars := a.autoTitleCfg.MaxChars
+	if maxChars == 0 {
+		maxChars = 30
+	}
+
+	prompt := fmt.Sprintf(
+		"Summarize the following conversation in a single short title. "+
+			"Constraints: at most %d characters, no quotes, no trailing period, "+
+			"no emoji. Respond with the title and nothing else.\n\n%s",
+		maxChars, sb.String())
+	summaryMessages := []provider.Message{
+		{Role: "user", Content: prompt},
+	}
+	resp, err := a.provider.Chat(ctx, summaryMessages, nil, model, 256, 0.3)
+	if err != nil {
+		slog.Debug("auto-title: LLM call failed", "agent", a.name, "session", sessionKey, "error", err)
+		return
+	}
+	title := cleanAutoTitle(resp.Content, maxChars)
+	if title == "" {
+		return
+	}
+	if err := a.sessions.RenameSessionByID(sessionKey, title); err != nil {
+		slog.Debug("auto-title: rename failed", "agent", a.name, "session", sessionKey, "error", err)
+		return
+	}
+	slog.Info("auto-title: wrote", "agent", a.name, "session", sessionKey, "title", title)
+}
+
+// cleanAutoTitle strips the model's tendency to wrap the title in
+// quotes / backticks and truncates to maxChars on a rune boundary.
+func cleanAutoTitle(s string, maxChars int) string {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "\"'`")
+	s = strings.TrimSpace(s)
+	// Collapse newlines + tabs to spaces — the title is one line.
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\t", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	if maxChars > 0 {
+		runes := []rune(s)
+		if len(runes) > maxChars {
+			s = string(runes[:maxChars])
+		}
+	}
+	return strings.TrimSpace(s)
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
@@ -65,7 +66,13 @@ func (r *Replicate) Execute(ctx context.Context, req toolproviders.Request) (too
 	}
 	buf, _ := json.Marshal(map[string]any{"input": input})
 
-	url := "https://api.replicate.com/v1/models/" + path + "/predictions"
+	// Default Replicate endpoint. Override via Config.Endpoint for
+	// self-hosted Replicate-compatible services.
+	baseURL := "https://api.replicate.com/v1"
+	if req.Config.Endpoint != "" {
+		baseURL = strings.TrimRight(req.Config.Endpoint, "/")
+	}
+	url := baseURL + "/models/" + path + "/predictions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return toolproviders.Response{}, err

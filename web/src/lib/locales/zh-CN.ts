@@ -540,6 +540,8 @@ const zhCN: Record<string, string> = {
   "tools.providerLabel": "提供商",
   "tools.apiKeyLabel": "API 密钥",
   "tools.endpoint": "端点",
+  "tools.endpointRequired": "（必填）",
+  "tools.endpointOptional": "（可选，留空使用官方 API）",
   "tools.defaultModel": "默认模型",
   "tools.showAdvanced": "显示高级选项",
   "tools.hideAdvanced": "隐藏高级选项",

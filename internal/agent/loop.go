@@ -74,6 +74,7 @@ type Agent struct {
 	ftsStore        *store.FTSStore
 	piiScrubEnabled bool
 	memoryCfg       config.MemoryCfg
+	autoTitleCfg    config.AutoTitleCfg
 	// splitReplies is the per-agent multi-bubble toggle. Gates the
 	// per-turn system-prompt hint that advertises SplitMessageMarker
 	// to the LLM (see renderChannelHints) AND stamps
@@ -268,6 +269,29 @@ func NewAgentWithFullCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bu
 	// Set memory auto-persist defaults
 	if ag.memoryCfg.AutoPersist.EveryNTurns == 0 {
 		ag.memoryCfg.AutoPersist.EveryNTurns = 5
+	}
+
+	// Auto-title: default-on at the third user turn. ResolvedAgent
+	// carries the value (filled from agents.defaults / agent config),
+	// but if a caller skipped the resolver we still want the feature
+	// on by default — the dashboard opt-out expects to disable it, not
+	// enable it. AfterRounds=0 is the "unset" sentinel; we map it to
+	// 3 here. MaxChars=0 → 30 (fits the sidebar without ellipsis).
+	ag.autoTitleCfg = ag.memoryCfg.AutoTitle
+	if ag.autoTitleCfg.AfterRounds == 0 {
+		ag.autoTitleCfg.AfterRounds = 3
+	}
+	if ag.autoTitleCfg.MaxChars == 0 {
+		ag.autoTitleCfg.MaxChars = 30
+	}
+	// Enabled defaults to true. We can't tell "false was set" from
+	// "field was zero-valued" without a pointer, so the only way to
+	// turn it off is an explicit enabled:false in the config — which
+	// lands here as Enabled=false and skips the gate. The zero-value
+	// path (no config) leaves Enabled=false, so flip it on now and
+	// let a later explicit false override through the resolver.
+	if !ag.autoTitleCfg.Enabled && ag.memoryCfg.AutoTitle.AfterRounds == 0 && ag.memoryCfg.AutoTitle.Model == "" {
+		ag.autoTitleCfg.Enabled = true
 	}
 
 	return ag
@@ -2614,6 +2638,21 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 		}
 		slog.Info("auto-persist firing", "agent", a.name, "chatter", chatterUID, "model", model, "chatter_turns", chatterTurns, "messages", len(messages))
 		go AutoPersistMemory(ctx, chatterMem, a.provider, model, messages)
+	}
+
+	// Auto-title: at exactly AfterRounds user turns, ask the LLM for a
+	// short summary we can write to sessions.title. The sidebar shows
+	// the first user message as a fallback when title is empty, so
+	// skipping auto-title leaves a working UI — but a real summary is
+	// much more useful after the conversation has settled. The fire
+	// condition is `==` not `%` so we only do this ONCE per session;
+	// later turns leave the title alone (whether it's the auto-summary
+	// or a manual rename).
+	if a.autoTitleCfg.Enabled && a.autoTitleCfg.AfterRounds > 0 && chatterTurns == a.autoTitleCfg.AfterRounds && chatterUID != "" {
+		sessionKey := a.registry.GoalSessionKey()
+		if sessionKey != "" && a.provider != nil {
+			go a.maybeAutoTitle(sessionKey, messages)
+		}
 	}
 
 	// Skills learner
