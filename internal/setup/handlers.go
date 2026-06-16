@@ -1480,22 +1480,21 @@ func (s *Server) handleChatTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the agent-relative path. Project chats live under
-	// projects/<pid>/<chat>/, plain chats under sessions/<chat>/. The
-	// agent's workdir resolves bare filenames to its session subdir, so
-	// a `write_file("todo.md", ...)` from the agent lands at one of
-	// these two paths — same shape that handleAgentFileList already
-	// surfaces.
-	chatID := s.workspaceSessionScope(r.Context(), ag.Name(), sessionID)
+	// projects/<pid>/<sessionKey>/, plain chats under
+	// sessions/<sessionKey>/. The sessionKey (the raw URL `?sessionId=`
+	// token) — NOT the channel-level chat_id — is what the agent runtime
+	// now writes under (registry.workspaceScopeKey in bindSession), so
+	// reading from the same key keeps each conversation's workspace
+	// isolated: an IM `/new` mints a fresh session_key under a reused
+	// chat_id, and reading by chat_id would let the new session see the
+	// previous session's todo.md.
 	projectID := s.resolveSessionProject(r.Context(), r, ag.Name(), sessionID)
 	var relPath string
 	switch {
-	case projectID != "" && chatID != "":
-		relPath = "projects/" + projectID + "/" + chatID + "/todo.md"
-	case chatID != "":
-		relPath = "sessions/" + chatID + "/todo.md"
+	case projectID != "":
+		relPath = "projects/" + projectID + "/" + sessionID + "/todo.md"
 	default:
-		jsonResponse(w, http.StatusOK, map[string]any{"items": []any{}, "raw": ""})
-		return
+		relPath = "sessions/" + sessionID + "/todo.md"
 	}
 
 	raw, err := s.readWorkspaceFileBytes(r.Context(), ag.Name(), relPath)

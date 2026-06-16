@@ -120,6 +120,16 @@ type Registry struct {
 	// the agent loop via SetSessionID; an empty value falls back to
 	// agent-shared scope (admin uploads, fixtures, tests).
 	sessionID string
+	// workspaceScopeKey, when set, overrides sessionID for workspace
+	// path scoping only. The agent loop sets this to the durable
+	// session.SessionKey so file artifacts are namespaced by
+	// conversation, not by the channel-level chat identifier — IM
+	// `/new` mints a new session_key under a reused chat_id, and
+	// without this override every IM session on a thread would share
+	// one `sessions/<chat_id>/` directory. Other sessionID consumers
+	// (sandbox container cache, message context for cron) still see
+	// the channel-level chat_id.
+	workspaceScopeKey string
 	// projectID, when set, overrides sessionID-based scoping so all
 	// tool calls land in workspaces/<agent>/projects/<pid>/. That's
 	// the whole value of "project": notes/files persist across the
@@ -411,6 +421,14 @@ func (r *Registry) SetSessionID(sessionID string) {
 	r.sessionID = sessionID
 }
 
+// SetWorkspaceScopeKey overrides the workspace path segment with the
+// durable session_key. Set per-turn right after SetSessionID; an empty
+// value (the default) makes scopeSessionID fall back to sessionID, so
+// callers that don't care about the IM-`/new` collision stay unchanged.
+func (r *Registry) SetWorkspaceScopeKey(key string) {
+	r.workspaceScopeKey = key
+}
+
 // SetCallerIsAdmin records whether the chatter driving this turn is
 // the agent owner or a per-channel admin. The agent loop sets this
 // per-turn (right after bindSession) from agent.isAdminChatter(msg).
@@ -505,10 +523,15 @@ func (r *Registry) SetCodingRootScope(v bool) {
 
 // scopeSessionID is the session segment the file tools pass to the
 // workspace store. It collapses to "" in coding-root-scope mode so writes
-// land at the project root the dev server serves.
+// land at the project root the dev server serves. When workspaceScopeKey
+// is set it wins over sessionID — that's how IM `/new` keeps each new
+// session's artifacts isolated even though chat_id stays the same.
 func (r *Registry) scopeSessionID() string {
 	if r.codingRootScope {
 		return ""
+	}
+	if r.workspaceScopeKey != "" {
+		return r.workspaceScopeKey
 	}
 	return r.sessionID
 }

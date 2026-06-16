@@ -1082,8 +1082,14 @@ func (s *Server) fileScopeForRequest(r *http.Request, agentID string) fileScope 
 		}
 		return rejectAllScope()
 	}
-	chatID := s.workspaceSessionScope(r.Context(), agentID, rawSession)
-	if chatID == "" {
+	// Authorize: confirm rawSession (a session_key) belongs to THIS
+	// caller. We don't use the resolved chatID for path construction
+	// anymore — the agent runtime writes files under sessions/<sessionKey>/
+	// (registry.workspaceScopeKey in bindSession), so we mirror that here
+	// to keep reads and writes on the same namespace. Reading by chat_id
+	// would let two IM sessions on the same thread see each other's
+	// files because `/new` mints a fresh session_key but reuses chat_id.
+	if c := s.workspaceSessionScope(r.Context(), agentID, rawSession); c == "" {
 		// sessionId didn't resolve to a chat THIS caller owns — either
 		// it doesn't exist or it belongs to another user. Either way,
 		// surface nothing. Pre-fix behavior was to widen back to
@@ -1092,7 +1098,7 @@ func (s *Server) fileScopeForRequest(r *http.Request, agentID string) fileScope 
 		return rejectAllScope()
 	}
 	if pid := s.resolveSessionProject(r.Context(), r, agentID, rawSession); pid != "" {
-		ownPrefix := "projects/" + pid + "/" + chatID + "/"
+		ownPrefix := "projects/" + pid + "/" + rawSession + "/"
 		rootPrefix := "projects/" + pid + "/"
 		return fileScope{
 			acceptPath: func(p string) bool {
@@ -1107,13 +1113,13 @@ func (s *Server) fileScopeForRequest(r *http.Request, agentID string) fileScope 
 				}
 				return false
 			},
-			archiveSuffix: pid + "-" + chatID,
+			archiveSuffix: pid + "-" + rawSession,
 		}
 	}
-	prefix := "sessions/" + chatID + "/"
+	prefix := "sessions/" + rawSession + "/"
 	return fileScope{
 		acceptPath:    func(p string) bool { return strings.HasPrefix(p, prefix) },
-		archiveSuffix: chatID,
+		archiveSuffix: rawSession,
 	}
 }
 
@@ -1403,14 +1409,21 @@ func (s *Server) handleAgentFileUpload(w http.ResponseWriter, r *http.Request) {
 	// sessionId scopes the upload to the sandbox mount the agent actually
 	// sees. We resolve the session to find its project_id so uploads in
 	// a project chat land in projects/<pid>/ alongside the agent's own
-	// writes; loose chats keep the legacy sessions/<chat>/ subdir.
+	// writes; loose chats use sessions/<sessionKey>/ — the same namespace
+	// the agent runtime writes to (registry.workspaceScopeKey), so IM
+	// `/new` sessions stay isolated instead of piling onto a shared
+	// chat_id subtree.
 	sessionKey := r.URL.Query().Get("sessionId")
-	sessionID := s.workspaceSessionScope(r.Context(), id, sessionKey)
+	if c := s.workspaceSessionScope(r.Context(), id, sessionKey); c == "" && sessionKey != "" {
+		jsonResponse(w, http.StatusForbidden, map[string]any{"error": "session not accessible"})
+		return
+	}
 	projectID := s.resolveSessionProject(r.Context(), r, id, sessionKey)
+	// Project chats don't use the per-chat subdir — clear sessionKey so
+	// the workspace store routes to projects/<pid>/.
+	uploadScope := sessionKey
 	if projectID != "" {
-		// Project sessions don't use the per-chat subdir — clear it so
-		// the workspace store routes to projects/<pid>/.
-		sessionID = ""
+		uploadScope = ""
 	}
 	saved := make([]map[string]any, 0, len(headers))
 	for _, h := range headers {
@@ -1425,7 +1438,7 @@ func (s *Server) handleAgentFileUpload(w http.ResponseWriter, r *http.Request) {
 			jsonResponse(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 			return
 		}
-		if err := s.workspaceStore.Put(r.Context(), id, projectID, sessionID, h.Filename, strings.NewReader(string(data)), int64(len(data)), ""); err != nil {
+		if err := s.workspaceStore.Put(r.Context(), id, projectID, uploadScope, h.Filename, strings.NewReader(string(data)), int64(len(data)), ""); err != nil {
 			jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
 		}

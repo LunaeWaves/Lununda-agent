@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,12 +70,19 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 		}
 
 	case "/new", "/reset":
-		// Clear any goal attached to the OLD session_key — design
-		// §6 chose "fresh session = clean state" over "goal follows
-		// chat". Runs before the web short-circuit too, so frontend-
-		// driven /new also reaps the goal row.
+		// Resolve the OLD session_key before minting the new one — used
+		// both to clear any attached goal and (for IM channels) to
+		// relocate the chat's workspace artifacts from the legacy
+		// chat_id-namespaced path onto the session_key-namepaced path,
+		// so the prior conversation's files stay reachable when the user
+		// reopens that session and the new session starts with a clean
+		// workspace. Web short-circuits below before any of this runs.
+		oldKey := a.resolveSessionKey(msg)
 		if a.goalStore != nil {
-			oldKey := a.resolveSessionKey(msg)
+			// Clear any goal attached to the OLD session_key — design
+			// §6 chose "fresh session = clean state" over "goal follows
+			// chat". Runs before the web short-circuit too, so frontend-
+			// driven /new also reaps the goal row.
 			a.clearGoalForSession(oldKey)
 		}
 		if msg.Channel == "web" {
@@ -86,6 +95,21 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 		// resolve to the new (max updated_at) row via Manager.Get's
 		// active-session lookup.
 		a.sessions.OpenNewSession(msg.Channel, msg.AccountID, msg.ChatID)
+		// IM channels reuse the physical chat_id across `/new`s, so the
+		// pre-fix workspace layout (`sessions/<chat_id>/`) let every
+		// sibling session read each other's files. Relocate the old
+		// chat_id subtree onto the now-durable oldKey so future writes
+		// (scoped by session_key via registry.workspaceScopeKey) keep
+		// each session isolated AND the prior session's artifacts stay
+		// reachable when the user revisits it. No-op when oldKey is
+		// empty (brand-new thread) or already equals chat_id (web-style
+		// keys). Best-effort: errors only log, /new still succeeds.
+		if a.workspaceStore != nil && oldKey != "" && oldKey != msg.ChatID {
+			if err := a.workspaceStore.Move(context.Background(), a.name, "", msg.ChatID, "", oldKey); err != nil {
+				slog.Warn("slash /new: workspace move failed",
+					"agent", a.name, "from_chat_id", msg.ChatID, "to_session_key", oldKey, "error", err)
+			}
+		}
 		return slashResult{handled: true, reply: "🔄 New session started. Previous conversation kept as history."}
 
 	case "/retry":

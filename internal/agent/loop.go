@@ -171,11 +171,18 @@ func (a *Agent) SetSandboxPool(p sandbox.ExecutorPool) {
 // can stamp it onto persisted rows for later replay. Called at the top
 // of HandleMessage / HandleMessageStream before any tool runs.
 //
+// workspaceScopeKey is the durable session.SessionKey — it overrides
+// sessionID for workspace path scoping only, so IM `/new` (which reuses
+// the channel chat_id across sessions) still gets per-session file
+// isolation. Pass "" to fall back to the legacy sessionID-as-scope
+// behavior (web chats where the two are equal anyway).
+//
 // Mutating the shared registry across concurrent chats would race, but
 // the current invariant is one chat-in-flight per agent — the gateway
 // serializes per-agent turns. Documenting it here in case that changes.
-func (a *Agent) bindSession(ctx context.Context, channel, sessionID, projectID string) {
+func (a *Agent) bindSession(ctx context.Context, channel, sessionID, projectID, workspaceScopeKey string) {
 	a.registry.SetSessionID(sessionID)
+	a.registry.SetWorkspaceScopeKey(workspaceScopeKey)
 	a.registry.SetProjectID(projectID)
 	// Coding agents (those with a project runtime wired) treat a project
 	// as ONE shared app tree: file tools address the project root so the
@@ -1868,7 +1875,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// + writes get session-scoped paths and (when a sandbox pool is
 	// wired) the executor used by exec/read_file/list_dir is tied to a
 	// session-private container.
-	a.bindSession(ctx, msg.Channel, msg.ChatID, msg.ProjectID)
+	a.bindSession(ctx, msg.Channel, msg.ChatID, msg.ProjectID, sess.SessionKey())
 	// Flag whether this turn's chatter is the agent owner / channel
 	// admin. File tools use this to refuse identity-file reads from
 	// regular chatters (SOUL/IDENTITY/BOOTSTRAP/... leak as verbatim
@@ -2690,7 +2697,7 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 	// for DBStore session writes — Session.ctx() rebuilds ctx from its
 	// own fields, so the chatter has to live on sess itself.
 	sess.SetChatter(chatterUID)
-	a.bindSession(ctx, msg.Channel, msg.ChatID, msg.ProjectID)
+	a.bindSession(ctx, msg.Channel, msg.ChatID, msg.ProjectID, sess.SessionKey())
 	a.registry.SetCallerIsAdmin(a.isAdminChatter(msg))
 	a.registry.SetGoalSessionKey(sess.SessionKey())
 	// Per-user file writes (USER.md / MEMORY.md) need to land in the

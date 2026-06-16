@@ -1151,11 +1151,14 @@ export function ChatScreen() {
     setSubagentProgress(null);
     // Refresh todo.md alongside the history fetch. We don't gate the
     // rest of the load on it — a 404 (no todo.md yet) is the normal
-    // empty-session case.
-    getChatTodo(selectedAgent, sessionId)
-      .then((todo) => setTodoItems(todo.items))
-      .catch(() => setTodoItems([]));
+    // empty-session case. Guard with the same `aborted` flag the history
+    // promise uses — otherwise a slow todo fetch from a previous session
+    // can resolve after the cleanup runs and overwrite the new session's
+    // empty list with the old session's todo items.
     let aborted = false;
+    getChatTodo(selectedAgent, sessionId)
+      .then((todo) => { if (!aborted) setTodoItems(todo.items); })
+      .catch(() => { if (!aborted) setTodoItems([]); });
     getChatHistoryWithCursor(selectedAgent, sessionId)
       .then(async ({ history, latestEventSeq }) => {
         if (aborted) return;
@@ -1376,7 +1379,13 @@ export function ChatScreen() {
     // attach newly-created / modified files (PDFs, images, …) to the
     // final reply. Fire-and-forget; if the snapshot fails we just won't
     // surface files this turn. `path → size|modTime` key.
-    const preTurnFilesPromise = listAgentFiles(selectedAgent)
+    // Scope by session/project so files written by other concurrent
+    // chats (cron, heartbeat, parallel tabs) don't leak into this turn's
+    // diff — without this, owner callers hit the agent-wide fallback in
+    // handleAgentFileList and pick up every session's artifacts.
+    const preTurnFilesPromise = (projectIdHint
+      ? listAgentFiles(selectedAgent, undefined, projectIdHint)
+      : listAgentFiles(selectedAgent, sessionId))
       .then((items) => {
         const m = new Map<string, string>();
         for (const f of items) m.set(f.path, `${f.size}|${f.modTime}`);
@@ -1678,7 +1687,9 @@ export function ChatScreen() {
       // surfaced too — `turnFiles` only catches write_file tool calls
       // with relative, non-identity paths, which misses most real-
       // world flows. Union both sources by path.
-      const postTurnFiles = await listAgentFiles(selectedAgent).catch(() => []);
+      const postTurnFiles = await (projectIdHint
+        ? listAgentFiles(selectedAgent, undefined, projectIdHint)
+        : listAgentFiles(selectedAgent, sessionId)).catch(() => []);
       const preSnap = await preTurnFilesPromise;
       const diffFiles: ProducedFile[] = [];
       for (const f of postTurnFiles) {
