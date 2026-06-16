@@ -172,7 +172,7 @@ table and is edited through the dashboard or `lununda agents config`.
   building block for "user buys a bot" flows. Per-user `agent_quota`
   caps how many agents a non-admin can self-create
   (`-1` = unlimited, `0` = admin-provisioned only).
-- App-user provisioning `POST /v1/users` — third-party apps mint a stable lununda user_id per end-user, idempotent on `(api_key, external_id)`. Or pass `user` on `/v1/chat/completions` (or `X-Fastclaw-End-User` header) for lazy mint on first call
+- App-user provisioning `POST /v1/users` — third-party apps mint a stable lununda user_id per end-user, idempotent on `(api_key, external_id)`. Or pass `user` on `/v1/chat/completions` (or `X-Lununda-End-User` header) for lazy mint on first call
 
 ## Configuration
 
@@ -329,7 +329,7 @@ Issue and manage programmatic credentials for external integrations.
 | type | Scope | Use case |
 |------|-------|----------|
 | `admin` | Full platform access, all agents | Admin automation, CI/CD |
-| `user` | Owner's agents; supports `X-Fastclaw-End-User` for app_user provisioning | SaaS proxy layer, multi-tenant apps |
+| `user` | Owner's agents; supports `X-Lununda-End-User` for app_user provisioning | SaaS proxy layer, multi-tenant apps |
 | `agent` | Explicit agent list only; cannot create agents | Bots, single-purpose integrations |
 
 #### Commands
@@ -355,12 +355,12 @@ lununda apikey rotate --id <apikey-id>
 
 #### Multi-tenant app_user flow
 
-A `type=user` key combined with the `X-Fastclaw-End-User` header enables
+A `type=user` key combined with the `X-Lununda-End-User` header enables
 per-end-user data isolation without pre-registering users in Lununda Agent:
 
 ```
 Authorization: Bearer <user-key-token>
-X-Fastclaw-End-User: <your-app-user-id>
+X-Lununda-End-User: <your-app-user-id>
 ```
 
 Lununda Agent lazily mints a stable internal user for each unique

@@ -6,7 +6,7 @@ This compose brings up:
 - **MinIO** — S3-compatible bucket for workspace artifacts (auto-creates `lununda` bucket)
 - **pod-a** on `:18953` and **pod-b** on `:18954` — identical gateway binaries, pointed at the same DB and S3
 
-Both pods use `FASTCLAW_AUTH_TOKEN=dev-admin-token`. Any admin API call takes `Authorization: Bearer dev-admin-token`.
+Both pods use `LUNUNDA_AUTH_TOKEN=dev-admin-token`. Any admin API call takes `Authorization: Bearer dev-admin-token`.
 
 ## Run
 
@@ -131,7 +131,7 @@ workspace files are all in Postgres + MinIO.
   and unit-tested, but live behavior requires either the Docker backend
   (which needs docker-in-docker inside the pod; see
   `internal/sandbox/docker.go` for the image expectations) or a live E2B
-  API key. Set `FASTCLAW_SANDBOX_BACKEND=docker` or `e2b` plus an `E2B_API_KEY`
+  API key. Set `LUNUNDA_SANDBOX_BACKEND=docker` or `e2b` plus an `E2B_API_KEY`
   to test.
 
 - **Chat flow** — this compose ships the gateway bare. Hook it up to your

@@ -12,7 +12,7 @@
 ##     --username alice --email alice@example.com --password 'hunter2' \
 ##     --role super_admin
 ##
-## All runtime config goes through FASTCLAW_* env vars — no config file.
+## All runtime config goes through LUNUNDA_* env vars — no config file.
 ##
 services:
   lununda:
@@ -22,7 +22,7 @@ services:
     image: lununda/lununda:latest
     restart: unless-stopped
     ports:
-      - "${FASTCLAW_PORT:-18953}:18953"
+      - "${LUNUNDA_PORT:-18953}:18953"
     volumes:
       - lununda-data:/data/.lununda
     environment:
@@ -31,20 +31,20 @@ services:
       # without it the container runs UTC and agents whose chatters never
       # set a timezone get UTC wall clocks and UTC-fired schedules.
       TZ: "${TZ:-Asia/Shanghai}"
-      # FASTCLAW_HOME — sqlite db path + sandbox root + skill cache live here
-      FASTCLAW_HOME: /data/.lununda
+      # LUNUNDA_HOME — sqlite db path + sandbox root + skill cache live here
+      LUNUNDA_HOME: /data/.lununda
       # Bind to all interfaces so the host port mapping works
-      FASTCLAW_BIND: all
-      FASTCLAW_PORT: "18953"
+      LUNUNDA_BIND: all
+      LUNUNDA_PORT: "18953"
       # Postgres backend (sqlite would also work; use it by clearing
       # these two and removing the postgres service below)
-      FASTCLAW_STORAGE_TYPE: postgres
-      FASTCLAW_STORAGE_DSN: "postgres://lununda:${POSTGRES_PASSWORD:-lununda-secret}@postgres:5432/lununda?sslmode=disable"
-      FASTCLAW_STORAGE_AUTO_MIGRATE: "true"
+      LUNUNDA_STORAGE_TYPE: postgres
+      LUNUNDA_STORAGE_DSN: "postgres://lununda:${POSTGRES_PASSWORD:-lununda-secret}@postgres:5432/lununda?sslmode=disable"
+      LUNUNDA_STORAGE_AUTO_MIGRATE: "true"
       # Sandbox (optional; uncomment to enable)
-      # FASTCLAW_SANDBOX_ENABLED: "true"
-      # FASTCLAW_SANDBOX_BACKEND: docker
-      # FASTCLAW_SANDBOX_IMAGE: python:3.12-slim
+      # LUNUNDA_SANDBOX_ENABLED: "true"
+      # LUNUNDA_SANDBOX_BACKEND: docker
+      # LUNUNDA_SANDBOX_IMAGE: python:3.12-slim
     depends_on:
       postgres:
         condition: service_healthy

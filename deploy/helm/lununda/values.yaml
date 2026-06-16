@@ -102,7 +102,7 @@ ingress:
   ## When using ALB Ingress (alb.ingress.kubernetes.io/*), override this map.
   annotations: {}
 
-## Extra FASTCLAW_* env vars passed through to the ConfigMap.
+## Extra LUNUNDA_* env vars passed through to the ConfigMap.
 extraEnv: {}
-  # FASTCLAW_LOG_LEVEL: "info"
-  # FASTCLAW_DAEMON_IDLE_TIMEOUT_SECONDS: "300"
+  # LUNUNDA_LOG_LEVEL: "info"
+  # LUNUNDA_DAEMON_IDLE_TIMEOUT_SECONDS: "300"

@@ -20,7 +20,7 @@ import (
 // rebinding the request identity to a lununda app_user keyed on
 // (apikey_id, user) so sessions and agent_files partition per
 // end-user. Clients that prefer a header-only contract can use
-// X-Lununda Agent-End-User instead — both arrive at the same code path.
+// X-Lununda-End-User instead — both arrive at the same code path.
 type chatCompletionRequest struct {
 	Model    string        `json:"model"`
 	Messages []chatMessage `json:"messages"`
@@ -179,7 +179,7 @@ func (s *Server) HandleChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 	// OpenAI's `user` body field, when present on an api_key call,
 	// rebinds the identity to the corresponding app_user (lazy mint).
-	// Header X-Lununda Agent-End-User does the same job pre-handler in the
+	// Header X-Lununda-End-User does the same job pre-handler in the
 	// auth middleware; we run this *after* the middleware so the body
 	// value wins iff both are present (the body field is more
 	// specific to this call than a static header). Errors here are

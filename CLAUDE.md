@@ -48,7 +48,7 @@ internal/
   channels/            IM bridges: Telegram, Discord, Slack, Feishu, LINE, WeChat, Web
   provider/            LLM provider abstraction (OpenAI-compatible streaming)
   session/             Per-(user, agent) chat history manager
-  config/              Bootstrap config from FASTCLAW_* env vars (no config file)
+  config/              Bootstrap config from LUNUNDA_* env vars (no config file)
   sandbox/             Isolated code execution: Docker, E2B, Boxlite backends
   mcp/                 MCP server client (stdio + HTTP transports)
   plugin/              JSON-RPC subprocess plugin system
@@ -77,7 +77,7 @@ workspace/             Default agent template files (SOUL.md, AGENTS.md, etc.)
 
 ### Config Resolution
 
-Bootstrap settings come from `FASTCLAW_*` env vars only. All runtime config (providers, models, channels, agent settings) lives in the `configs` DB table with a 3-tier scope system: `system` → `user` → `agent`. The `scope` package merges these layers so agent-level overrides shadow user-level, which shadow system-level.
+Bootstrap settings come from `LUNUNDA_*` env vars only. All runtime config (providers, models, channels, agent settings) lives in the `configs` DB table with a 3-tier scope system: `system` → `user` → `agent`. The `scope` package merges these layers so agent-level overrides shadow user-level, which shadow system-level.
 
 ### Agent System Prompt
 
@@ -90,7 +90,7 @@ Built by `agent.ContextBuilder` from template files in order: AGENTS.md → BOOT
 ## Conventions
 
 - Go 1.25, `CGO_ENABLED=0` (pure-Go SQLite driver: `modernc.org/sqlite`).
-- No config file — everything is env vars (`FASTCLAW_*`) or database.
+- No config file — everything is env vars (`LUNUNDA_*`) or database.
 - Agent identity files (SOUL.md, IDENTITY.md, etc.) are stored in the `agent_files` DB table, not on disk.
 - Skills on disk live under `~/.lununda/skills/` (global) or `~/.lununda/agents/<id>/agent/skills/` (agent-private).
 - The `internal/agent/bundled_skills/` directory is overwritten by `make bundle-skills` from `skills/` — don't edit it directly.

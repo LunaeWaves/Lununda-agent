@@ -280,7 +280,7 @@ func (r *Resolver) SwitchToAppUser(ctx context.Context, ident Identity, external
 // (apikey, header) and switch the request identity to it. Sessions and
 // agent_files written under that identity then partition cleanly per
 // end-user instead of piling up under the api_key owner.
-const EndUserHeader = "X-Lununda Agent-End-User"
+const EndUserHeader = "X-Lununda-End-User"
 
 // ErrUnauthorized is returned when no valid credential is present.
 var ErrUnauthorized = errors.New("unauthorized")
@@ -396,7 +396,7 @@ done:
 			ident.ActAsUserID = act
 		}
 	}
-	// If the calling app named an end-user via X-Lununda Agent-End-User on an
+	// If the calling app named an end-user via X-Lununda-End-User on an
 	// api_key request, rebind to the corresponding app_user (lazy mint).
 	// We swallow errors here so a malformed header can't 401 a request —
 	// the request just stays under the api_key owner. The OpenAI

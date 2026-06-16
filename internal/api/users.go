@@ -22,7 +22,7 @@ import (
 // user_id, so once the calling app has it, every downstream interaction
 // for that end-user partitions cleanly. Apps that prefer not to
 // pre-provision can skip this endpoint entirely and pass `user` in the
-// /v1/chat/completions body (or the X-Lununda Agent-End-User header) on
+// /v1/chat/completions body (or the X-Lununda-End-User header) on
 // every call — the auth layer lazy-mints on first sight either way.
 func (s *Server) HandleProvisionAppUser(w http.ResponseWriter, r *http.Request) {
 	ident, ok := auth.FromContext(r.Context())

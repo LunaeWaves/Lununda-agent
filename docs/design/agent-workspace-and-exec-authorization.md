@@ -35,7 +35,7 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 
 `InstallFromGitHubRepo` 改用 `github.com/.../archive/...` 路径（tarball 内容与 codeload 一致，但 ghfast.top 这类加速器**只代理 github.com，拒绝 codeload.github.com**——实测 codeload 返回 403 "Invalid input"）。
 
-新增 `FASTCLAW_GH_PROXY` 环境变量，设置后所有 github archive 下载自动加代理前缀。默认空（海外直连可用）；国内部署设 `https://ghfast.top/`。
+新增 `LUNUNDA_GH_PROXY` 环境变量，设置后所有 github archive 下载自动加代理前缀。默认空（海外直连可用）；国内部署设 `https://ghfast.top/`。
 
 ### D4. 目录布局重构（agent 子树收敛）
 
@@ -184,7 +184,7 @@ flag 传递：loop 在执行 approved（含 /yes 触发的 pendingCalls）前，
 
 - install_skill 注册后，agent 可对话安装 skill 并即时生效；装到 agent 私有目录，web 技能设置页（读私有目录）可见。
 - host exec 相对路径不再污染程序目录，默认落 workspace。
-- ghfast 代理让国内网络也能装 github skill（需配 `FASTCLAW_GH_PROXY`）。
+- ghfast 代理让国内网络也能装 github skill（需配 `LUNUNDA_GH_PROXY`）。
 - 目录重构后，每个 agent 一棵子树 `~/.lununda/agents/<id>/`，含 `agent/`（身份/skills/memory）+ `workspace/`（工作产物）+ `policy.json`（白名单）+ 预置子目录。
 - 授权系统让 workspace 外操作可控，但 exec 启发式**不是**安全保证——多租户/不可信场景仍需配置 docker/e2b 容器隔离。
 - yolo 模式下所有操作放行，用户需明确知晓风险。
@@ -196,7 +196,7 @@ flag 传递：loop 在执行 approved（含 /yes 触发的 pendingCalls）前，
 ### 阶段 1（低风险，立即受益）— ✅ 已完成
 - D1：loop.go 注册 `RegisterSkillInstall`
 - D2：exec.go host 路径设 `cmd.Dir` = workspace
-- D3：github.go archive 路径 + `FASTCLAW_GH_PROXY`
+- D3：github.go archive 路径 + `LUNUNDA_GH_PROXY`
 - 验证：对话安装 huashu-design → 落到 `agents/<id>/agent/skills/huashu-design/` 且技能生效 ✓
 
 ### 阶段 2（中风险）— ✅ 已完成

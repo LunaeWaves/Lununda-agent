@@ -82,17 +82,17 @@ services:
       # TZ included so cross-pod runs exercise the server-default
       # timezone fallback the same way single-pod deploys do.
       TZ: Asia/Shanghai
-      FASTCLAW_STORAGE_TYPE: postgres
-      FASTCLAW_STORAGE_DSN: postgres://lununda:lununda@db:5432/lununda?sslmode=disable
-      FASTCLAW_MODE: cloud
-      FASTCLAW_AUTH_TOKEN: dev-admin-token
+      LUNUNDA_STORAGE_TYPE: postgres
+      LUNUNDA_STORAGE_DSN: postgres://lununda:lununda@db:5432/lununda?sslmode=disable
+      LUNUNDA_MODE: cloud
+      LUNUNDA_AUTH_TOKEN: dev-admin-token
       # Object store → MinIO. The keys mirror config.ObjectStoreCfg.
-      FASTCLAW_OBJECT_STORE_TYPE: minio
-      FASTCLAW_OBJECT_STORE_ENDPOINT: minio:9000
-      FASTCLAW_OBJECT_STORE_BUCKET: lununda
-      FASTCLAW_OBJECT_STORE_ACCESSKEY: minioadmin
-      FASTCLAW_OBJECT_STORE_SECRETKEY: minioadmin
-      FASTCLAW_OBJECT_STORE_USESSL: "false"
+      LUNUNDA_OBJECT_STORE_TYPE: minio
+      LUNUNDA_OBJECT_STORE_ENDPOINT: minio:9000
+      LUNUNDA_OBJECT_STORE_BUCKET: lununda
+      LUNUNDA_OBJECT_STORE_ACCESSKEY: minioadmin
+      LUNUNDA_OBJECT_STORE_SECRETKEY: minioadmin
+      LUNUNDA_OBJECT_STORE_USESSL: "false"
     depends_on:
       db:
         condition: service_healthy
@@ -108,16 +108,16 @@ services:
       dockerfile: Dockerfile
     environment:
       TZ: Asia/Shanghai
-      FASTCLAW_STORAGE_TYPE: postgres
-      FASTCLAW_STORAGE_DSN: postgres://lununda:lununda@db:5432/lununda?sslmode=disable
-      FASTCLAW_MODE: cloud
-      FASTCLAW_AUTH_TOKEN: dev-admin-token
-      FASTCLAW_OBJECT_STORE_TYPE: minio
-      FASTCLAW_OBJECT_STORE_ENDPOINT: minio:9000
-      FASTCLAW_OBJECT_STORE_BUCKET: lununda
-      FASTCLAW_OBJECT_STORE_ACCESSKEY: minioadmin
-      FASTCLAW_OBJECT_STORE_SECRETKEY: minioadmin
-      FASTCLAW_OBJECT_STORE_USESSL: "false"
+      LUNUNDA_STORAGE_TYPE: postgres
+      LUNUNDA_STORAGE_DSN: postgres://lununda:lununda@db:5432/lununda?sslmode=disable
+      LUNUNDA_MODE: cloud
+      LUNUNDA_AUTH_TOKEN: dev-admin-token
+      LUNUNDA_OBJECT_STORE_TYPE: minio
+      LUNUNDA_OBJECT_STORE_ENDPOINT: minio:9000
+      LUNUNDA_OBJECT_STORE_BUCKET: lununda
+      LUNUNDA_OBJECT_STORE_ACCESSKEY: minioadmin
+      LUNUNDA_OBJECT_STORE_SECRETKEY: minioadmin
+      LUNUNDA_OBJECT_STORE_USESSL: "false"
     depends_on:
       db:
         condition: service_healthy

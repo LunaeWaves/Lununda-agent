@@ -32,20 +32,20 @@ spec:
         - configMapRef:
             name: {{ include "lununda.fullname" . }}-config
         env:
-        - name: FASTCLAW_HOME
+        - name: LUNUNDA_HOME
           value: "/data/.lununda"
-        - name: FASTCLAW_STORAGE_DSN
+        - name: LUNUNDA_STORAGE_DSN
           valueFrom:
             secretKeyRef:
               name: {{ include "lununda.fullname" . }}-secrets
               key: STORAGE_DSN
         {{- if and (ne .Values.objectStore.type "local") .Values.objectStore.accessKey }}
-        - name: FASTCLAW_OBJECT_STORE_ACCESSKEY
+        - name: LUNUNDA_OBJECT_STORE_ACCESSKEY
           valueFrom:
             secretKeyRef:
               name: {{ include "lununda.fullname" . }}-secrets
               key: OBJECT_STORE_ACCESSKEY
-        - name: FASTCLAW_OBJECT_STORE_SECRETKEY
+        - name: LUNUNDA_OBJECT_STORE_SECRETKEY
           valueFrom:
             secretKeyRef:
               name: {{ include "lununda.fullname" . }}-secrets

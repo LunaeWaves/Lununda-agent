@@ -427,7 +427,7 @@ func (s *Server) requireAgentOwner(w http.ResponseWriter, r *http.Request, agent
 // the URL can chat under their own user_id namespace, while the
 // agent's identity (SOUL/IDENTITY/skills) is reused from the owner's
 // row. This is the same gate /api/chat/history uses, so app_user
-// requests proxied through an integration with X-Lununda Agent-End-User
+// requests proxied through an integration with X-Lununda-End-User
 // can read artifacts for sessions they own without 403'ing on the
 // strict ownership check.
 // callerOwnsAgent returns true when the caller is the agent's owner, a

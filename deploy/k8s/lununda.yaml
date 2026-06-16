@@ -22,7 +22,7 @@
 #   - Image: ghcr.io/lununda-ai/lununda:dev (auto-pushed by GitHub Actions, public)
 #   - Optional: cert-manager + ClusterIssuer (if you want HTTPS)
 #
-# Configuration is fully driven by FASTCLAW_* env vars — there is no
+# Configuration is fully driven by LUNUNDA_* env vars — there is no
 # config file. Users / agents / providers / channels all live in Postgres.
 
 ---
@@ -59,7 +59,7 @@ stringData:
 # =================== EDIT HERE (object store provider) ==================
 # Pick ONE provider — uncomment its block and leave the others commented.
 #
-# FASTCLAW_OBJECT_STORE_TYPE accepts:
+# LUNUNDA_OBJECT_STORE_TYPE accepts:
 #   local          pod-local disk (single node / dev only)
 #   aws-s3         AWS S3
 #   cloudflare-r2  Cloudflare R2 (requires ACCOUNTID)
@@ -73,10 +73,10 @@ metadata:
   name: lununda-config
   namespace: lununda
 data:
-  FASTCLAW_PORT: "18953"
-  FASTCLAW_BIND: "all"
-  FASTCLAW_STORAGE_TYPE: "postgres"
-  FASTCLAW_STORAGE_AUTO_MIGRATE: "true"
+  LUNUNDA_PORT: "18953"
+  LUNUNDA_BIND: "all"
+  LUNUNDA_STORAGE_TYPE: "postgres"
+  LUNUNDA_STORAGE_AUTO_MIGRATE: "true"
 
   # Server default timezone (IANA name) — the LAST fallback in the chain
   # chatter pref → agent default → system default → TZ. Without it pods
@@ -85,47 +85,47 @@ data:
   TZ: "Asia/Shanghai"
 
   # ─── Provider 1: Aliyun OSS (default example) ───
-  FASTCLAW_OBJECT_STORE_TYPE: "aliyun-oss"
-  FASTCLAW_OBJECT_STORE_REGION: "cn-hangzhou"
-  FASTCLAW_OBJECT_STORE_BUCKET: "your-lununda-bucket"
-  FASTCLAW_OBJECT_STORE_ALIYUN_INTERNAL: "true"    # same-region ACK uses the internal endpoint, saves egress
+  LUNUNDA_OBJECT_STORE_TYPE: "aliyun-oss"
+  LUNUNDA_OBJECT_STORE_REGION: "cn-hangzhou"
+  LUNUNDA_OBJECT_STORE_BUCKET: "your-lununda-bucket"
+  LUNUNDA_OBJECT_STORE_ALIYUN_INTERNAL: "true"    # same-region ACK uses the internal endpoint, saves egress
 
   # ─── Provider 2: AWS S3 ───
-  # FASTCLAW_OBJECT_STORE_TYPE: "aws-s3"
-  # FASTCLAW_OBJECT_STORE_REGION: "us-east-1"
-  # FASTCLAW_OBJECT_STORE_BUCKET: "your-lununda-bucket"
+  # LUNUNDA_OBJECT_STORE_TYPE: "aws-s3"
+  # LUNUNDA_OBJECT_STORE_REGION: "us-east-1"
+  # LUNUNDA_OBJECT_STORE_BUCKET: "your-lununda-bucket"
 
   # ─── Provider 3: Cloudflare R2 ───
-  # FASTCLAW_OBJECT_STORE_TYPE: "cloudflare-r2"
-  # FASTCLAW_OBJECT_STORE_ACCOUNTID: "<cloudflare-account-id>"
-  # FASTCLAW_OBJECT_STORE_BUCKET: "your-lununda-bucket"
+  # LUNUNDA_OBJECT_STORE_TYPE: "cloudflare-r2"
+  # LUNUNDA_OBJECT_STORE_ACCOUNTID: "<cloudflare-account-id>"
+  # LUNUNDA_OBJECT_STORE_BUCKET: "your-lununda-bucket"
 
   # ─── Provider 4: Backblaze B2 ───
-  # FASTCLAW_OBJECT_STORE_TYPE: "backblaze-b2"
-  # FASTCLAW_OBJECT_STORE_REGION: "us-west-004"
-  # FASTCLAW_OBJECT_STORE_BUCKET: "your-lununda-bucket"
+  # LUNUNDA_OBJECT_STORE_TYPE: "backblaze-b2"
+  # LUNUNDA_OBJECT_STORE_REGION: "us-west-004"
+  # LUNUNDA_OBJECT_STORE_BUCKET: "your-lununda-bucket"
 
   # ─── Provider 5: self-hosted MinIO (in-cluster) ───
-  # FASTCLAW_OBJECT_STORE_TYPE: "minio"
-  # FASTCLAW_OBJECT_STORE_ENDPOINT: "minio.default.svc.cluster.local:9000"
-  # FASTCLAW_OBJECT_STORE_BUCKET: "lununda"
-  # FASTCLAW_OBJECT_STORE_USESSL: "false"
+  # LUNUNDA_OBJECT_STORE_TYPE: "minio"
+  # LUNUNDA_OBJECT_STORE_ENDPOINT: "minio.default.svc.cluster.local:9000"
+  # LUNUNDA_OBJECT_STORE_BUCKET: "lununda"
+  # LUNUNDA_OBJECT_STORE_USESSL: "false"
 
   # ─── Provider 6: generic S3-compatible (DigitalOcean Spaces / Wasabi / …) ───
-  # FASTCLAW_OBJECT_STORE_TYPE: "s3"
-  # FASTCLAW_OBJECT_STORE_ENDPOINT: "nyc3.digitaloceanspaces.com"
-  # FASTCLAW_OBJECT_STORE_REGION: "nyc3"
-  # FASTCLAW_OBJECT_STORE_BUCKET: "your-lununda-bucket"
+  # LUNUNDA_OBJECT_STORE_TYPE: "s3"
+  # LUNUNDA_OBJECT_STORE_ENDPOINT: "nyc3.digitaloceanspaces.com"
+  # LUNUNDA_OBJECT_STORE_REGION: "nyc3"
+  # LUNUNDA_OBJECT_STORE_BUCKET: "your-lununda-bucket"
 
   # Optional: prefix to share one bucket across multiple environments.
-  # FASTCLAW_OBJECT_STORE_PREFIX: "prod"
+  # LUNUNDA_OBJECT_STORE_PREFIX: "prod"
 
   # ─── Sandbox (optional) ───
   # k8s pods don't have a docker daemon, so the only sandbox backend
   # is E2B (remote) — or leave it disabled. To enable: set the
   # E2B_API_KEY in lununda-secrets above and uncomment the lines below.
-  # FASTCLAW_SANDBOX_BACKEND: "e2b"
-  # FASTCLAW_SANDBOX_IMAGE: "thinkany/lununda-sandbox:latest"   # used when running an E2B custom template
+  # LUNUNDA_SANDBOX_BACKEND: "e2b"
+  # LUNUNDA_SANDBOX_IMAGE: "thinkany/lununda-sandbox:latest"   # used when running an E2B custom template
 
 ---
 # =================== Application (usually no edits) =====================
@@ -153,10 +153,10 @@ spec:
           envFrom:
             - configMapRef: { name: lununda-config }
           env:
-            - { name: FASTCLAW_HOME,                    value: "/data/.lununda" }
-            - { name: FASTCLAW_STORAGE_DSN,             valueFrom: { secretKeyRef: { name: lununda-secrets, key: STORAGE_DSN } } }
-            - { name: FASTCLAW_OBJECT_STORE_ACCESSKEY,  valueFrom: { secretKeyRef: { name: lununda-secrets, key: OBJECT_STORE_ACCESSKEY } } }
-            - { name: FASTCLAW_OBJECT_STORE_SECRETKEY,  valueFrom: { secretKeyRef: { name: lununda-secrets, key: OBJECT_STORE_SECRETKEY } } }
+            - { name: LUNUNDA_HOME,                    value: "/data/.lununda" }
+            - { name: LUNUNDA_STORAGE_DSN,             valueFrom: { secretKeyRef: { name: lununda-secrets, key: STORAGE_DSN } } }
+            - { name: LUNUNDA_OBJECT_STORE_ACCESSKEY,  valueFrom: { secretKeyRef: { name: lununda-secrets, key: OBJECT_STORE_ACCESSKEY } } }
+            - { name: LUNUNDA_OBJECT_STORE_SECRETKEY,  valueFrom: { secretKeyRef: { name: lununda-secrets, key: OBJECT_STORE_SECRETKEY } } }
             # - { name: E2B_API_KEY, valueFrom: { secretKeyRef: { name: lununda-secrets, key: E2B_API_KEY } } }
           volumeMounts:
             - { name: data, mountPath: /data/.lununda }
@@ -183,7 +183,7 @@ spec:
       terminationGracePeriodSeconds: 30
       volumes:
         # /data/.lununda only holds pod-local ephemeral state (sandbox cache,
-        # etc.). Workspace artifacts go to the object store (FASTCLAW_OBJECT_STORE_*)
+        # etc.). Workspace artifacts go to the object store (LUNUNDA_OBJECT_STORE_*)
         # so they're shared across pods and survive horizontal scaling.
         - { name: data, emptyDir: {} }
 
