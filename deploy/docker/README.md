@@ -6,8 +6,9 @@ Four compose files cover the common deployment shapes. Stack them with `-f`.
 |---|---|---|
 | `docker-compose.yml` | Build from local source + Postgres | Dev / contributing |
 | `docker-compose.ghcr.yml` | Pull pre-built image from GHCR + SQLite | **Self-host (recommended)** |
+| `docker-compose.ghcr-sandbox.yml` | GHCR + Docker sandbox in one shot | Self-host with agent `exec` tool |
 | `docker-compose.postgres.yml` | Override: switch to Postgres backend | Multi-replica, large history |
-| `docker-compose.sandbox.yml` | Override: enable Docker sandbox | Agent `exec` tool support |
+| `docker-compose.sandbox.yml` | Override: enable Docker sandbox (stacks on the bases) | Same as above, override style |
 
 ## Quick start (pre-built image)
 
@@ -45,30 +46,44 @@ container. Set `POSTGRES_PASSWORD` in `.env`.
 
 ## Adding the Docker sandbox
 
+**Recommended: one-shot compose** — uses host bind mount instead of a
+named volume so sibling sandbox containers can see the workspace:
+
+```bash
+docker compose -f docker-compose.ghcr-sandbox.yml up -d
+```
+
+**Alternative: override style** — stacks on top of `docker-compose.ghcr.yml`:
+
 ```bash
 docker compose -f docker-compose.ghcr.yml \
                -f docker-compose.sandbox.yml up -d
 ```
 
-The override mounts the host's `docker.sock` into the Lununda Agent
-container and sets `LUNUNDA_SANDBOX_*` env vars. The default sandbox
-image is `ghcr.io/lunaewaves/lununda-sandbox:latest`, pre-baked with
-Python, Node, Camoufox (anti-detect Firefox), and the usual fetch /
-parse / preview deps.
+> ⚠️ **Caveat with the override style.** The base compose uses a Docker
+> named volume for `/data/.lununda`. Named volumes are not visible from
+> the host, so when the gateway spawns a sibling sandbox container with
+> `docker create -v <host-path>:/workspace`, the sandbox sees an empty
+> workspace and the agent's reads/writes don't reach the durable store.
+>
+> Use `docker-compose.ghcr-sandbox.yml` for a working out-of-the-box
+> setup, or override the volume to a host bind mount in your own
+> override file.
 
 **Sibling-container pattern.** Sandbox containers spawn as siblings of
 the Lununda Agent container (via the host Docker daemon), not nested
-inside it. They share the agent workspace via the named volume.
+inside it. They share the agent workspace via the host bind mount.
 
 For production, prefer a remote sandbox backend (E2B, Boxlite) over
 mounting `docker.sock`. See the main README → Tools & Sandbox.
 
-## All three at once
+## All three at once (Postgres + sandbox)
+
+Use the one-shot sandbox compose + the Postgres override:
 
 ```bash
-docker compose -f docker-compose.ghcr.yml \
-               -f docker-compose.postgres.yml \
-               -f docker-compose.sandbox.yml up -d
+docker compose -f docker-compose.ghcr-sandbox.yml \
+               -f docker-compose.postgres.yml up -d
 ```
 
 ## Environment variables

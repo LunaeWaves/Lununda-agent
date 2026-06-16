@@ -1,0 +1,64 @@
+##
+## Lununda Agent — GHCR image + Docker sandbox (one-shot).
+##
+## Bundles the pre-built gateway image with everything the agent's
+## `exec` tool needs to spawn isolated sibling containers:
+##   1. Mounts /var/run/docker.sock so the gateway can talk to the
+##      host Docker daemon
+##   2. Uses a HOST BIND MOUNT instead of a named volume for the data
+##      dir — sibling sandbox containers address the workspace by host
+##      path, and named volumes are NOT visible from the host
+##   3. Sets LUNUNDA_SANDBOX_* env vars so the gateway boots with the
+##      sandbox image pre-wired (no onboard wizard step)
+##
+## Quick start:
+##   docker compose -f docker-compose.ghcr-sandbox.yml up -d
+##   open http://localhost:18953
+##
+## Why a separate file (not just an override):
+##   docker-compose.sandbox.yml is an override meant to stack on top of
+##   docker-compose.yml or docker-compose.ghcr.yml. Those base files
+##   use named volumes, which don't work for the sibling-container
+##   pattern. This file is self-contained: bind mount, socket, env —
+##   one `up -d` and you have a working sandboxed agent.
+##
+services:
+  lununda:
+    image: ghcr.io/lunaewaves/lununda:${LUNUNDA_VERSION:-latest}
+    restart: unless-stopped
+    pull_policy: ${LUNUNDA_PULL_POLICY:-missing}
+    ports:
+      - "${LUNUNDA_PORT:-18953}:18953"
+    volumes:
+      # Sibling-container pattern: the gateway spawns sandbox containers
+      # as peers on the host Docker daemon, NOT nested inside itself.
+      # The daemon must be reachable from inside the gateway container.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # HOST BIND MOUNT — required for the sibling pattern. The gateway
+      # passes host paths to `docker create -v <host-path>:/workspace`
+      # when spawning each sandbox. Named volumes are invisible from
+      # the host, so the sandbox would get an empty /workspace and the
+      # agent's reads/writes wouldn't reach its durable store.
+      #
+      # The default ./data is relative to this compose file. Override
+      # via LUNUNDA_DATA_DIR if you need a different host location
+      # (e.g. an NFS mount or a dedicated disk).
+      - ${LUNUNDA_DATA_DIR:-./data}:/data/.lununda
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      LUNUNDA_HOME: /data/.lununda
+      LUNUNDA_BIND: all
+      LUNUNDA_PORT: "18953"
+      LUNUNDA_STORAGE_TYPE: sqlite
+      LUNUNDA_STORAGE_AUTO_MIGRATE: "true"
+      LUNUNDA_LOG_LEVEL: "${LUNUNDA_LOG_LEVEL:-info}"
+      # ─── Sandbox ────────────────────────────────────────────────────
+      LUNUNDA_SANDBOX_ENABLED: "true"
+      LUNUNDA_SANDBOX_BACKEND: docker
+      # Pre-baked image: Python 3 + Node 22 + Camoufox (anti-detect
+      # Firefox) + git + curl + the usual fetch/parse/preview deps.
+      # Override via LUNUNDA_SANDBOX_IMAGE in .env.
+      LUNUNDA_SANDBOX_IMAGE: ${LUNUNDA_SANDBOX_IMAGE:-ghcr.io/lunaewaves/lununda-sandbox:latest}
+    command: ["gateway"]
+
+# No named volumes — the bind mount lives wherever LUNUNDA_DATA_DIR points.
