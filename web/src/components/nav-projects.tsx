@@ -225,7 +225,7 @@ function SessionRow({
     e.dataTransfer.effectAllowed = "move";
   };
   return (
-    <SidebarMenuItem draggable onDragStart={onDragStart}>
+    <SidebarMenuItem draggable onDragStart={onDragStart} className="ml-2">
       <SidebarMenuButton
         isActive={active}
         tooltip={`${channelLabel(session.channel)} · ${session.title}`}

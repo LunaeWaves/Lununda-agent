@@ -297,6 +297,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         {activeAgentId ? (
           <NavMain
             label={t("nav.group.agent")}
+            indent
             items={[
               ...AGENT_NAV(activeAgentId, pathname, hasOpenSession, t),
               // Settings sits directly under New chat on agent routes

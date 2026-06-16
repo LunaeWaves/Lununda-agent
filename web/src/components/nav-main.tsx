@@ -39,9 +39,15 @@ function isActive(pathname: string, href: string) {
 export function NavMain({
   label,
   items,
+  indent,
 }: {
   label?: string;
   items: NavItem[];
+  // indent nudges the menu items right so they read as a sub-level under
+  // the label (used for agent-scoped New chat / Settings under the agent
+  // switcher). Platform-level groups (Overview / Agents / Models) leave
+  // it off so they stay flush with the sidebar edge.
+  indent?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -88,7 +94,7 @@ export function NavMain({
                 }
               : undefined;
           return (
-            <SidebarMenuItem key={item.url ?? item.title}>
+            <SidebarMenuItem key={item.url ?? item.title} className={indent ? "ml-2" : undefined}>
               <SidebarMenuButton
                 isActive={active}
                 tooltip={item.title}
