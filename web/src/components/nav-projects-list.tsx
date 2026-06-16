@@ -408,7 +408,7 @@ function ProjectRow({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className={"ml-2 " + (dropActive ? "rounded-md outline outline-2 outline-primary/40" : "")}
+      className={"ml-4 " + (dropActive ? "rounded-md outline outline-2 outline-primary/40" : "")}
     >
       <SidebarMenuButton
         tooltip={project.name}

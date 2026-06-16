@@ -94,7 +94,7 @@ export function NavMain({
                 }
               : undefined;
           return (
-            <SidebarMenuItem key={item.url ?? item.title} className={indent ? "ml-2" : undefined}>
+            <SidebarMenuItem key={item.url ?? item.title} className={indent ? "ml-4" : undefined}>
               <SidebarMenuButton
                 isActive={active}
                 tooltip={item.title}
