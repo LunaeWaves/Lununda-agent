@@ -147,6 +147,12 @@ table and is edited through the dashboard or `lununda agents config`.
 - Session-based context with full history preservation
 - Thinking/reasoning content preserved for memory extraction
 
+### Wiki & Knowledge Base
+- **Wiki generator** — one click to produce a structured documentation site from the platform's agents, models, skills, and runtime config. Markdown pages with cross-links, served alongside the dashboard at `/wiki/`.
+- **Knowledge base tools** — `kb_search` and `kb_ingest` let agents query and populate a per-agent vector store. Sources can be plain text, Markdown, PDF, or web pages fetched at ingest time.
+- **Auto-query hook** — the KB hook intercepts every user message and runs a configured semantic search against the knowledge base, injecting the top results into the system prompt so the agent answers with domain context without the user having to explicitly search. Configurable per-agent: enabled, auto mode (keyword-triggered or always-on), result count, and an optional indicator line the agent prepends to its reply ("Based on KB article X…").
+- **Wiki cache** — the KB layer can sync with the wiki generator so agent-facing search results and the human-facing wiki site stay consistent.
+
 ### What's New in Lununda Agent
 
 - **Moon Wave brand identity** — unified palette (Deep Abyss Blue, Moon Cyan, Lunar Violet, Lunar Silver, Pale Moon) across light and dark themes, with theme-aware logo switching. See [DESIGN.md](web/DESIGN.md) for the full color rulebook.
