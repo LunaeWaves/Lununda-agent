@@ -5,9 +5,10 @@
 ## `exec` tool needs to spawn isolated sibling containers:
 ##   1. Mounts /var/run/docker.sock so the gateway can talk to the
 ##      host Docker daemon
-##   2. Uses a HOST BIND MOUNT instead of a named volume for the data
-##      dir — sibling sandbox containers address the workspace by host
-##      path, and named volumes are NOT visible from the host
+##   2. Uses a HOST BIND MOUNT with IDENTICAL PATHS on host and
+##      container — the sibling-container pattern passes the gateway's
+##      in-container workspace path verbatim to `docker create -v`, so
+##      the host has to be able to resolve it
 ##   3. Sets LUNUNDA_SANDBOX_* env vars so the gateway boots with the
 ##      sandbox image pre-wired (no onboard wizard step)
 ##   4. Runs as root so it can read /var/run/docker.sock on hosts
@@ -17,17 +18,25 @@
 ##   docker compose -f docker-compose.ghcr-sandbox.yml up -d
 ##   open http://localhost:18953
 ##
+## CRITICAL: identical host/container paths for the data dir
+##   The gateway inside the container sees its workspace at
+##   `<LUNUNDA_HOME>/agents/<id>/workspace`. When the gateway calls
+##   `docker create -v <workspace>:/workspace:rw`, the host's dockerd
+##   resolves the path ON THE HOST. If the host path differs from the
+##   container path (e.g. host ./data vs container /data/.lununda),
+##   dockerd either creates an empty anonymous dir at the host path
+##   or refuses to mount it, and the sandbox's /workspace is empty —
+##   agent writes files but lununda never sees them.
+##
+##   Fix: mount the SAME absolute path on both sides. The default
+##   `/var/lib/lununda:/var/lib/lununda` works on any Linux host
+##   (root-writable). Override via LUNUNDA_DATA_DIR if you need a
+##   different location, but it MUST be an absolute path that exists
+##   (or can be created) on both host and container.
+##
 ## NOTE on image tags: until the first stable release, set
 ## LUNUNDA_VERSION=dev (and LUNUNDA_SANDBOX_IMAGE=...:dev) in .env
-## to track the latest CI build from the dev branch. After v1 ships,
-## :latest will be the default and this note can go away.
-##
-## Why a separate file (not just an override):
-##   docker-compose.sandbox.yml is an override meant to stack on top of
-##   docker-compose.yml or docker-compose.ghcr.yml. Those base files
-##   use named volumes, which don't work for the sibling-container
-##   pattern. This file is self-contained: bind mount, socket, env —
-##   one `up -d` and you have a working sandboxed agent.
+## to track the latest CI build from the dev branch.
 ##
 services:
   lununda:
@@ -49,19 +58,17 @@ services:
       # the Dockerfile); without it, sandbox creation fails with
       # `exec: "docker": executable file not found in $PATH`.
       - /var/run/docker.sock:/var/run/docker.sock
-      # HOST BIND MOUNT — required for the sibling pattern. The gateway
-      # passes host paths to `docker create -v <host-path>:/workspace`
-      # when spawning each sandbox. Named volumes are invisible from
-      # the host, so the sandbox would get an empty /workspace and the
-      # agent's reads/writes wouldn't reach the durable store.
-      #
-      # The default ./data is relative to this compose file. Override
-      # via LUNUNDA_DATA_DIR if you need a different host location
-      # (e.g. an NFS mount or a dedicated disk).
-      - ${LUNUNDA_DATA_DIR:-./data}:/data/.lununda
+      # ⚠️ IDENTICAL HOST/CONTAINER PATH — see CRITICAL note above.
+      # Default /var/lib/lununda works on any Linux host. To change,
+      # set LUNUNDA_DATA_DIR in .env to an ABSOLUTE path that exists
+      # on the host (and that the container's root user can read/write).
+      # The same path is used inside the container via LUNUNDA_HOME below.
+      - ${LUNUNDA_DATA_DIR:-/var/lib/lununda}:${LUNUNDA_DATA_DIR:-/var/lib/lununda}
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
-      LUNUNDA_HOME: /data/.lununda
+      # ⚠️ MUST equal the container side of the bind mount above.
+      # Default: /var/lib/lununda (matches the bind mount).
+      LUNUNDA_HOME: ${LUNUNDA_DATA_DIR:-/var/lib/lununda}
       LUNUNDA_BIND: all
       LUNUNDA_PORT: "18953"
       LUNUNDA_STORAGE_TYPE: sqlite
@@ -92,4 +99,4 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# No named volumes — the bind mount lives wherever LUNUNDA_DATA_DIR points.
+# No named volumes — the bind mount lives at LUNUNDA_DATA_DIR on the host.

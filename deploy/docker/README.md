@@ -50,12 +50,21 @@ container. Set `POSTGRES_PASSWORD` in `.env`.
 
 ## Adding the Docker sandbox
 
-**Recommended: one-shot compose** — uses host bind mount instead of a
-named volume so sibling sandbox containers can see the workspace:
+**Recommended: one-shot compose** — uses host bind mount with identical
+host/container paths so the sibling-container pattern works correctly:
 
 ```bash
 docker compose -f docker-compose.ghcr-sandbox.yml up -d
 ```
+
+> ⚠️ **Why identical paths matter.** When the gateway calls
+> `docker create -v <workspace>:/workspace:rw`, the host's dockerd
+> resolves the path **on the host**. If the host path differs from
+> the container path (e.g. host `./data` vs container `/data/.lununda`),
+> dockerd creates an empty anonymous dir at the host path and the
+> sandbox's `/workspace` is empty — agent writes files but lununda
+> never sees them. The one-shot compose mounts the same absolute path
+> on both sides (default `/var/lib/lununda`).
 
 **Alternative: override style** — stacks on top of `docker-compose.ghcr.yml`:
 
@@ -72,7 +81,7 @@ docker compose -f docker-compose.ghcr.yml \
 >
 > Use `docker-compose.ghcr-sandbox.yml` for a working out-of-the-box
 > setup, or override the volume to a host bind mount in your own
-> override file.
+> override file (and make sure host path == container path).
 
 **Sibling-container pattern.** Sandbox containers spawn as siblings of
 the Lununda Agent container (via the host Docker daemon), not nested
