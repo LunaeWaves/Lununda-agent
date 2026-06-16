@@ -292,15 +292,15 @@ let authToken = "";
 export function setAuthToken(token: string) {
   authToken = token;
   if (token) {
-    localStorage.setItem("fastclaw_token", token);
+    localStorage.setItem("lununda_token", token);
   } else {
-    localStorage.removeItem("fastclaw_token");
+    localStorage.removeItem("lununda_token");
   }
 }
 
 export function getAuthToken(): string {
   if (!authToken) {
-    authToken = localStorage.getItem("fastclaw_token") || "";
+    authToken = localStorage.getItem("lununda_token") || "";
   }
   return authToken;
 }

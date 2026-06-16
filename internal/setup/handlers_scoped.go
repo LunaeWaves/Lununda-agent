@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/scope"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/users"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/users"
 )
 
 // Scope-aware CRUD for providers + channels (and a generic settings

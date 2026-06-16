@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
-	"github.com/fastclaw-ai/fastclaw/internal/channels"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/channels"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // storeLeaser adapts store.Store to channels.Leaser. The method names

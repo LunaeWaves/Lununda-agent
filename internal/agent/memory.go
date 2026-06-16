@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/privacy"
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/privacy"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
 // MemoryStore is an optional interface for DB-backed memory persistence.

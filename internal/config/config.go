@@ -1,7 +1,7 @@
 // Package config holds runtime configuration types and ctx user-id plumbing.
 //
-// There is no fastclaw.json. Bootstrap settings (port, bind, storage DSN,
-// sandbox backend) come from FASTCLAW_* env vars; user-facing config (providers,
+// There is no lununda.json. Bootstrap settings (port, bind, storage DSN,
+// sandbox backend) come from LUNUNDA_* env vars; user-facing config (providers,
 // channels, agents, etc.) lives in the database. The Config struct here is
 // the in-memory snapshot the gateway assembles at boot from those sources;
 // callers never read it from disk.
@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -270,7 +271,7 @@ type SkillsLearnerCfg struct {
 }
 
 // Config is the in-memory runtime snapshot. The gateway assembles this at
-// boot by reading FASTCLAW_* env vars + database (system_settings, providers,
+// boot by reading LUNUNDA_* env vars + database (system_settings, providers,
 // channels, agents). Callers never serialize it back out — DB tables are
 // the persistent source of truth.
 type Config struct {
@@ -464,7 +465,7 @@ const (
 	// guidance they need inside SOUL.md / IDENTITY.md themselves —
 	// this mode hands the floor over to the persona files completely.
 	// (Renamed from PromptModeMinimal to make the intent more obvious:
-	// you're CUSTOMIZING the system prompt yourself, not asking fastclaw
+	// you're CUSTOMIZING the system prompt yourself, not asking lununda
 	// for a minimal version of its built-in one.)
 	PromptModeCustomize = "customize"
 )
@@ -496,7 +497,7 @@ type AccountConfig struct {
 	// in the upstream console — adapters then expect plaintext bodies.
 	EncryptKey string `json:"encryptKey,omitempty"`
 	// UseLongConn switches inbound transport to a long-lived
-	// connection (WebSocket) initiated outbound from fastclaw rather
+	// connection (WebSocket) initiated outbound from lununda rather
 	// than the platform POSTing to a public webhook. Currently only
 	// honored by the Feishu adapter; ignored by adapters that don't
 	// offer this mode. When true, verification/encrypt keys are
@@ -571,7 +572,7 @@ type AgentFileConfig struct {
 	// gate (anyone can run the command — backward-compatible default).
 	//
 	// On web/api the gate falls through to msg.UserID == agent owner UUID
-	// regardless of this field, since those channels carry the FastClaw
+	// regardless of this field, since those channels carry the Lununda Agent
 	// identity directly and don't need a per-platform allowlist.
 	Admins map[string][]string `json:"admins,omitempty"`
 	// KB auto-query config. Stored as a sub-object in the agent's config
@@ -675,20 +676,39 @@ type TeamConfig struct {
 	Routing map[string]string `json:"routing"`
 }
 
-// HomeDir returns the FastClaw root directory (default ~/.fastclaw).
+// HomeDir returns the Lununda Agent root directory (default ~/.lununda).
 // Holds the sqlite db, sandbox roots, and FS-materialized agent caches.
+//
+// One-shot migration: if the new ~/.lununda doesn't exist but the legacy
+// ~/.fastclaw does, rename it in place so existing users keep their data,
+// agents, sessions, and skills without manual intervention. Errors are
+// logged but not returned — the worst case is the caller writes into a
+// fresh ~/.lununda and the legacy dir is left untouched for the operator
+// to inspect.
 func HomeDir() (string, error) {
-	if h := os.Getenv("FASTCLAW_HOME"); h != "" {
+	if h := os.Getenv("LUNUNDA_HOME"); h != "" {
 		return h, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".fastclaw"), nil
+	newDir := filepath.Join(home, ".lununda")
+	if _, err := os.Stat(newDir); os.IsNotExist(err) {
+		oldDir := filepath.Join(home, ".fastclaw")
+		if _, err := os.Stat(oldDir); err == nil {
+			if renameErr := os.Rename(oldDir, newDir); renameErr != nil {
+				slog.Warn("lununda: legacy ~/.fastclaw migrate failed; using fresh ~/.lununda",
+					"error", renameErr, "legacy", oldDir, "target", newDir)
+			} else {
+				slog.Info("lununda: migrated legacy config dir", "from", oldDir, "to", newDir)
+			}
+		}
+	}
+	return newDir, nil
 }
 
-// AgentHomeDir returns ~/.fastclaw/agents/{agentID}/agent — the FS cache
+// AgentHomeDir returns ~/.lununda/agents/{agentID}/agent — the FS cache
 // directory the runtime materializes agent identity files into. agents.id
 // is globally unique so no user namespace is needed.
 func AgentHomeDir(agentID string) (string, error) {
@@ -703,7 +723,7 @@ func AgentHomeDir(agentID string) (string, error) {
 }
 
 // AgentWorkspaceDir returns the agent's working directory for user-facing
-// artifacts: ~/.fastclaw/agents/<agent_id>/workspace/. This is the single
+// artifacts: ~/.lununda/agents/<agent_id>/workspace/. This is the single
 // source of truth for where workspace files live — workspace.LocalFS,
 // sandbox mounts (docker/e2b/boxlite), and file handlers all resolve
 // through here so writes, mounts, and reads can never diverge.

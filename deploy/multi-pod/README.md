@@ -3,7 +3,7 @@
 This compose brings up:
 
 - **Postgres 16** — sessions, memory, identity files, agent metadata, bindings
-- **MinIO** — S3-compatible bucket for workspace artifacts (auto-creates `fastclaw` bucket)
+- **MinIO** — S3-compatible bucket for workspace artifacts (auto-creates `lununda` bucket)
 - **pod-a** on `:18953` and **pod-b** on `:18954` — identical gateway binaries, pointed at the same DB and S3
 
 Both pods use `FASTCLAW_AUTH_TOKEN=dev-admin-token`. Any admin API call takes `Authorization: Bearer dev-admin-token`.
@@ -39,7 +39,7 @@ curl -sX POST -H "Authorization: Bearer dev-admin-token" \
 # Pod B sees it (may need a moment — hot-reload is async):
 curl -s -H "Authorization: Bearer dev-admin-token" \
      http://localhost:18954/api/agents | jq '.[].id'
-# → "fastclaw", "test-alpha", ...
+# → "lununda", "test-alpha", ...
 ```
 
 ### 3. Edit SOUL.md on pod A, read it back on pod B
@@ -78,12 +78,12 @@ curl -sX POST -H "Authorization: Bearer dev-admin-token" \
 # Customer-1 lists agents — sees only test-alpha
 curl -s -H "Authorization: Bearer $CUST_KEY" \
      http://localhost:18954/api/agents | jq '.[].id'
-# → "test-alpha"   (not "fastclaw")
+# → "test-alpha"   (not "lununda")
 
 # Customer-1 tries to read a non-owned agent — forbidden
 curl -s -o /dev/null -w "%{http_code}\n" \
      -H "Authorization: Bearer $CUST_KEY" \
-     http://localhost:18954/api/agents/fastclaw/system-files/SOUL.md
+     http://localhost:18954/api/agents/lununda/system-files/SOUL.md
 # → 403
 ```
 
@@ -93,7 +93,7 @@ When an agent calls `write_file("report.pdf", ...)` the bytes land in MinIO, not
 
 ```bash
 # MinIO console is at http://localhost:9001 (minioadmin / minioadmin).
-# Browse bucket "fastclaw" and expect keys like:
+# Browse bucket "lununda" and expect keys like:
 #   <agent-id>/<filename>
 ```
 

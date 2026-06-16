@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
 // subagentDefaultTimeout caps the wall time one subagent can spend on

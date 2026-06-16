@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/goal"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/goal"
 )
 
 // memGoalStore is the in-memory goal.Store implementation the tool

@@ -1,6 +1,6 @@
 <div align="center">
 
-# FastClaw
+# Lununda Agent
 
 A lightweight AI Agent runtime written in Go.
 
@@ -15,24 +15,24 @@ A lightweight AI Agent runtime written in Go.
 ---
 
 <p align="center">
-  <img src="previews/admin.png" alt="FastClaw admin dashboard" width="900">
+  <img src="previews/admin.png" alt="Lununda Agent admin dashboard" width="900">
   <br>
   <em>Platform admin: agents, models, skills, users, API keys</em>
 </p>
 
 <p align="center">
-  <img src="previews/agent.png" alt="FastClaw agent management" width="900">
+  <img src="previews/agent.png" alt="Lununda Agent agent management" width="900">
   <br>
   <em>Per-agent management: chat, customize, scoped models / skills / channels / scheduler</em>
 </p>
 
-## What is FastClaw?
+## What is Lununda Agent?
 
-FastClaw is an **Agent Factory** — it creates, manages, and runs AI agents. Each agent has its own personality (SOUL.md), memory, skills, and tools. FastClaw handles the LLM communication, tool execution, sandbox isolation, and session management.
+Lununda Agent is an **Agent Factory** — it creates, manages, and runs AI agents. Each agent has its own personality (SOUL.md), memory, skills, and tools. Lununda Agent handles the LLM communication, tool execution, sandbox isolation, and session management.
 
 ```bash
 # Install (drops the binary into ~/.local/bin and adds it to PATH)
-curl -fsSL https://raw.githubusercontent.com/fastclaw-ai/fastclaw/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/lununda-ai/lununda/main/install.sh | bash
 ```
 
 ## Quick Start
@@ -40,10 +40,10 @@ curl -fsSL https://raw.githubusercontent.com/fastclaw-ai/fastclaw/main/install.s
 ### 1. First Run
 
 ```bash
-fastclaw
+lununda
 # Opens setup wizard → configure LLM provider → creates default agent.
-# Foreground mode; ^C to stop. Use `fastclaw daemon start` to run in
-# the background, or `fastclaw daemon install` to register a
+# Foreground mode; ^C to stop. Use `lununda daemon start` to run in
+# the background, or `lununda daemon install` to register a
 # launchd / systemd service.
 ```
 
@@ -84,8 +84,8 @@ can access it.
 ## Architecture
 
 ```
-~/.fastclaw/
-  fastclaw.db                # SQLite default — users, agents, sessions,
+~/.lununda/
+  lununda.db                # SQLite default — users, agents, sessions,
                              # apikeys, configs, agent_files all live here
   skills/                    # Shared skills (bundled + installed)
   agents/
@@ -96,12 +96,12 @@ The database is the source of truth for everything except skill folders
 on disk. SQLite is the default; point `FASTCLAW_STORAGE_DSN` at Postgres
 for multi-pod deployments.
 
-**There is no `fastclaw.json`.** Bootstrap settings (port, bind, storage
+**There is no `lununda.json`.** Bootstrap settings (port, bind, storage
 DSN, sandbox backend) come from `FASTCLAW_*` env vars; everything user-
 facing (providers, channels, settings, defaults) lives in the `configs`
-table and is edited through the dashboard or `fastclaw agents config`.
+table and is edited through the dashboard or `lununda agents config`.
 
-### What FastClaw Stores
+### What Lununda Agent Stores
 
 | Data | Belongs to | Backing store |
 |------|-----------|---------------|
@@ -158,21 +158,21 @@ table and is edited through the dashboard or `fastclaw agents config`.
   building block for "user buys a bot" flows. Per-user `agent_quota`
   caps how many agents a non-admin can self-create
   (`-1` = unlimited, `0` = admin-provisioned only).
-- App-user provisioning `POST /v1/users` — third-party apps mint a stable fastclaw user_id per end-user, idempotent on `(api_key, external_id)`. Or pass `user` on `/v1/chat/completions` (or `X-Fastclaw-End-User` header) for lazy mint on first call
+- App-user provisioning `POST /v1/users` — third-party apps mint a stable lununda user_id per end-user, idempotent on `(api_key, external_id)`. Or pass `user` on `/v1/chat/completions` (or `X-Lununda Agent-End-User` header) for lazy mint on first call
 
 ## Configuration
 
 Bootstrap is **env-only**. Everything that needs to change at runtime
 (providers, models, channels, defaults, sandbox toggle) lives in the
-database and is edited through the dashboard or `fastclaw agents config`.
+database and is edited through the dashboard or `lununda agents config`.
 
 | Env var | Default | What it does |
 |---|---|---|
-| `FASTCLAW_HOME` | `~/.fastclaw` | Where the SQLite DB and skill folders live. |
+| `FASTCLAW_HOME` | `~/.lununda` | Where the SQLite DB and skill folders live. |
 | `FASTCLAW_PORT` | `18953` | Gateway HTTP port. |
 | `FASTCLAW_BIND` | `loopback` | `loopback` (127.0.0.1) or `all` (0.0.0.0). |
 | `FASTCLAW_STORAGE_TYPE` | `sqlite` | `sqlite` or `postgres`. |
-| `FASTCLAW_STORAGE_DSN` | empty | Postgres DSN, e.g. `postgres://u:p@host:5432/db?sslmode=disable`. Empty = sqlite at `$FASTCLAW_HOME/fastclaw.db`. |
+| `FASTCLAW_STORAGE_DSN` | empty | Postgres DSN, e.g. `postgres://u:p@host:5432/db?sslmode=disable`. Empty = sqlite at `$FASTCLAW_HOME/lununda.db`. |
 | `FASTCLAW_STORAGE_AUTO_MIGRATE` | `true` | Apply schema migrations on boot. |
 | `FASTCLAW_SANDBOX_ENABLED` | dashboard | Override the Settings → Runtime toggle. |
 | `FASTCLAW_SANDBOX_BACKEND` | dashboard | `docker` or `e2b`. |
@@ -182,63 +182,63 @@ database and is edited through the dashboard or `fastclaw agents config`.
 
 Anything not on this list — providers, models, default model, skill
 catalog, channels, plugin config, scheduler — is configured at runtime
-through the web UI (`http://localhost:18953`) or the CLI (`fastclaw
-agents config`, `fastclaw provider`, `fastclaw skill`).
+through the web UI (`http://localhost:18953`) or the CLI (`lununda
+agents config`, `lununda provider`, `lununda skill`).
 
 ## Deployment
 
 ### Local
 
 ```bash
-fastclaw                    # foreground (^C to stop)
-fastclaw daemon start       # background (logs at ~/.fastclaw/daemon.log)
-fastclaw daemon status
-fastclaw daemon stop
-fastclaw daemon install     # register as a launchd / systemd service
+lununda                    # foreground (^C to stop)
+lununda daemon start       # background (logs at ~/.lununda/daemon.log)
+lununda daemon status
+lununda daemon stop
+lununda daemon install     # register as a launchd / systemd service
 ```
 
-### Manage agents from the CLI (`fastclaw agents …`)
+### Manage agents from the CLI (`lununda agents …`)
 
-The `fastclaw agents` subcommand is a thin convenience wrapper around the
+The `lununda agents` subcommand is a thin convenience wrapper around the
 same store the dashboard uses. Agents you create here show up in the web
-UI and vice-versa — there's only ever one fastclaw deployment per
+UI and vice-versa — there's only ever one lununda deployment per
 `FASTCLAW_HOME`.
 
 ```bash
 # Zero to a chattable agent in one command. On a fresh install this
 # creates an `admin` user (random password printed once) and starts
 # the gateway daemon if it isn't already running.
-fastclaw agents init alpha \
+lununda agents init alpha \
   --provider openai \
   --model openai/gpt-4o-mini \
   --api-key-env OPENAI_API_KEY
 
 # Set per-agent overrides (model, temperature, sandbox, …).
-fastclaw agents config alpha set temperature 0.7
-fastclaw agents config alpha set sandbox.enabled true
+lununda agents config alpha set temperature 0.7
+lununda agents config alpha set sandbox.enabled true
 
 # Upload the agent's identity files.
-fastclaw agents files put alpha SOUL.md ./SOUL.md
-fastclaw agents files put alpha IDENTITY.md ./IDENTITY.md
+lununda agents files put alpha SOUL.md ./SOUL.md
+lununda agents files put alpha IDENTITY.md ./IDENTITY.md
 
 # Inspect.
-fastclaw agents ls
-fastclaw agents config alpha get
-fastclaw agents files ls alpha
+lununda agents ls
+lununda agents config alpha get
+lununda agents files ls alpha
 
 # Tear down.
-fastclaw agents rm alpha
+lununda agents rm alpha
 ```
 
 The CLI opens the operator's store directly (sqlite at
-`~/.fastclaw/fastclaw.db`, or whatever `FASTCLAW_STORAGE_DSN` points at)
+`~/.lununda/lununda.db`, or whatever `FASTCLAW_STORAGE_DSN` points at)
 and writes through the same code paths the gateway uses. It does not
 require the gateway to be running — but `agents init` will spin one up
 in the background so a fresh agent is immediately reachable at
 `http://localhost:18953`. Subsequent CLI writes (`config set`,
 `files put`, `rm`, `init` re-runs) send `SIGHUP` to the running gateway
 so it hot-reloads without restart. Windows lacks `SIGHUP` delivery, so
-the CLI falls back to a hint asking you to run `fastclaw daemon restart`.
+the CLI falls back to a hint asking you to run `lununda daemon restart`.
 
 The default owner is the `admin` user. On an empty database
 `agents init` creates that account with a generated password (printed
@@ -249,8 +249,8 @@ once); on a populated database it expects `admin` to exist or
 
 CLI commands accept either a display name or an `agt_…` id:
 
-- `fastclaw agents config alpha get` — by display name (must be unique)
-- `fastclaw agents config agt_d3c4a5… get` — by id
+- `lununda agents config alpha get` — by display name (must be unique)
+- `lununda agents config agt_d3c4a5… get` — by id
 
 If the same text matches one agent's id and a different agent's display
 name, the CLI reports an ambiguity instead of guessing.
@@ -260,7 +260,7 @@ display name and the id is auto-generated. To update an agent that was
 created via the dashboard, pass its id explicitly:
 
 ```bash
-fastclaw agents init "Cool Agent" --id agt_d3c4a5...
+lununda agents init "Cool Agent" --id agt_d3c4a5...
 ```
 
 #### Configuration keys
@@ -281,10 +281,10 @@ Provider configs live in `scope=system` and are addressed as
 `provider.<name>.<field>`:
 
 ```bash
-fastclaw agents config alpha set provider.openai.apiKeyEnv OPENAI_API_KEY
-fastclaw agents config alpha set provider.openrouter.apiBase https://openrouter.ai/api/v1
-fastclaw agents config alpha set provider.openai.model gpt-4o      # adds; idempotent
-fastclaw agents config alpha set provider.openai.models '[]'        # explicit clear
+lununda agents config alpha set provider.openai.apiKeyEnv OPENAI_API_KEY
+lununda agents config alpha set provider.openrouter.apiBase https://openrouter.ai/api/v1
+lununda agents config alpha set provider.openai.model gpt-4o      # adds; idempotent
+lununda agents config alpha set provider.openai.models '[]'        # explicit clear
 ```
 
 Provider presets ship for `openai`, `openrouter`, `anthropic`, `ollama`,
@@ -306,7 +306,7 @@ file editor uses. Allowlisted filenames: `SOUL.md`, `IDENTITY.md`,
 | `agents files ls\|put\|get <name>` | Read / write the agent's system files |
 | `agents rm <name>` | Delete the agent record and its system files |
 
-### Manage API keys from the CLI (`fastclaw apikey …`)
+### Manage API keys from the CLI (`lununda apikey …`)
 
 Issue and manage programmatic credentials for external integrations.
 
@@ -315,23 +315,23 @@ Issue and manage programmatic credentials for external integrations.
 | type | Scope | Use case |
 |------|-------|----------|
 | `admin` | Full platform access, all agents | Admin automation, CI/CD |
-| `user` | Owner's agents; supports `X-Fastclaw-End-User` for app_user provisioning | SaaS proxy layer, multi-tenant apps |
+| `user` | Owner's agents; supports `X-Lununda Agent-End-User` for app_user provisioning | SaaS proxy layer, multi-tenant apps |
 | `agent` | Explicit agent list only; cannot create agents | Bots, single-purpose integrations |
 
 #### Commands
 
 ```bash
 # Create a key (token shown once — save immediately)
-fastclaw apikey create --name "my-key" --type user [--owner <user-id>]
+lununda apikey create --name "my-key" --type user [--owner <user-id>]
 
 # List keys for a user (defaults to first super_admin)
-fastclaw apikey list [--owner <user-id>]
+lununda apikey list [--owner <user-id>]
 
 # Delete a key
-fastclaw apikey delete --id <apikey-id>
+lununda apikey delete --id <apikey-id>
 
 # Rotate a key (old token invalidated, new token shown once)
-fastclaw apikey rotate --id <apikey-id>
+lununda apikey rotate --id <apikey-id>
 ```
 
 **Flags:**
@@ -341,15 +341,15 @@ fastclaw apikey rotate --id <apikey-id>
 
 #### Multi-tenant app_user flow
 
-A `type=user` key combined with the `X-Fastclaw-End-User` header enables
-per-end-user data isolation without pre-registering users in FastClaw:
+A `type=user` key combined with the `X-Lununda Agent-End-User` header enables
+per-end-user data isolation without pre-registering users in Lununda Agent:
 
 ```
 Authorization: Bearer <user-key-token>
-X-Fastclaw-End-User: <your-app-user-id>
+X-Lununda Agent-End-User: <your-app-user-id>
 ```
 
-FastClaw lazily mints a stable internal user for each unique
+Lununda Agent lazily mints a stable internal user for each unique
 `(api_key_id, external_id)` pair. Sessions, memory, and files are fully
 isolated per end-user.
 
@@ -369,12 +369,12 @@ env:
   - name: FASTCLAW_STORAGE_DSN
     valueFrom:
       secretKeyRef:
-        name: fastclaw-db
+        name: lununda-db
         key: dsn
   - name: FASTCLAW_OBJECT_STORE_ENDPOINT
     value: "s3.amazonaws.com"
   - name: FASTCLAW_OBJECT_STORE_BUCKET
-    value: "fastclaw-skills"
+    value: "lununda-skills"
 ```
 
 No config file is mounted — bootstrap is env-only. See `deploy/k8s/`
@@ -383,7 +383,7 @@ for full manifests.
 ## Building
 
 ```bash
-make build                  # builds the web bundle and the Go binary → bin/fastclaw
+make build                  # builds the web bundle and the Go binary → bin/lununda
 make install                # installs to $HOME/.local/bin (override with PREFIX=)
 make release-local          # cross-compile darwin / linux / windows into dist/
 ```
@@ -393,15 +393,15 @@ via `-ldflags`. CI uses these targets too — see `.github/workflows/`.
 
 ## License
 
-FastClaw is **source-available** under the [FastClaw Community License](LICENSE),
+Lununda Agent is **source-available** under the [Lununda Agent Community License](LICENSE),
 based on Apache License 2.0 with additional conditions.
 
 **TL;DR:**
 - ✅ Use it commercially as a backend for your own product
 - ✅ Internal deployment within your organization
-- ❌ Hosting FastClaw as a multi-tenant SaaS for unrelated organizations
+- ❌ Hosting Lununda Agent as a multi-tenant SaaS for unrelated organizations
   (without a commercial license)
-- ❌ Removing or modifying the FastClaw branding in the dashboard UI
+- ❌ Removing or modifying the Lununda Agent branding in the dashboard UI
 
 The full Apache 2.0 text is reproduced inside the [LICENSE](LICENSE) file
 under the addendum. For commercial licensing inquiries: support@thinkany.ai.

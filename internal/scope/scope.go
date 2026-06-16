@@ -23,8 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // HTTP-layer scope identifiers. The storage layer keys configs by

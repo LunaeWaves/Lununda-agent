@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/goal"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/goal"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 )
 
 // slashGoal dispatches `/goal …` to one of the sub-handlers. The

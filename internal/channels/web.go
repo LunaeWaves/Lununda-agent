@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 )
 
 // WebChannel is the in-process fan-out for web chat clients. It satisfies

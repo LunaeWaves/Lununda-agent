@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/kb"
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/wiki"
+	"github.com/LunaeWaves/Lununda-agent/internal/kb"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/wiki"
 )
 
 func (s *Server) handleWikiStats(w http.ResponseWriter, r *http.Request) {

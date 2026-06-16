@@ -1,7 +1,7 @@
 # Coding-Agent Project Runtime
 
 This document is the integration contract for the **coding-agent runtime**:
-the layer that lets fastclaw scaffold a project from a template, run its
+the layer that lets lununda scaffold a project from a template, run its
 dev server in a long-lived sandbox, and hand back a live preview URL. The
 upstream SaaS shell drives everything through the HTTP API below — it
 never touches the sandbox, the LLM, or the filesystem directly.
@@ -79,10 +79,10 @@ poll `GET …/runtime` (or `…/preview`) until `status` is `running` or
 5. Further edits: just send more chat turns. HMR reflects them; no re-up needed.
 6. Idle: `POST …/sleep` to free compute; `POST …/wake` when the user returns.
 
-## Using it from fastclaw's own web chat (no SaaS shell)
+## Using it from lununda's own web chat (no SaaS shell)
 
 The runtime is also wired into the agent loop as two tools, so you can
-dogfood the whole loop in fastclaw's built-in web chat:
+dogfood the whole loop in lununda's built-in web chat:
 
 - `start_app_preview` — scaffolds the project from the template (first
   call), boots the dev server, returns the preview URL.
@@ -109,7 +109,7 @@ and keep per-chat isolation.
 
 ### Dogfood steps
 
-1. Run fastclaw with the docker sandbox backend and a template source
+1. Run lununda with the docker sandbox backend and a template source
    (see env vars below). For a local template checkout:
    ```
    FASTCLAW_SHIPANY_TEMPLATE_DIR=/Users/you/code/shipany-tanstack
@@ -130,11 +130,11 @@ and keep per-chat isolation.
 
 ## Server wiring
 
-`cmd/fastclaw/main.go` constructs the manager and registers the
+`cmd/lununda/main.go` constructs the manager and registers the
 `shipany-tanstack` template when a home dir resolves. It's active for the
 docker sandbox backend; other backends leave the endpoints at `503`.
 
-Template commands are env-overridable so fastclaw stays template-agnostic:
+Template commands are env-overridable so lununda stays template-agnostic:
 
 | Env var | Default | Meaning |
 |---|---|---|
@@ -160,7 +160,7 @@ the template instead.
 The runtime publishes the dev port to `127.0.0.1:<hostPort>` on the host —
 deliberately **not** `0.0.0.0`, because the container runs LLM-generated
 code and must never be directly reachable. Turning `hostPort` into a
-shareable URL is a reverse proxy you deploy alongside fastclaw:
+shareable URL is a reverse proxy you deploy alongside lununda:
 
 ```
 *.preview.example.com

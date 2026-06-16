@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/gateway"
-	"github.com/fastclaw-ai/fastclaw/internal/toolproviders"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/gateway"
+	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
 )
 
 // categoryCatalog is the admin UI's source of truth for which tool
@@ -148,7 +148,7 @@ func (s *Server) handleGetTools(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleSaveTools atomically updates the toolProviders and tools sections of
-// fastclaw.json. Only the admin/local user is allowed here — cloud tenants
+// lununda.json. Only the admin/local user is allowed here — cloud tenants
 // get their own settings via a separate path (not wired yet). After save,
 // running agents are hot-reloaded so chains pick up new keys immediately.
 func (s *Server) handleSaveTools(w http.ResponseWriter, r *http.Request) {

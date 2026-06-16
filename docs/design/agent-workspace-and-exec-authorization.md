@@ -4,9 +4,9 @@
 
 三个相互关联的问题暴露出来，本方案一并解决：
 
-1. **通过对话安装 skill 不生效**：`install_skill` 工具从未被注册（`internal/agent/tools/skill_install.go` 的 `RegisterSkillInstall` 是死代码，全项目无调用点）。agent 只能用 `exec`（bash）`git clone`，把 skill 放到了 sandbox 相对路径 `./skills/`，而非 FastClaw 的 skill 加载目录（`~/.fastclaw/skills/` 或 `~/.fastclaw/agents/<id>/agent/skills/`），SkillsLoader 根本不读那里。
-2. **exec 相对路径落到程序根目录**：host 模式 exec 没设 `cmd.Dir`（`exec.go:195`），命令里的 `./skills/` 由进程 CWD 解析，而 FastClaw 从 `D:\codes\fastclaw` 启动，于是产物污染了代码目录。
-3. **目录布局割裂**：每个 agent 的数据散在两处——`~/.fastclaw/agents/<id>/agent/`（SOUL.md、skills、memory）和 `~/.fastclaw/workspaces/<id>/`（工作产物）。用户希望收敛到 `~/.fastclaw/agents/<id>/` 一棵子树。
+1. **通过对话安装 skill 不生效**：`install_skill` 工具从未被注册（`internal/agent/tools/skill_install.go` 的 `RegisterSkillInstall` 是死代码，全项目无调用点）。agent 只能用 `exec`（bash）`git clone`，把 skill 放到了 sandbox 相对路径 `./skills/`，而非 Lununda Agent 的 skill 加载目录（`~/.lununda/skills/` 或 `~/.lununda/agents/<id>/agent/skills/`），SkillsLoader 根本不读那里。
+2. **exec 相对路径落到程序根目录**：host 模式 exec 没设 `cmd.Dir`（`exec.go:195`），命令里的 `./skills/` 由进程 CWD 解析，而 Lununda Agent 从 `D:\codes\lununda` 启动，于是产物污染了代码目录。
+3. **目录布局割裂**：每个 agent 的数据散在两处——`~/.lununda/agents/<id>/agent/`（SOUL.md、skills、memory）和 `~/.lununda/workspaces/<id>/`（工作产物）。用户希望收敛到 `~/.lununda/agents/<id>/` 一棵子树。
 
 ## 目标
 
@@ -19,7 +19,7 @@
 
 ### D1. install_skill 工具注册（治本）
 
-把 `RegisterSkillInstall` 真正接进 agent 工具注册流程，装到 agent 私有目录 `~/.fastclaw/agents/<id>/agent/skills/`，`onReload = ag.ReloadWorkspaceFiles` 触发热加载。
+把 `RegisterSkillInstall` 真正接进 agent 工具注册流程，装到 agent 私有目录 `~/.lununda/agents/<id>/agent/skills/`，`onReload = ag.ReloadWorkspaceFiles` 触发热加载。
 
 skill 安装走 Go 代码，路径硬编码，不经 shell——这是 agent"安装 skill"的正解，不该靠 exec 手动 clone。
 
@@ -40,7 +40,7 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 ### D4. 目录布局重构（agent 子树收敛）
 
 目标：每个 agent 的数据收敛到一棵子树
-`~/.fastclaw/agents/<id>/`，含 `agent/`（身份/skills/memory）+ `workspace/`（工作产物）。workspace 从 `~/.fastclaw/workspaces/<id>/` 迁到 `~/.fastclaw/agents/<id>/workspace/`。
+`~/.lununda/agents/<id>/`，含 `agent/`（身份/skills/memory）+ `workspace/`（工作产物）。workspace 从 `~/.lununda/workspaces/<id>/` 迁到 `~/.lununda/agents/<id>/workspace/`。
 
 **方案选择：方案 iii（LocalFS 用回调定位每 agent 的 workspace 根）**
 
@@ -53,7 +53,7 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 - `LocalFS.Root()` 方法全项目零调用（死方法），可安全删除。
 
 **改动清单**：
-1. `config.go` `AgentWorkspaceDir` → 返回 `~/.fastclaw/agents/<id>/workspace`
+1. `config.go` `AgentWorkspaceDir` → 返回 `~/.lununda/agents/<id>/workspace`
 2. `localfs.go` LocalFS 用回调 `agentWorkspaceRoot(agentID)`（默认 `config.AgentWorkspaceDir`）定位每 agent 根；scopeDir 改用回调；删 `Root()` 死方法
 3. `gateway.go:253` `NewLocalFS` 调用适配（去掉 workspaces root，改工厂）
 4. `docker_executor.go:262` / `e2b_executor.go` / `boxlite_executor.go`：路径改用 `config.AgentWorkspaceDir(agentID)` + projects/sessions 子目录
@@ -86,8 +86,8 @@ exec.go host 路径（`:195`）设 `cmd.Dir = r.userRoot`（registry 已持有 w
 - session 结束恢复默认
 
 **白名单**：
-- 存 `~/.fastclaw/agents/<id>/policy.json`，字段 `allowWrite []string`（相对 agent 根的路径前缀）
-- 只能加该 agent 自己目录（`~/.fastclaw/agents/<id>/`）下的子目录——满足"不能影响其他 agent"约束
+- 存 `~/.lununda/agents/<id>/policy.json`，字段 `allowWrite []string`（相对 agent 根的路径前缀）
+- 只能加该 agent 自己目录（`~/.lununda/agents/<id>/`）下的子目录——满足"不能影响其他 agent"约束
 - 预置 `temp`/`download`/`data` 子目录入白名单，并写进 agent 上下文告知用途
 - 加载时合并预置目录 + policy.json 配置项
 
@@ -185,7 +185,7 @@ flag 传递：loop 在执行 approved（含 /yes 触发的 pendingCalls）前，
 - install_skill 注册后，agent 可对话安装 skill 并即时生效；装到 agent 私有目录，web 技能设置页（读私有目录）可见。
 - host exec 相对路径不再污染程序目录，默认落 workspace。
 - ghfast 代理让国内网络也能装 github skill（需配 `FASTCLAW_GH_PROXY`）。
-- 目录重构后，每个 agent 一棵子树 `~/.fastclaw/agents/<id>/`，含 `agent/`（身份/skills/memory）+ `workspace/`（工作产物）+ `policy.json`（白名单）+ 预置子目录。
+- 目录重构后，每个 agent 一棵子树 `~/.lununda/agents/<id>/`，含 `agent/`（身份/skills/memory）+ `workspace/`（工作产物）+ `policy.json`（白名单）+ 预置子目录。
 - 授权系统让 workspace 外操作可控，但 exec 启发式**不是**安全保证——多租户/不可信场景仍需配置 docker/e2b 容器隔离。
 - yolo 模式下所有操作放行，用户需明确知晓风险。
 

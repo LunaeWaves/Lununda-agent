@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 )
 
 const dedupTTL = 60 * time.Second

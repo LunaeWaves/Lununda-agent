@@ -32,8 +32,25 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "FastClaw",
+  title: "Lununda Agent",
   description: "AI Agent Framework",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    title: "Lununda Agent",
+    description: "AI Agent Framework",
+    images: ["/og-image.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Lununda Agent",
+    description: "AI Agent Framework",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
@@ -46,7 +63,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('fastclaw-theme');if(t==='light')return;document.documentElement.classList.add('dark')}catch(e){document.documentElement.classList.add('dark')}})()`,
+            __html: `(function(){try{var t=localStorage.getItem('lununda-theme');if(t==='light')return;document.documentElement.classList.add('dark')}catch(e){document.documentElement.classList.add('dark')}})()`,
           }}
         />
       </head>

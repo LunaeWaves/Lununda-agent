@@ -10,20 +10,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent"
-	"github.com/fastclaw-ai/fastclaw/internal/kb"
-	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
-	"github.com/fastclaw-ai/fastclaw/internal/api"
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
-	"github.com/fastclaw-ai/fastclaw/internal/channels"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/runtime"
-	"github.com/fastclaw-ai/fastclaw/internal/session"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/taskqueue"
-	"github.com/fastclaw-ai/fastclaw/internal/usage"
-	"github.com/fastclaw-ai/fastclaw/internal/users"
-	"github.com/fastclaw-ai/fastclaw/internal/workspace"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent"
+	"github.com/LunaeWaves/Lununda-agent/internal/kb"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
+	"github.com/LunaeWaves/Lununda-agent/internal/api"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/channels"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/runtime"
+	"github.com/LunaeWaves/Lununda-agent/internal/session"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/taskqueue"
+	"github.com/LunaeWaves/Lununda-agent/internal/usage"
+	"github.com/LunaeWaves/Lununda-agent/internal/users"
+	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
 )
 
 // AgentHandle is the surface the web UI uses to talk to a running agent.
@@ -313,13 +313,13 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("DELETE /api/agents/{id}/channels/{type}/{accountId}", auth(s.handleDisconnectAgentChannel))
 
 	// Feishu (飞书) event webhook. UNAUTHENTICATED — Feishu posts here
-	// without a fastclaw bearer token. Per-event security comes from
+	// without a lununda bearer token. Per-event security comes from
 	// the verification_token validated inside the adapter against the
 	// payload's header.token. The {appId} path segment scopes the
 	// receive to one registered channel.
 	mux.HandleFunc("POST /api/feishu/webhook/{appId}", s.handleFeishuWebhook)
 
-	// LINE Messaging API event webhook. UNAUTHENTICATED at the fastclaw
+	// LINE Messaging API event webhook. UNAUTHENTICATED at the lununda
 	// layer — per-event security is HMAC-SHA256(channel_secret, body)
 	// validated by the adapter against the `x-line-signature` header.
 	// The {accountId} path segment is the bot's userId, scoping the

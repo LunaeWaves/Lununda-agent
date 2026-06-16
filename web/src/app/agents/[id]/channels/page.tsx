@@ -1050,7 +1050,7 @@ function ConnectWeChatDialog({
   }, [agentId, onConnected, stopPolling]);
 
   // Auto-fetch a QR as soon as the dialog opens (no separate "name"
-  // step — fastclaw doesn't surface per-account names, accountID is
+  // step — lununda doesn't surface per-account names, accountID is
   // ilink_bot_id).
   useEffect(() => {
     if (open && !qrPayload && !loading && !error) {
@@ -1261,7 +1261,7 @@ function ConnectFeishuDialog({
               <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
                 <p className="text-sm font-medium">{t("channels.longConnectionMode")}</p>
                 <p className="text-xs text-muted-foreground">
-                  fastclaw is now opening a WebSocket to Feishu — no public
+                  lununda is now opening a WebSocket to Feishu — no public
                   URL setup needed. In the Feishu Developer Console under{" "}
                   <strong>事件与回调 → 事件配置 → 订阅方式</strong>, pick{" "}
                   <strong>使用长连接接收事件</strong>, then under{" "}
@@ -1276,7 +1276,7 @@ function ConnectFeishuDialog({
                   Paste this into Feishu Developer Console →{" "}
                   <strong>Event Subscriptions → Request URL</strong>, then
                   click <em>Save</em>. Feishu will POST a verification
-                  challenge here and this fastclaw instance will echo it
+                  challenge here and this lununda instance will echo it
                   automatically.
                 </p>
                 <Input
@@ -1343,7 +1343,7 @@ function ConnectFeishuDialog({
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Optional but recommended — fastclaw rejects webhook payloads
+                Optional but recommended — lununda rejects webhook payloads
                 whose <code>header.token</code> doesn&apos;t match.
               </p>
             </div>

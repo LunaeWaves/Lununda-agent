@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/users"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/users"
 )
 
 func TestAuthorizeSkillInstallTargetRequiresAdminForGlobalInstalls(t *testing.T) {
@@ -150,7 +150,7 @@ func skillInstallRequest(ident auth.Identity) *http.Request {
 func newSkillInstallAuthServer(t *testing.T, ctx context.Context) (*Server, store.Store, *users.Accounts) {
 	t.Helper()
 
-	dbPath := filepath.Join(t.TempDir(), "fastclaw.db")
+	dbPath := filepath.Join(t.TempDir(), "lununda.db")
 	st, err := store.NewDBStore("sqlite", "file:"+dbPath+"?cache=shared")
 	if err != nil {
 		t.Fatalf("NewDBStore: %v", err)

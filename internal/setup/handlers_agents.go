@@ -16,14 +16,14 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
-	"github.com/fastclaw-ai/fastclaw/internal/buildinfo"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/scope"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/users"
-	"github.com/fastclaw-ai/fastclaw/internal/workspace"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/users"
+	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
 )
 
 // agentShareModelConfig reports whether the agent's owner has opted to
@@ -427,7 +427,7 @@ func (s *Server) requireAgentOwner(w http.ResponseWriter, r *http.Request, agent
 // the URL can chat under their own user_id namespace, while the
 // agent's identity (SOUL/IDENTITY/skills) is reused from the owner's
 // row. This is the same gate /api/chat/history uses, so app_user
-// requests proxied through an integration with X-Fastclaw-End-User
+// requests proxied through an integration with X-Lununda Agent-End-User
 // can read artifacts for sessions they own without 403'ing on the
 // strict ownership check.
 // callerOwnsAgent returns true when the caller is the agent's owner, a
@@ -1328,7 +1328,7 @@ func (s *Server) handleAgentFile(w http.ResponseWriter, r *http.Request) {
 	}
 	// Workspace store not configured — fall back to direct FS read.
 	// The local FS layout mirrors the workspace store's:
-	// ~/.fastclaw/agents/<agent_id>/workspace/<path>.
+	// ~/.lununda/agents/<agent_id>/workspace/<path>.
 	root, err := config.AgentWorkspaceDir(id)
 	if err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
 )
 
 var upgrader = websocket.Upgrader{

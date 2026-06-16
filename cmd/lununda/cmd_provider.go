@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
 // providerCmd handles provider/credential management subcommands.

@@ -27,7 +27,7 @@ return unsafe.test(url) ? "" : url;
 // active agent. Skills that produce a file return a sandbox path like
 // /workspace/img_xxx.png; the LLM puts that in `![](/workspace/...)`.
 // The docker bind-mount is session-scoped (host:
-// ~/.fastclaw/workspaces/<agent>/sessions/<sid>/ ↔ container:/workspace),
+// ~/.lununda/workspaces/<agent>/sessions/<sid>/ ↔ container:/workspace),
 // so the workspace.Store sees the file at sessions/<sid>/<name>. We
 // must prepend that prefix or the file API resolves against the agent
 // root and 404s.
@@ -979,7 +979,7 @@ export function ChatScreen() {
             // produced an updated session title.
             if (typeof window !== "undefined") {
               window.dispatchEvent(
-                new CustomEvent("fastclaw:sessions-changed", {
+                new CustomEvent("lununda:sessions-changed", {
                   detail: { agentId: selectedAgent },
                 }),
               );
@@ -1083,7 +1083,7 @@ export function ChatScreen() {
         // happen on rename.
         if (typeof window !== "undefined") {
           window.dispatchEvent(
-            new CustomEvent("fastclaw:sessions-changed", {
+            new CustomEvent("lununda:sessions-changed", {
               detail: { agentId: selectedAgent },
             }),
           );
@@ -1737,7 +1737,7 @@ export function ChatScreen() {
       // up without a full page reload.
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("fastclaw:sessions-changed", {
+          new CustomEvent("lununda:sessions-changed", {
             detail: { agentId: selectedAgent },
           }),
         );

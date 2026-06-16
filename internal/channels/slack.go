@@ -11,7 +11,7 @@ import (
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 )
 
 var slackMentionRe = regexp.MustCompile(`<@(\w+)>`)

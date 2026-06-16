@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/cron"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/cron"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // cronStoreAdapter bridges store.Store to cron.StoreInterface. The cron

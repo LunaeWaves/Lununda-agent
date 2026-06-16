@@ -11,19 +11,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/plugin"
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
-	coderuntime "github.com/fastclaw-ai/fastclaw/internal/runtime"
-	"github.com/fastclaw-ai/fastclaw/internal/sandbox"
-	"github.com/fastclaw-ai/fastclaw/internal/scope"
-	"github.com/fastclaw-ai/fastclaw/internal/session"
-	"github.com/fastclaw-ai/fastclaw/internal/skills"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/usage"
-	"github.com/fastclaw-ai/fastclaw/internal/workspace"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/plugin"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
+	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/session"
+	"github.com/LunaeWaves/Lununda-agent/internal/skills"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/usage"
+	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
 )
 
 // loadAgentSkillEntries collects every agent-scope skills.entries row
@@ -69,7 +69,7 @@ func ensureAgentHome(rc config.ResolvedAgent) {
 	}
 }
 
-// globalSkillsDirPath returns ~/.fastclaw/skills.
+// globalSkillsDirPath returns ~/.lununda/skills.
 func globalSkillsDirPath() (string, error) {
 	home, err := config.HomeDir()
 	if err != nil {

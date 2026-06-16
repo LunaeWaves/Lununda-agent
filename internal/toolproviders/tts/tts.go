@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/toolproviders"
+	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
 )
 
 // Category is the tool category these providers plug into.
@@ -53,7 +53,7 @@ func writeAudio(data []byte, ext string) (toolproviders.Response, error) {
 	if ext == "" {
 		ext = "mp3"
 	}
-	f, err := os.CreateTemp("", "fastclaw-tts-*."+ext)
+	f, err := os.CreateTemp("", "lununda-tts-*."+ext)
 	if err != nil {
 		return toolproviders.Response{}, fmt.Errorf("create tmp: %w", err)
 	}

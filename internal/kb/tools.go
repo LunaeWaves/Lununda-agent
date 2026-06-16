@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 )
 
 func RegisterKBTools(r *tools.Registry, store *KBStore, agentID string) {
@@ -233,7 +233,7 @@ func FetchURLContent(ctx context.Context, rawURL string) (title, body string, er
 	if err != nil {
 		return "", "", err
 	}
-	req.Header.Set("User-Agent", "FastClaw/1.0 (KB Fetcher)")
+	req.Header.Set("User-Agent", "Lununda Agent/1.0 (KB Fetcher)")
 
 	resp, err := kbFetchClient.Do(req)
 	if err != nil {

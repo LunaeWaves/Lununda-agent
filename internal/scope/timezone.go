@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // PrefsNamespace is the kind=setting namespace for per-chatter

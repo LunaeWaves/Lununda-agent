@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // Pins the chatter-first precedence that makes Timezone different from

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	coderuntime "github.com/fastclaw-ai/fastclaw/internal/runtime"
+	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
 )
 
 // SetProjectRuntime turns this agent into a coding agent: it wires the

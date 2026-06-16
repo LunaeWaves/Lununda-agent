@@ -1,11 +1,11 @@
 version: 2
 
-project_name: fastclaw
+project_name: Lununda-agent
 
 builds:
-  - id: fastclaw
-    main: ./cmd/fastclaw
-    binary: fastclaw
+  - id: lununda
+    main: ./cmd/lununda
+    binary: lununda
     env:
       - CGO_ENABLED=0
     goos:
@@ -31,8 +31,8 @@ checksum:
 
 release:
   github:
-    owner: fastclaw-ai
-    name: fastclaw
+    owner: LunaeWaves
+    name: Lununda-agent
 
 changelog:
   sort: asc

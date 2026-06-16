@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
 )
 
 // Manager manages connections to multiple MCP servers.

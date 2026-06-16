@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/goal"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/goal"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 )
 
 // NewTokenAccountingHook returns an AfterModelCall hook that folds

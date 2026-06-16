@@ -50,7 +50,7 @@ export default function SkillsPage() {
   const [skillEntries, setSkillEntries] = useState<Record<string, SkillEntryView>>({});
   // Upload-zip state. Backend route is the same as the agent-scoped
   // upload but without the ?agent= query param — it lands in the global
-  // ~/.fastclaw/skills dir, which the resolveInstallTarget handler
+  // ~/.lununda/skills dir, which the resolveInstallTarget handler
   // gates behind admin (this page is already admin-only).
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -461,7 +461,7 @@ function InstallSkillDialog({
           <DialogTitle>{t("skills.installSkill")}</DialogTitle>
           <DialogDescription>
             Search skills.sh for a published skill. Installs land in{" "}
-            <code className="font-mono text-xs">~/.fastclaw/skills/</code> and
+            <code className="font-mono text-xs">~/.lununda/skills/</code> and
             become available to every agent.
           </DialogDescription>
         </DialogHeader>

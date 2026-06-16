@@ -7,7 +7,7 @@ import "path/filepath"
 // sandbox. Per-agent dir comes first so its skills override
 // same-named global ones, matching SkillsLoader precedence.
 //
-// home is the resolved FASTCLAW_HOME (the pool's workspaceRoot), not
+// home is the resolved LUNUNDA_HOME (the pool's workspaceRoot), not
 // the process env — keeps tests / multi-instance debug honest.
 func skillDirsForAgent(home, agentID string) []string {
 	if home == "" {

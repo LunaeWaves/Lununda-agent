@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
 const (

@@ -161,7 +161,7 @@ export default function OnboardPage() {
   // Sandbox (optional — disabled by default; user can flip and configure)
   const [sandboxEnabled, setSandboxEnabled] = useState(false);
   const [sandboxBackend, setSandboxBackend] = useState("docker");
-  const [sandboxDockerImage, setSandboxDockerImage] = useState("thinkany/fastclaw-sandbox:latest");
+  const [sandboxDockerImage, setSandboxDockerImage] = useState("thinkany/lununda-sandbox:latest");
   const [sandboxE2BTemplate, setSandboxE2BTemplate] = useState("base");
   const [sandboxE2BKey, setSandboxE2BKey] = useState("");
   const [sandboxBoxliteImage, setSandboxBoxliteImage] = useState("");
@@ -956,7 +956,7 @@ function SandboxStep(props: {
                     <Input
                       value={props.boxliteImage}
                       onChange={(e) => props.setBoxliteImage(e.target.value)}
-                      placeholder="fastclaw-sandbox"
+                      placeholder="lununda-sandbox"
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -980,7 +980,7 @@ function SandboxStep(props: {
                   <Input
                     value={props.dockerImage}
                     onChange={(e) => props.setDockerImage(e.target.value)}
-                    placeholder="thinkany/fastclaw-sandbox:latest"
+                    placeholder="thinkany/lununda-sandbox:latest"
                     className="font-mono text-sm"
                   />
                 </div>

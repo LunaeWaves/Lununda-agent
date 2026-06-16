@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FastClaw is a multi-user AI Agent runtime written in Go. It creates, manages, and runs AI agents — each with its own personality (SOUL.md), memory, skills, and tools. A single binary serves the gateway HTTP API, the web dashboard, IM channel bridges, and the agent runtime.
+Lununda Agent is a multi-user AI Agent runtime written in Go. It creates, manages, and runs AI agents — each with its own personality (SOUL.md), memory, skills, and tools. A single binary serves the gateway HTTP API, the web dashboard, IM channel bridges, and the agent runtime.
 
 ## Build & Test Commands
 
 ```bash
 # Go build (no web UI rebuild)
-CGO_ENABLED=0 go build -ldflags "-s -w" ./cmd/fastclaw
+CGO_ENABLED=0 go build -ldflags "-s -w" ./cmd/lununda
 
 # Go test (all packages)
 go test ./...
@@ -30,12 +30,12 @@ cd web && rm -rf .next out && pnpm install --frozen-lockfile && pnpm build
 rm -rf internal/setup/web && cp -r web/out internal/setup/web
 ```
 
-The binary is `./bin/fastclaw`. Version/commit/date are injected via `-ldflags` — see Makefile for the `LDFLAGS` variable.
+The binary is `./bin/lununda`. Version/commit/date are injected via `-ldflags` — see Makefile for the `LDFLAGS` variable.
 
 ## Architecture
 
 ```
-cmd/fastclaw/          Cobra CLI entry point (main.go, commands.go, cmd_*.go)
+cmd/lununda/          Cobra CLI entry point (main.go, commands.go, cmd_*.go)
 internal/
   agent/               ReAct agent loop, context builder, tool registry, memory, skills
     goal/              Async goal/continuation system (multi-turn autonomous tasks)
@@ -92,7 +92,7 @@ Built by `agent.ContextBuilder` from template files in order: AGENTS.md → BOOT
 - Go 1.25, `CGO_ENABLED=0` (pure-Go SQLite driver: `modernc.org/sqlite`).
 - No config file — everything is env vars (`FASTCLAW_*`) or database.
 - Agent identity files (SOUL.md, IDENTITY.md, etc.) are stored in the `agent_files` DB table, not on disk.
-- Skills on disk live under `~/.fastclaw/skills/` (global) or `~/.fastclaw/agents/<id>/agent/skills/` (agent-private).
+- Skills on disk live under `~/.lununda/skills/` (global) or `~/.lununda/agents/<id>/agent/skills/` (agent-private).
 - The `internal/agent/bundled_skills/` directory is overwritten by `make bundle-skills` from `skills/` — don't edit it directly.
 - Build info is stamped into both `main.*` and `internal/buildinfo.*` via ldflags — keep both in sync.
 - Default HTTP port is 18953.

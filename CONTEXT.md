@@ -1,4 +1,4 @@
-# FastClaw
+# Lununda Agent
 
 Multi-user AI Agent runtime. Creates, manages, and runs AI agents with personality, memory, skills, and tools. A single binary serves the gateway HTTP API, web dashboard, IM channel bridges, and the agent runtime.
 

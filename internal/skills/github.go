@@ -20,10 +20,10 @@ func InstallFromGitHubRepo(repo, skillName, targetDir string) (*Result, error) {
 	owner, name := parts[0], parts[1]
 
 	client := defaultHTTPClient()
-	// FASTCLAW_GH_PROXY optionally mirrors github.com archive tarballs
+	// LUNUNDA_GH_PROXY optionally mirrors github.com archive tarballs
 	// through an accelerator prefix (e.g. "https://ghfast.top/"), so
 	// installs succeed from networks where GitHub is blocked/throttled.
-	ghMirror := strings.TrimRight(os.Getenv("FASTCLAW_GH_PROXY"), "/")
+	ghMirror := strings.TrimRight(os.Getenv("LUNUNDA_GH_PROXY"), "/")
 	var lastErr error
 	for _, ref := range []string{"main", "master"} {
 		// github.com archive, not codeload: identical tarball, but mirrors

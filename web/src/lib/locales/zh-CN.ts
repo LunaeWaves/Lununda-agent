@@ -56,7 +56,7 @@ const zhCN: Record<string, string> = {
   "general.languageDesc": "选择界面语言。",
 
   // Login / Signup
-  "login.title": "FastClaw",
+  "login.title": "Lununda Agent",
   "login.subtitle": "使用用户名或邮箱登录",
   "login.usernamePlaceholder": "用户名或邮箱",
   "login.passwordPlaceholder": "密码",
@@ -68,7 +68,7 @@ const zhCN: Record<string, string> = {
   "login.cannotReach": "无法连接服务器",
 
   "signup.title": "创建账户",
-  "signup.subtitle": "注册以开始使用 FastClaw",
+  "signup.subtitle": "注册以开始使用 Lununda Agent",
   "signup.usernamePlaceholder": "用户名",
   "signup.username": "用户名",
   "signup.emailPlaceholder": "邮箱",
@@ -734,7 +734,7 @@ const zhCN: Record<string, string> = {
   "onboard.steps.agentStep": "智能体",
   "onboard.steps.sandbox": "沙箱",
   "onboard.steps.launch": "启动",
-  "onboard.welcome.title": "欢迎使用 FastClaw",
+  "onboard.welcome.title": "欢迎使用 Lununda Agent",
   "onboard.welcome.desc": "几个简单的步骤即可设置你的平台——管理员账户、第一个 LLM 提供商和第一个智能体。大约需要一分钟。",
   "onboard.welcome.youWillBeAdmin": "设置完成后你将成为超级管理员——之后可以在管理面板中添加更多用户。",
   "onboard.welcome.everythingInDB": "所有用户相关的配置（提供商、通道、智能体、设置）都存储在数据库中，可以随时在界面中修改。",
@@ -1050,14 +1050,14 @@ const zhCN: Record<string, string> = {
   "channels.botLiveAs": "机器人已上线：",
   "channels.oneLastStep": "最后一步",
   "channels.longConnectionMode": "长连接模式",
-  "channels.longConnDesc": "fastclaw 通过 WebSocket 连接飞书——无需公网 URL。关闭以使用传统 webhook 方式。",
+  "channels.longConnDesc": "lununda 通过 WebSocket 连接飞书——无需公网 URL。关闭以使用传统 webhook 方式。",
   "channels.waitingForScan": "等待扫码…",
   "channels.scannedConfirm": "已扫码——请在手机上确认。",
   "channels.qrExpired": "二维码已过期。",
   "channels.refreshQR": "刷新二维码",
   "channels.refreshing": "刷新中…",
   "channels.sendToTest": "发送消息测试集成。",
-  "channels.optionalButRecommended": "可选但强烈推荐——fastclaw 使用此密钥通过 HMAC-SHA256 验证入站 webhook 负载。",
+  "channels.optionalButRecommended": "可选但强烈推荐——lununda 使用此密钥通过 HMAC-SHA256 验证入站 webhook 负载。",
 };
 
 export default zhCN;

@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
 // Origin tagging guards the compaction / WebChatHistory / FTS

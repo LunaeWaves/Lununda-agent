@@ -109,7 +109,7 @@ export default function AgentChatsPage() {
   function broadcastChange() {
     if (typeof window !== "undefined") {
       window.dispatchEvent(
-        new CustomEvent("fastclaw:sessions-changed", {
+        new CustomEvent("lununda:sessions-changed", {
           detail: { agentId },
         }),
       );

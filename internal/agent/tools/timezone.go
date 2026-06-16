@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/scope"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 type setTimezoneArgs struct {

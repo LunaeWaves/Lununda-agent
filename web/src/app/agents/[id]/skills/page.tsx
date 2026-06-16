@@ -491,7 +491,7 @@ function InstallSkillDialog({
     setInstallError(null);
     setInstallingId(r.id);
     try {
-      // agent: agentId → backend installs into ~/.fastclaw/agents/<id>/skills
+      // agent: agentId → backend installs into ~/.lununda/agents/<id>/skills
       const resp = await installSkill({
         source: "skillssh",
         name: r.skillId,
@@ -517,7 +517,7 @@ function InstallSkillDialog({
           <DialogDescription>
             Search skills.sh and install into{" "}
             <code className="font-mono text-xs">
-              ~/.fastclaw/agents/{agentId}/skills/
+              ~/.lununda/agents/{agentId}/skills/
             </code>
             . Only this agent will see the new skill.
           </DialogDescription>

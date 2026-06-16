@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/goal"
-	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
-	"github.com/fastclaw-ai/fastclaw/internal/session"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/goal"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/session"
 )
 
 // newSlashTestAgent builds an Agent wired enough to exercise the

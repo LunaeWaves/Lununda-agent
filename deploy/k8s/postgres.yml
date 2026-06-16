@@ -1,17 +1,17 @@
 # Optional — in-cluster self-hosted Postgres, suitable for dev / single-node trials.
 # For production, prefer a managed service (Aliyun RDS / AWS RDS / etc.) and
-# point fastclaw.yaml's fastclaw-secrets.STORAGE_DSN at it; this file is not needed.
+# point lununda.yaml's lununda-secrets.STORAGE_DSN at it; this file is not needed.
 #
-# To use alongside fastclaw.yaml:
+# To use alongside lununda.yaml:
 #   1. kubectl apply -f postgres.yml          (creates the resources below)
-#   2. In fastclaw.yaml, set fastclaw-secrets.STORAGE_DSN to:
-#        postgres://fastclaw:<POSTGRES_PASSWORD above>@fastclaw-db:5432/fastclaw?sslmode=disable
-#   3. kubectl apply -f fastclaw.yaml
+#   2. In lununda.yaml, set lununda-secrets.STORAGE_DSN to:
+#        postgres://lununda:<POSTGRES_PASSWORD above>@lununda-db:5432/lununda?sslmode=disable
+#   3. kubectl apply -f lununda.yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: fastclaw-db
-  namespace: fastclaw
+  name: lununda-db
+  namespace: lununda
 type: Opaque
 stringData:
   POSTGRES_PASSWORD: "change-me-in-production"
@@ -19,8 +19,8 @@ stringData:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fastclaw-db
-  namespace: fastclaw
+  name: lununda-db
+  namespace: lununda
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -30,17 +30,17 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fastclaw-db
-  namespace: fastclaw
+  name: lununda-db
+  namespace: lununda
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fastclaw-db
+      app: lununda-db
   template:
     metadata:
       labels:
-        app: fastclaw-db
+        app: lununda-db
     spec:
       containers:
       - name: postgres
@@ -49,34 +49,34 @@ spec:
         - containerPort: 5432
         env:
         - name: POSTGRES_DB
-          value: fastclaw
+          value: lununda
         - name: POSTGRES_USER
-          value: fastclaw
+          value: lununda
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: fastclaw-db
+              name: lununda-db
               key: POSTGRES_PASSWORD
         volumeMounts:
         - name: data
           mountPath: /var/lib/postgresql/data
         readinessProbe:
           exec:
-            command: ["pg_isready", "-U", "fastclaw"]
+            command: ["pg_isready", "-U", "lununda"]
           initialDelaySeconds: 5
           periodSeconds: 5
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: fastclaw-db
+          claimName: lununda-db
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: fastclaw-db
-  namespace: fastclaw
+  name: lununda-db
+  namespace: lununda
 spec:
   selector:
-    app: fastclaw-db
+    app: lununda-db
   ports:
   - port: 5432

@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent"
-	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // chatKey is the per-conversation serialization key used by the task
@@ -62,7 +62,7 @@ func (g *Gateway) processInbound(ctx context.Context) {
 				continue
 			}
 
-			// Normalize msg.UserID into a fastclaw `u_xxx` id. IM channels
+			// Normalize msg.UserID into a lununda `u_xxx` id. IM channels
 			// (wechat, telegram, line, discord, feishu, slack) emit the raw
 			// platform-side identifier, which doesn't match the key that
 			// per-chatter data (USER.md, MEMORY.md, per-user skills) is
@@ -124,7 +124,7 @@ func (g *Gateway) resolveChannelOwner(ctx context.Context, msg bus.InboundMessag
 	return ""
 }
 
-// resolveChatter normalizes msg.UserID into a fastclaw `u_xxx` id. IM
+// resolveChatter normalizes msg.UserID into a lununda `u_xxx` id. IM
 // channels deliver the platform-side identifier (wechat openid, telegram
 // numeric id, …) and the agent loop then keys per-chatter files (USER.md,
 // MEMORY.md, per-user skills) under that raw string — which never matches

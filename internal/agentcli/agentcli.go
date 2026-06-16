@@ -1,5 +1,5 @@
-// Package agentcli provides the data-layer operations that fastclaw's
-// `agents …` CLI subcommands run against the operator's own FastClaw
+// Package agentcli provides the data-layer operations that lununda's
+// `agents …` CLI subcommands run against the operator's own Lununda Agent
 // store. The CLI is a thin convenience wrapper over the same store the
 // gateway and dashboard use — agents created here are indistinguishable
 // from agents created via the web UI.
@@ -16,10 +16,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/scope"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/users"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/users"
 )
 
 // validateName mirrors the dashboard's only check: non-empty after trim.
@@ -215,7 +215,7 @@ func ensureOwner(ctx context.Context, st store.Store, opts InitOptions) (*users.
 		}
 		generated = password
 	}
-	email := defaultStr(opts.Email, username+"@local.fastclaw")
+	email := defaultStr(opts.Email, username+"@local.lununda")
 	acct, err := accts.Create(ctx, users.CreateInput{
 		Username:    username,
 		Email:       email,

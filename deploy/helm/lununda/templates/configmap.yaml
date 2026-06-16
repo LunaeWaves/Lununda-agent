@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "fastclaw.fullname" . }}-config
+  name: {{ include "lununda.fullname" . }}-config
   labels:
-    {{- include "fastclaw.labels" . | nindent 4 }}
+    {{- include "lununda.labels" . | nindent 4 }}
 data:
   FASTCLAW_PORT: {{ .Values.gateway.port | quote }}
   FASTCLAW_BIND: "all"

@@ -3,9 +3,9 @@ package agent
 import (
 	"testing"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent/goal"
-	"github.com/fastclaw-ai/fastclaw/internal/agent/tools"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/goal"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 )
 
 // newAgentForWireTest builds the minimal Agent skeleton the wiring

@@ -100,7 +100,7 @@ export default function AgentPluginsPage() {
             </p>
             <p className="text-xs text-muted-foreground/60 max-w-sm text-center">
               {t("plugins.installHint")}{" "}
-              <code className="text-[10px]">~/.fastclaw/plugins/</code>{" "}
+              <code className="text-[10px]">~/.lununda/plugins/</code>{" "}
               {t("plugins.installHint2")}{" "}
               <code className="text-[10px]">type: &quot;hook&quot;</code>{" "}
               {t("plugins.installHint3")}{" "}

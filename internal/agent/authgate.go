@@ -22,7 +22,7 @@ const (
 var presetAllowlistDirs = []string{"temp", "download", "data"}
 
 // authPolicyFile is the per-agent allowlist. allowWrite entries are path
-// prefixes RELATIVE to the agent root (~/.fastclaw/agents/<id>/) and MUST
+// prefixes RELATIVE to the agent root (~/.lununda/agents/<id>/) and MUST
 // resolve under it — entries pointing outside are silently dropped, which
 // enforces "one agent can't authorize paths for another".
 type authPolicyFile struct {
@@ -34,7 +34,7 @@ type authPolicyFile struct {
 // the agent's allowlist (preset dirs + policy.json). One gate per agent,
 // loaded once and cached; policy.json edits require an agent reload.
 type authGate struct {
-	agentRoot string // ~/.fastclaw/agents/<id>/  (allowlist entries resolve under here)
+	agentRoot string // ~/.lununda/agents/<id>/  (allowlist entries resolve under here)
 	workspace string // absolute workspace path (inside-workside writes are free)
 
 	mu         sync.RWMutex

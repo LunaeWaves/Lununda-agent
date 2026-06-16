@@ -18,7 +18,7 @@ import { ChatRowActions } from "@/components/chat-row-actions";
 // MIME type carried in dataTransfer for chat-session drags. Custom
 // type so we don't react to unrelated drops (text dragged in from
 // outside the app, files from the desktop, etc.).
-export const CHAT_DRAG_MIME = "application/x-fastclaw-chat";
+export const CHAT_DRAG_MIME = "application/x-lununda-chat";
 
 // Cap the sidebar list so a chatty agent doesn't push every other nav
 // item off-screen. The full list lives at /agents/<id>/chats with
@@ -90,7 +90,7 @@ export function NavSessions({
   const broadcastChange = () => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(
-        new CustomEvent("fastclaw:sessions-changed", {
+        new CustomEvent("lununda:sessions-changed", {
           detail: { agentId },
         }),
       );

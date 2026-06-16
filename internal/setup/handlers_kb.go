@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/kb"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/kb"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // handleListKBSources lists knowledge base sources for an agent.

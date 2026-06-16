@@ -1,4 +1,4 @@
-module github.com/fastclaw-ai/fastclaw
+module github.com/LunaeWaves/Lununda-agent
 
 go 1.25.0
 

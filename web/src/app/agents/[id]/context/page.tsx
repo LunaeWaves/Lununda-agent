@@ -213,7 +213,7 @@ export default function AgentContextPage() {
           <span>
             {t("context.pluginToolsNote")}{" "}
             <code className="text-[11px]">
-              ~/.fastclaw/plugins/fastclaw-plugin-demo
+              ~/.lununda/plugins/lununda-plugin-demo
             </code>{" "}
             {t("context.pluginToolsExample")}
           </span>

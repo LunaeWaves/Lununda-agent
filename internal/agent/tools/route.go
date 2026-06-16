@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/buildinfo"
+	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
 )
 
 // RouteTarget identifies which backend should handle a file/exec call.
@@ -98,9 +98,9 @@ func (r *Registry) routeFor(path string, op Operation) RouteTarget {
 	// Rule 2: local with sandbox configured → sandbox-first. Host disk is
 	// reachable only via explicit host-scope paths (the operator's
 	// Documents, an absolute /Users/<u>/... that's clearly NOT
-	// sandbox-internal, fastclaw-internal subtrees for upgrade ops).
+	// sandbox-internal, lununda-internal subtrees for upgrade ops).
 	if sandboxOK {
-		if isFastClawInternalPath(path) {
+		if isLunundaInternalPath(path) {
 			return RouteHostFS
 		}
 		if isExplicitHostScope(path) {
@@ -125,7 +125,7 @@ func (r *Registry) routeFor(path string, op Operation) RouteTarget {
 //
 // Today the heuristic is path-prefix based:
 //   - ~/Documents, ~/Downloads, ~/Desktop, ~/projects, ~/code, ~/work
-//   - /Users/<u>/... and /home/<u>/... that aren't fastclaw-internal
+//   - /Users/<u>/... and /home/<u>/... that aren't lununda-internal
 //     and aren't sandbox-only
 //
 // Bare ~/ (without a recognised user-content subdir) is NOT host-scope:
@@ -133,7 +133,7 @@ func (r *Registry) routeFor(path string, op Operation) RouteTarget {
 // home dir. If the operator wants a path under their actual home, they
 // can spell it out (~/Documents/foo, /Users/mike/code/foo).
 func isExplicitHostScope(path string) bool {
-	if isFastClawInternalPath(path) || isSandboxOnlyPath(path) {
+	if isLunundaInternalPath(path) || isSandboxOnlyPath(path) {
 		return false
 	}
 	if strings.HasPrefix(path, "~/") {
@@ -164,18 +164,18 @@ var hostHomeContentDirs = []string{
 	"projects", "code", "work", "src",
 }
 
-// isFastClawInternalPath reports whether path falls under FastClaw's
-// runtime-managed dirs (~/.fastclaw/...). These have dedicated routing
+// isLunundaInternalPath reports whether path falls under Lununda Agent's
+// runtime-managed dirs (~/.lununda/...). These have dedicated routing
 // (workspaceStore, identity store, …) and tools must not write to them
 // through the chat-facing host path or they'd corrupt internal state.
-func isFastClawInternalPath(path string) bool {
-	if strings.HasPrefix(path, "~/.fastclaw") {
+func isLunundaInternalPath(path string) bool {
+	if strings.HasPrefix(path, "~/.lununda") {
 		return true
 	}
 	if filepath.IsAbs(path) {
 		if home, err := os.UserHomeDir(); err == nil {
-			fastclawDir := filepath.Join(home, ".fastclaw")
-			if path == fastclawDir || strings.HasPrefix(path, fastclawDir+string(filepath.Separator)) {
+			lunundaDir := filepath.Join(home, ".lununda")
+			if path == lunundaDir || strings.HasPrefix(path, lunundaDir+string(filepath.Separator)) {
 				return true
 			}
 		}
@@ -188,7 +188,7 @@ func isFastClawInternalPath(path string) bool {
 // a different location, so naive host expansion would always 404.
 //
 //   - ~/.agents/...    : npx skills' install dir (bind-mounted from
-//                        ~/.fastclaw/users/<uid>/skills/)
+//                        ~/.lununda/users/<uid>/skills/)
 //   - /root/.agents/.. : same, via the sandbox-resolved absolute path
 func isSandboxOnlyPath(path string) bool {
 	if strings.HasPrefix(path, "~/.agents") || strings.HasPrefix(path, "/root/.agents") {

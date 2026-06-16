@@ -17,18 +17,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent"
-	"github.com/fastclaw-ai/fastclaw/internal/api"
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
-	"github.com/fastclaw-ai/fastclaw/internal/buildinfo"
-	"github.com/fastclaw-ai/fastclaw/internal/bus"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/provider"
-	"github.com/fastclaw-ai/fastclaw/internal/scope"
-	"github.com/fastclaw-ai/fastclaw/internal/session"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
-	"github.com/fastclaw-ai/fastclaw/internal/users"
-	"github.com/fastclaw-ai/fastclaw/internal/workspace"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent"
+	"github.com/LunaeWaves/Lununda-agent/internal/api"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
+	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/session"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/users"
+	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
 )
 
 type agentChatEvent = agent.ChatEvent
@@ -1745,7 +1745,7 @@ func (s *Server) handleMoveSessionProject(w http.ResponseWriter, r *http.Request
 }
 
 // handleFeishuWebhook receives Feishu / Feishu event POSTs. The route is
-// public (Feishu doesn't auth via fastclaw bearer); per-event security
+// public (Feishu doesn't auth via lununda bearer); per-event security
 // is enforced inside the Feishu adapter by validating the payload's
 // header.token against the verification token stored at connect time.
 //
@@ -1786,7 +1786,7 @@ func (s *Server) handleFeishuWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleLINEWebhook receives LINE Messaging API event POSTs. The route
-// is public (LINE doesn't auth via fastclaw bearer); per-event security
+// is public (LINE doesn't auth via lununda bearer); per-event security
 // comes from the HMAC-SHA256 signature in `x-line-signature` which the
 // adapter validates against channel_secret + the raw body.
 //
@@ -1915,7 +1915,7 @@ func newRandID() (string, error) {
 func generateRandomToken(length int) string {
 	b := make([]byte, length)
 	if _, err := rand.Read(b); err != nil {
-		return "fastclaw-default-token"
+		return "lununda-default-token"
 	}
 	return hex.EncodeToString(b)
 }

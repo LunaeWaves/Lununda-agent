@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/toolproviders"
+	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
 )
 
 // Replicate posts to https://api.replicate.com/v1/models/<owner>/<name>/predictions

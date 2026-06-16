@@ -34,8 +34,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fastclaw-ai/fastclaw/internal/sandbox"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // Runtime status values, mirrored in store.ProjectRuntimeRecord.Status.
@@ -50,7 +50,7 @@ const (
 
 // devLogPath is where each runtime tees its dev-server output inside the
 // container, so Logs() can tail it without attaching to the process.
-const devLogPath = "/workspace/.fastclaw-dev.log"
+const devLogPath = "/workspace/.lununda-dev.log"
 
 // AppSubdir is the folder, under a scope's workspace, that the app is
 // scaffolded into and served from — so the template doesn't pollute the
@@ -89,7 +89,7 @@ type TemplateSpec struct {
 // Manager owns every project runtime. Safe for concurrent use.
 type Manager struct {
 	store         store.Store
-	workspaceRoot string // FASTCLAW_HOME (workspaces/ lives under it)
+	workspaceRoot string // LUNUNDA_HOME (workspaces/ lives under it)
 	image         string
 	policy        *sandbox.Policy
 	// previewBase templates the user-facing preview URL. Two shapes:
@@ -111,7 +111,7 @@ type Manager struct {
 // on Manager.previewBase.
 func NewManager(st store.Store, workspaceRoot, image string, policy *sandbox.Policy, previewBase string) *Manager {
 	if image == "" {
-		image = "thinkany/fastclaw-sandbox:latest"
+		image = "thinkany/lununda-sandbox:latest"
 	}
 	return &Manager{
 		store:         st,

@@ -10,16 +10,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fastclaw-ai/fastclaw/internal/agent"
-	"github.com/fastclaw-ai/fastclaw/internal/api"
-	"github.com/fastclaw-ai/fastclaw/internal/auth"
-	"github.com/fastclaw-ai/fastclaw/internal/config"
-	"github.com/fastclaw-ai/fastclaw/internal/daemon"
-	"github.com/fastclaw-ai/fastclaw/internal/gateway"
-	coderuntime "github.com/fastclaw-ai/fastclaw/internal/runtime"
-	"github.com/fastclaw-ai/fastclaw/internal/sandbox"
-	"github.com/fastclaw-ai/fastclaw/internal/setup"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent"
+	"github.com/LunaeWaves/Lununda-agent/internal/api"
+	"github.com/LunaeWaves/Lununda-agent/internal/auth"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/daemon"
+	"github.com/LunaeWaves/Lununda-agent/internal/gateway"
+	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
+	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
+	"github.com/LunaeWaves/Lununda-agent/internal/setup"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // apiResolver adapts *gateway.Gateway to api.UserResolver.
@@ -85,8 +85,8 @@ func (a *apiResolver) DispatchLINEWebhook(accountID string, body []byte, signatu
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "fastclaw",
-		Short: "FastClaw - Multi-User AI Agent Platform",
+		Use:   "lununda",
+		Short: "Lununda Agent - Multi-User AI Agent Platform",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGateway(18953)
 		},
@@ -115,7 +115,7 @@ func gatewayCmd() *cobra.Command {
 	var port int
 	cmd := &cobra.Command{
 		Use:   "gateway",
-		Short: "Start the FastClaw gateway",
+		Short: "Start the Lununda Agent gateway",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGateway(port)
 		},
@@ -191,16 +191,16 @@ func runGateway(port int) error {
 	// preview URL, layered on top of the existing project feature. Wired
 	// for the docker sandbox backend; other backends leave it nil and the
 	// /runtime endpoints return 503. Template scaffold/dev commands are
-	// env-overridable so fastclaw stays template-agnostic — the default
+	// env-overridable so lununda stays template-agnostic — the default
 	// targets a ShipAny image with the template baked at /template.
 	if home, herr := config.HomeDir(); herr == nil {
 		rtMgr := coderuntime.NewManager(
 			gw.Store(), home, env.Sandbox.Image,
-			&sandbox.Policy{}, os.Getenv("FASTCLAW_PREVIEW_BASE"))
+			&sandbox.Policy{}, os.Getenv("LUNUNDA_PREVIEW_BASE"))
 		rtMgr.RegisterTemplate("shipany-tanstack", coderuntime.TemplateSpec{
 			DevPort: 3000,
 			// Default scaffold, validated end-to-end against
-			// thinkany/fastclaw-sandbox (node+npm, no pnpm):
+			// thinkany/lununda-sandbox (node+npm, no pnpm):
 			//   1. copy the template EXCLUDING node_modules — the host
 			//      checkout's are platform-specific + huge; a fresh
 			//      in-container install is correct.
@@ -211,25 +211,25 @@ func runGateway(port int) error {
 			//   4. `install || true` — the ignored-builds gate exits non-zero
 			//      AFTER deps are on disk, so tolerate it.
 			//   5. `pnpm rebuild` — actually build esbuild/sharp so Vite runs.
-			// Override wholesale with FASTCLAW_SHIPANY_SCAFFOLD.
-			ScaffoldCmd: envOr("FASTCLAW_SHIPANY_SCAFFOLD",
+			// Override wholesale with LUNUNDA_SHIPANY_SCAFFOLD.
+			ScaffoldCmd: envOr("LUNUNDA_SHIPANY_SCAFFOLD",
 				"set -e; if [ -d /template ]; then tar -C /template "+
 					"--exclude=node_modules --exclude=.git --exclude=.output --exclude=dist "+
 					"-cf - . | tar -C /workspace -xf -; fi; cd /workspace; "+
 					"command -v pnpm >/dev/null 2>&1 || npm i -g pnpm; "+
 					"pnpm config set verify-deps-before-run false; "+
 					"pnpm install || true; pnpm rebuild"),
-			DevCmd: envOr("FASTCLAW_SHIPANY_DEV", "pnpm dev --host 0.0.0.0 --port 3000"),
+			DevCmd: envOr("LUNUNDA_SHIPANY_DEV", "pnpm dev --host 0.0.0.0 --port 3000"),
 			// Local template checkout bind-mounted at /template (option C):
-			// set FASTCLAW_SHIPANY_TEMPLATE_DIR=~/code/shipany-tanstack to
+			// set LUNUNDA_SHIPANY_TEMPLATE_DIR=~/code/shipany-tanstack to
 			// scaffold from disk without baking the image or cloning.
-			TemplateMount: os.Getenv("FASTCLAW_SHIPANY_TEMPLATE_DIR"),
+			TemplateMount: os.Getenv("LUNUNDA_SHIPANY_TEMPLATE_DIR"),
 		})
 		webSrv.SetRuntimeManager(rtMgr) // HTTP /runtime endpoints
 		gw.SetProjectRuntime(rtMgr)     // agent preview tools
 		slog.Info("project runtime enabled",
-			"previewBase", os.Getenv("FASTCLAW_PREVIEW_BASE"),
-			"templateDir", os.Getenv("FASTCLAW_SHIPANY_TEMPLATE_DIR"))
+			"previewBase", os.Getenv("LUNUNDA_PREVIEW_BASE"),
+			"templateDir", os.Getenv("LUNUNDA_SHIPANY_TEMPLATE_DIR"))
 	}
 
 	bindMode := gwCfg.Bind

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fastclaw-ai/fastclaw/internal/toolproviders"
+	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
 )
 
 // RegisterWebSearchChain exposes the web_search tool backed by a
@@ -18,7 +18,7 @@ func RegisterWebSearchChain(r *Registry, chain *toolproviders.Chain) {
 		return
 	}
 	// "none" is a sentinel meaning the admin explicitly opted out of
-	// fastclaw's web_search. Detected anywhere in the chain → don't
+	// lununda's web_search. Detected anywhere in the chain → don't
 	// register the tool at all so the model falls back to its own
 	// native search (or simply has no search).
 	for _, ref := range chain.Order {

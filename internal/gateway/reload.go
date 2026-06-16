@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/fastclaw-ai/fastclaw/internal/channels"
-	"github.com/fastclaw-ai/fastclaw/internal/store"
+	"github.com/LunaeWaves/Lununda-agent/internal/channels"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // InvalidateUser drops a user's cached UserSpace so the next access reloads

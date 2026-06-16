@@ -56,7 +56,7 @@ const en: Record<string, string> = {
   "general.languageDesc": "Select the interface language.",
 
   // Login / Signup
-  "login.title": "FastClaw",
+  "login.title": "Lununda Agent",
   "login.subtitle": "Sign in with your username or email",
   "login.usernamePlaceholder": "username or email",
   "login.passwordPlaceholder": "password",
@@ -68,7 +68,7 @@ const en: Record<string, string> = {
   "login.cannotReach": "Cannot reach server",
 
   "signup.title": "Create your account",
-  "signup.subtitle": "Sign up to start using FastClaw",
+  "signup.subtitle": "Sign up to start using Lununda Agent",
   "signup.usernamePlaceholder": "username",
   "signup.username": "Username",
   "signup.emailPlaceholder": "email",
@@ -734,7 +734,7 @@ const en: Record<string, string> = {
   "onboard.steps.agentStep": "Agent",
   "onboard.steps.sandbox": "Sandbox",
   "onboard.steps.launch": "Launch",
-  "onboard.welcome.title": "Welcome to FastClaw",
+  "onboard.welcome.title": "Welcome to Lununda Agent",
   "onboard.welcome.desc": "A few quick steps to set up your platform — admin account, first LLM provider, and your first agent. Takes about a minute.",
   "onboard.welcome.youWillBeAdmin": "You'll be the super-admin once setup completes — you can add more users from the admin panel afterwards.",
   "onboard.welcome.everythingInDB": "Everything user-facing (providers, channels, agents, settings) lives in the database and can be changed from the UI later.",
@@ -1050,14 +1050,14 @@ const en: Record<string, string> = {
   "channels.botLiveAs": "Bot is live as",
   "channels.oneLastStep": "One last step",
   "channels.longConnectionMode": "Long-connection mode",
-  "channels.longConnDesc": "fastclaw opens a WebSocket to Feishu — no public URL required. Turn off to use the classic webhook flow.",
+  "channels.longConnDesc": "lununda opens a WebSocket to Feishu — no public URL required. Turn off to use the classic webhook flow.",
   "channels.waitingForScan": "Waiting for scan…",
   "channels.scannedConfirm": "Scanned — confirm on your phone.",
   "channels.qrExpired": "QR code expired.",
   "channels.refreshQR": "Refresh QR",
   "channels.refreshing": "Refreshing…",
   "channels.sendToTest": "Send it a message to test.",
-  "channels.optionalButRecommended": "Optional but strongly recommended — fastclaw verifies inbound webhook payloads via HMAC-SHA256 against this secret.",
+  "channels.optionalButRecommended": "Optional but strongly recommended — lununda verifies inbound webhook payloads via HMAC-SHA256 against this secret.",
 };
 
 export default en;
