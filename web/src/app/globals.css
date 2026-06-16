@@ -63,75 +63,109 @@
   --font-heading: var(--font-heading);
 }
 
-/* Light theme */
+/* Lununda Agent — Moon Wave palette
+ * Brand colors (see DESIGN.md):
+ *   Deep Abyss Blue  #0A1629  background, sidebar, dark base
+ *   Moon Cyan        #72D1E8  primary, buttons, highlights
+ *   Lunar Silver     #C9D8E8  body text, muted graphics
+ *   Lunar Violet     #9488D8  accent, gradients, glow
+ *   Pale Moon        #F5F9FF  headings, highlights, light base
+ *   Wave Gray        #303F58  dividers, secondary text
+ * Gradients:
+ *   moon-wave:  linear-gradient(135deg, #72D1E8 0%, #9488D8 100%)
+ *   deep-sea:   linear-gradient(180deg, #0A1629 0%, #112442 100%)
+ *
+ * OKLCH values below are the brand hexes converted once; do not "tune
+ * by eye" — change the brand hex in DESIGN.md and regenerate.
+
+/* Light theme — Pale Moon base, Deep Abyss Blue ink, Moon Cyan primary
+ * darkened just enough for ≥4.5:1 on white. */
 :root {
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0.008 326);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0.008 326);
-  --primary: oklch(0.553 0.195 38.402);
-  --primary-foreground: oklch(0.98 0.016 73.684);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.96 0.003 325.6);
-  --muted-foreground: oklch(0.542 0.034 322.5);
-  --accent: oklch(0.96 0.003 325.6);
-  --accent-foreground: oklch(0.212 0.019 322.12);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0.005 325.62);
-  --input: oklch(0.922 0.005 325.62);
-  --ring: oklch(0.711 0.019 323.02);
-  --chart-1: oklch(0.879 0.169 91.605);
-  --chart-2: oklch(0.769 0.188 70.08);
-  --chart-3: oklch(0.666 0.179 58.318);
-  --chart-4: oklch(0.555 0.163 48.998);
-  --chart-5: oklch(0.473 0.137 46.201);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0.008 326);
-  --sidebar-primary: oklch(0.646 0.222 41.116);
-  --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
-  --sidebar-accent: oklch(0.96 0.003 325.6);
-  --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
-  --sidebar-border: oklch(0.922 0.005 325.62);
-  --sidebar-ring: oklch(0.711 0.019 323.02);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0.008 326);
+  --background: oklch(0.981 0.009 258);     /* Pale Moon */
+  --foreground: oklch(0.201 0.042 259);     /* Deep Abyss Blue */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.201 0.042 259);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.201 0.042 259);
+
+  --primary: oklch(0.62 0.108 215);         /* Moon Cyan darkened for AA on white */
+  --primary-foreground: oklch(0.981 0.009 258);
+
+  --secondary: oklch(0.93 0.018 250);       /* Lunar Silver tinted */
+  --secondary-foreground: oklch(0.201 0.042 259);
+
+  --muted: oklch(0.95 0.012 250);
+  --muted-foreground: oklch(0.42 0.04 260); /* Wave Gray for body */
+
+  --accent: oklch(0.56 0.115 290);          /* Lunar Violet darkened for AA */
+  --accent-foreground: oklch(0.981 0.009 258);
+
+  --destructive: oklch(0.58 0.22 27);
+  --border: oklch(0.88 0.018 250);
+  --input: oklch(0.88 0.018 250);
+  --ring: oklch(0.62 0.108 215);
+
+  --chart-1: oklch(0.62 0.108 215);         /* Moon Cyan */
+  --chart-2: oklch(0.56 0.115 290);         /* Lunar Violet */
+  --chart-3: oklch(0.366 0.048 260);        /* Wave Gray */
+  --chart-4: oklch(0.876 0.027 250);        /* Lunar Silver */
+  --chart-5: oklch(0.201 0.042 259);        /* Deep Abyss Blue */
+
+  --sidebar: oklch(0.965 0.012 250);
+  --sidebar-foreground: oklch(0.201 0.042 259);
+  --sidebar-primary: oklch(0.62 0.108 215);
+  --sidebar-primary-foreground: oklch(0.981 0.009 258);
+  --sidebar-accent: oklch(0.93 0.02 250);
+  --sidebar-accent-foreground: oklch(0.201 0.042 259);
+  --sidebar-border: oklch(0.88 0.018 250);
+  --sidebar-ring: oklch(0.62 0.108 215);
 }
 
-/* Dark theme */
+/* Dark theme — Deep Abyss Blue base, Moon Cyan primary, Lunar Violet accent.
+ * Default mode (layout.tsx boot script adds .dark unless the user has
+ * explicitly chosen light via localStorage 'lununda-theme'). */
 .dark {
-  --background: oklch(0.145 0.008 326);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.212 0.019 322.12);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.212 0.019 322.12);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.47 0.157 37.304);
-  --primary-foreground: oklch(0.98 0.016 73.684);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.263 0.024 320.12);
-  --muted-foreground: oklch(0.711 0.019 323.02);
-  --accent: oklch(0.263 0.024 320.12);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.542 0.034 322.5);
-  --chart-1: oklch(0.879 0.169 91.605);
-  --chart-2: oklch(0.769 0.188 70.08);
-  --chart-3: oklch(0.666 0.179 58.318);
-  --chart-4: oklch(0.555 0.163 48.998);
-  --chart-5: oklch(0.473 0.137 46.201);
-  --sidebar: oklch(0.212 0.019 322.12);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.705 0.213 47.604);
-  --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
-  --sidebar-accent: oklch(0.263 0.024 320.12);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.542 0.034 322.5);
+  --background: oklch(0.201 0.042 259);     /* Deep Abyss Blue */
+  --foreground: oklch(0.981 0.009 258);     /* Pale Moon */
+
+  --card: oklch(0.262 0.062 259);           /* #112442 — deep-sea gradient stop */
+  --card-foreground: oklch(0.981 0.009 258);
+  --popover: oklch(0.262 0.062 259);
+  --popover-foreground: oklch(0.981 0.009 258);
+
+  --primary: oklch(0.811 0.095 215);        /* Moon Cyan (full brand) */
+  --primary-foreground: oklch(0.201 0.042 259); /* dark ink on cyan button */
+
+  --secondary: oklch(0.32 0.05 260);        /* between Deep Abyss + Wave Gray */
+  --secondary-foreground: oklch(0.981 0.009 258);
+
+  --muted: oklch(0.28 0.045 259);
+  --muted-foreground: oklch(0.876 0.027 250); /* Lunar Silver */
+
+  --accent: oklch(0.67 0.117 290);          /* Lunar Violet */
+  --accent-foreground: oklch(0.981 0.009 258);
+
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(0.981 0.009 258 / 10%);
+  --input: oklch(0.981 0.009 258 / 15%);
+  --ring: oklch(0.811 0.095 215);
+
+  --chart-1: oklch(0.811 0.095 215);        /* Moon Cyan */
+  --chart-2: oklch(0.67 0.117 290);         /* Lunar Violet */
+  --chart-3: oklch(0.876 0.027 250);        /* Lunar Silver */
+  --chart-4: oklch(0.366 0.048 260);        /* Wave Gray */
+  --chart-5: oklch(0.981 0.009 258);        /* Pale Moon */
+
+  --sidebar: oklch(0.175 0.04 259);         /* a hair deeper than background */
+  --sidebar-foreground: oklch(0.981 0.009 258);
+  --sidebar-primary: oklch(0.811 0.095 215);
+  --sidebar-primary-foreground: oklch(0.201 0.042 259);
+  --sidebar-accent: oklch(0.28 0.045 259);
+  --sidebar-accent-foreground: oklch(0.981 0.009 258);
+  --sidebar-border: oklch(0.981 0.009 258 / 8%);
+  --sidebar-ring: oklch(0.811 0.095 215);
 }
 
 @layer base {
@@ -145,6 +179,34 @@
     @apply font-sans;
   }
 }
+
+/* Lununda brand gradients. Use sparingly — Logo, Banner, hero surfaces.
+ * Do NOT apply to body text (gradient text is banned — see DESIGN.md). */
+.bg-moon-wave {
+  background-image: linear-gradient(135deg, #72D1E8 0%, #9488D8 100%);
+}
+.bg-deep-sea {
+  background-image: linear-gradient(180deg, #0A1629 0%, #112442 100%);
+}
+/* Subtle radial glow for hero / Logo backdrop. */
+.bg-moon-glow {
+  background-image: radial-gradient(
+    ellipse at top,
+    oklch(0.811 0.095 215 / 0.16) 0%,
+    transparent 60%
+  );
+}
+
+/* Brand color shortcuts — components that need a specific brand hex
+ * rather than the semantic token (e.g. matching a logo accent). */
+.text-moon-cyan { color: #72D1E8; }
+.text-lunar-violet { color: #9488D8; }
+.text-lunar-silver { color: #C9D8E8; }
+.text-pale-moon { color: #F5F9FF; }
+.text-wave-gray { color: #303F58; }
+.bg-moon-cyan { background-color: #72D1E8; }
+.bg-lunar-violet { background-color: #9488D8; }
+.bg-deep-abyss { background-color: #0A1629; }
 
 /* Theme transition */
 html.theme-transition,
