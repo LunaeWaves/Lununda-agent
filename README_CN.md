@@ -152,7 +152,7 @@ Lununda Agent 为每个唯一的 `(api_key_id, external_id)` 对自动创建稳�
 
 ## Lununda Agent 的新功能
 
-- **Moon Wave 品牌视觉** — 统一的调色板（深海浪底 Deep Abyss Blue、月面青 Moon Cyan、
+- **Lunae Waves 品牌视觉** — 统一的调色板（深海浪底 Deep Abyss Blue、月面青 Moon Cyan、
   月光紫 Lunar Violet、月光银 Lunar Silver、月光白 Pale Moon）覆盖浅色与深色双主题，
   支持主题感知 Logo 自动切换。详见 [DESIGN.md](web/DESIGN.md)。
 - **按会话隔离的工作区** — 工作区文件按 `session_key` 而非 `chat_id` 隔离，IM 中

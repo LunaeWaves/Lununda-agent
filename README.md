@@ -156,7 +156,7 @@ table and is edited through the dashboard or `lununda agents config`.
 
 ### What's New in Lununda Agent
 
-- **Moon Wave brand identity** — unified palette (Deep Abyss Blue, Moon Cyan, Lunar Violet, Lunar Silver, Pale Moon) across light and dark themes, with theme-aware logo switching. See [DESIGN.md](web/DESIGN.md) for the full color rulebook.
+- **Lunae Waves brand identity** — unified palette (Deep Abyss Blue, Moon Cyan, Lunar Violet, Lunar Silver, Pale Moon) across light and dark themes, with theme-aware logo switching. See [DESIGN.md](web/DESIGN.md) for the full color rulebook.
 - **Per-session workspace isolation** — workspace files are namespaced by `session_key` instead of `chat_id`, so IM `/new` creates a truly clean workspace. Sibling IM sessions on the same channel thread no longer share each other's files.
 - **Automatic config migration** — one-shot `~/.fastclaw` → `~/.lununda` rename on first boot, including database file name translation (`fastclaw.db` → `lununda.db`). Existing users keep all their data without manual intervention.
 - **RealFaviconGenerator asset set** — full favicon stack (16–512px PNG, multi-size ICO, apple-touch-icon, Android Chrome icons, PWA manifest, og:image) with theme-appropriate icon coverage.
