@@ -38,8 +38,9 @@ function AgentAvatar({
 
   if (!agentId) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
-        src="/logo.png"
+        src="/favicon-32x32.png"
         alt="Lununda Agent"
         width={size}
         height={size}

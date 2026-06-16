@@ -29,15 +29,42 @@ import { useT } from "@/lib/i18n";
 export function NavUser({
   name = "Admin",
   subtitle = "Gateway running",
+  avatarUrl,
 }: {
   name?: string;
   subtitle?: string;
+  // avatarUrl, when set, overrides the default /user.png avatar.
+  // Comes from me.user.avatarUrl; backend persists a path under
+  // /api/users/{id}/files/avatar.png when the user uploads one.
+  avatarUrl?: string;
 }) {
   const { isMobile } = useSidebar();
   const t = useT();
   const { resolvedTheme, toggleTheme } = useTheme();
 
-  const initials = name.slice(0, 2).toUpperCase();
+  // Avatar: explicit avatarUrl (user-uploaded) wins, otherwise /user.png
+  // (the platform logo). onError falls back to /user.png too so a stale
+  // avatar URL (deleted object, store clobber) doesn't render a broken
+  // image.
+  const [avatarSrc, setAvatarSrc] = React.useState(
+    avatarUrl && avatarUrl.length > 0 ? avatarUrl : "/user.png",
+  );
+  React.useEffect(() => {
+    setAvatarSrc(avatarUrl && avatarUrl.length > 0 ? avatarUrl : "/user.png");
+  }, [avatarUrl]);
+  const onAvatarError = () => {
+    if (avatarSrc !== "/user.png") setAvatarSrc("/user.png");
+  };
+
+  const renderAvatar = (sizeClass: string) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={avatarSrc}
+      alt=""
+      className={`aspect-square ${sizeClass} rounded-lg object-cover`}
+      onError={onAvatarError}
+    />
+  );
 
   return (
     <SidebarMenu>
@@ -51,9 +78,7 @@ export function NavUser({
               />
             }
           >
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-500 text-xs font-bold">
-              {initials}
-            </div>
+            {renderAvatar("size-8")}
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{name}</span>
               <span className="truncate text-xs text-muted-foreground">
@@ -71,9 +96,7 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-500 text-xs font-bold">
-                    {initials}
-                  </div>
+                  {renderAvatar("size-8")}
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{name}</span>
                     <span className="truncate text-xs text-muted-foreground">
