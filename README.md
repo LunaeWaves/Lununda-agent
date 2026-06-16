@@ -12,6 +12,13 @@ A lightweight AI Agent runtime written in Go.
 
 </div>
 
+> **Lununda Agent** is a community-driven fork of [FastClaw](https://github.com/fastclaw-ai/fastclaw),
+> originally created by the ThinkAny team. We're grateful to the FastClaw authors
+> for building a solid foundation and generously open-sourcing it. Lununda Agent
+> carries forward the same principles — single binary, env-only bootstrap, agent
+> factory — while evolving the brand, UX, and workspace isolation under the
+> [LunaeWaves](https://github.com/LunaeWaves) org.
+
 ---
 
 <p align="center">
@@ -32,7 +39,7 @@ Lununda Agent is an **Agent Factory** — it creates, manages, and runs AI agent
 
 ```bash
 # Install (drops the binary into ~/.local/bin and adds it to PATH)
-curl -fsSL https://raw.githubusercontent.com/lununda-ai/lununda/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/LunaeWaves/Lununda-agent/main/install.sh | bash
 ```
 
 ## Quick Start
@@ -93,11 +100,11 @@ can access it.
 ```
 
 The database is the source of truth for everything except skill folders
-on disk. SQLite is the default; point `FASTCLAW_STORAGE_DSN` at Postgres
+on disk. SQLite is the default; point `LUNUNDA_STORAGE_DSN` at Postgres
 for multi-pod deployments.
 
 **There is no `lununda.json`.** Bootstrap settings (port, bind, storage
-DSN, sandbox backend) come from `FASTCLAW_*` env vars; everything user-
+DSN, sandbox backend) come from `LUNUNDA_*` env vars; everything user-
 facing (providers, channels, settings, defaults) lives in the `configs`
 table and is edited through the dashboard or `lununda agents config`.
 
@@ -140,6 +147,13 @@ table and is edited through the dashboard or `lununda agents config`.
 - Session-based context with full history preservation
 - Thinking/reasoning content preserved for memory extraction
 
+### What's New in Lununda Agent
+
+- **Moon Wave brand identity** — unified palette (Deep Abyss Blue, Moon Cyan, Lunar Violet, Lunar Silver, Pale Moon) across light and dark themes, with theme-aware logo switching. See [DESIGN.md](web/DESIGN.md) for the full color rulebook.
+- **Per-session workspace isolation** — workspace files are namespaced by `session_key` instead of `chat_id`, so IM `/new` creates a truly clean workspace. Sibling IM sessions on the same channel thread no longer share each other's files.
+- **Automatic config migration** — one-shot `~/.fastclaw` → `~/.lununda` rename on first boot, including database file name translation (`fastclaw.db` → `lununda.db`). Existing users keep all their data without manual intervention.
+- **RealFaviconGenerator asset set** — full favicon stack (16–512px PNG, multi-size ICO, apple-touch-icon, Android Chrome icons, PWA manifest, og:image) with theme-appropriate icon coverage.
+
 ### API
 - OpenAI-compatible `/v1/chat/completions` (streaming)
 - Web chat `/api/chat/stream` (SSE)
@@ -158,7 +172,7 @@ table and is edited through the dashboard or `lununda agents config`.
   building block for "user buys a bot" flows. Per-user `agent_quota`
   caps how many agents a non-admin can self-create
   (`-1` = unlimited, `0` = admin-provisioned only).
-- App-user provisioning `POST /v1/users` — third-party apps mint a stable lununda user_id per end-user, idempotent on `(api_key, external_id)`. Or pass `user` on `/v1/chat/completions` (or `X-Lununda Agent-End-User` header) for lazy mint on first call
+- App-user provisioning `POST /v1/users` — third-party apps mint a stable lununda user_id per end-user, idempotent on `(api_key, external_id)`. Or pass `user` on `/v1/chat/completions` (or `X-Fastclaw-End-User` header) for lazy mint on first call
 
 ## Configuration
 
@@ -168,17 +182,17 @@ database and is edited through the dashboard or `lununda agents config`.
 
 | Env var | Default | What it does |
 |---|---|---|
-| `FASTCLAW_HOME` | `~/.lununda` | Where the SQLite DB and skill folders live. |
-| `FASTCLAW_PORT` | `18953` | Gateway HTTP port. |
-| `FASTCLAW_BIND` | `loopback` | `loopback` (127.0.0.1) or `all` (0.0.0.0). |
-| `FASTCLAW_STORAGE_TYPE` | `sqlite` | `sqlite` or `postgres`. |
-| `FASTCLAW_STORAGE_DSN` | empty | Postgres DSN, e.g. `postgres://u:p@host:5432/db?sslmode=disable`. Empty = sqlite at `$FASTCLAW_HOME/lununda.db`. |
-| `FASTCLAW_STORAGE_AUTO_MIGRATE` | `true` | Apply schema migrations on boot. |
-| `FASTCLAW_SANDBOX_ENABLED` | dashboard | Override the Settings → Runtime toggle. |
-| `FASTCLAW_SANDBOX_BACKEND` | dashboard | `docker` or `e2b`. |
-| `FASTCLAW_SANDBOX_IMAGE` | dashboard | Docker image (Docker backend) or template id (E2B). |
-| `FASTCLAW_OBJECT_STORE_*` | unset | S3-compatible blob store for distributed deploys (multi-pod skill / file hydration). |
-| `FASTCLAW_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error`. |
+| `LUNUNDA_HOME` | `~/.lununda` | Where the SQLite DB and skill folders live. |
+| `LUNUNDA_PORT` | `18953` | Gateway HTTP port. |
+| `LUNUNDA_BIND` | `loopback` | `loopback` (127.0.0.1) or `all` (0.0.0.0). |
+| `LUNUNDA_STORAGE_TYPE` | `sqlite` | `sqlite` or `postgres`. |
+| `LUNUNDA_STORAGE_DSN` | empty | Postgres DSN, e.g. `postgres://u:p@host:5432/db?sslmode=disable`. Empty = sqlite at `$LUNUNDA_HOME/lununda.db`. |
+| `LUNUNDA_STORAGE_AUTO_MIGRATE` | `true` | Apply schema migrations on boot. |
+| `LUNUNDA_SANDBOX_ENABLED` | dashboard | Override the Settings → Runtime toggle. |
+| `LUNUNDA_SANDBOX_BACKEND` | dashboard | `docker` or `e2b`. |
+| `LUNUNDA_SANDBOX_IMAGE` | dashboard | Docker image (Docker backend) or template id (E2B). |
+| `LUNUNDA_OBJECT_STORE_*` | unset | S3-compatible blob store for distributed deploys (multi-pod skill / file hydration). |
+| `LUNUNDA_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error`. |
 
 Anything not on this list — providers, models, default model, skill
 catalog, channels, plugin config, scheduler — is configured at runtime
@@ -202,7 +216,7 @@ lununda daemon install     # register as a launchd / systemd service
 The `lununda agents` subcommand is a thin convenience wrapper around the
 same store the dashboard uses. Agents you create here show up in the web
 UI and vice-versa — there's only ever one lununda deployment per
-`FASTCLAW_HOME`.
+`LUNUNDA_HOME`.
 
 ```bash
 # Zero to a chattable agent in one command. On a fresh install this
@@ -231,7 +245,7 @@ lununda agents rm alpha
 ```
 
 The CLI opens the operator's store directly (sqlite at
-`~/.lununda/lununda.db`, or whatever `FASTCLAW_STORAGE_DSN` points at)
+`~/.lununda/lununda.db`, or whatever `LUNUNDA_STORAGE_DSN` points at)
 and writes through the same code paths the gateway uses. It does not
 require the gateway to be running — but `agents init` will spin one up
 in the background so a fresh agent is immediately reachable at
@@ -315,7 +329,7 @@ Issue and manage programmatic credentials for external integrations.
 | type | Scope | Use case |
 |------|-------|----------|
 | `admin` | Full platform access, all agents | Admin automation, CI/CD |
-| `user` | Owner's agents; supports `X-Lununda Agent-End-User` for app_user provisioning | SaaS proxy layer, multi-tenant apps |
+| `user` | Owner's agents; supports `X-Fastclaw-End-User` for app_user provisioning | SaaS proxy layer, multi-tenant apps |
 | `agent` | Explicit agent list only; cannot create agents | Bots, single-purpose integrations |
 
 #### Commands
@@ -341,12 +355,12 @@ lununda apikey rotate --id <apikey-id>
 
 #### Multi-tenant app_user flow
 
-A `type=user` key combined with the `X-Lununda Agent-End-User` header enables
+A `type=user` key combined with the `X-Fastclaw-End-User` header enables
 per-end-user data isolation without pre-registering users in Lununda Agent:
 
 ```
 Authorization: Bearer <user-key-token>
-X-Lununda Agent-End-User: <your-app-user-id>
+X-Fastclaw-End-User: <your-app-user-id>
 ```
 
 Lununda Agent lazily mints a stable internal user for each unique
@@ -362,18 +376,18 @@ cd deploy/docker && ./start.sh
 
 ```yaml
 env:
-  - name: FASTCLAW_BIND
+  - name: LUNUNDA_BIND
     value: "all"
-  - name: FASTCLAW_STORAGE_TYPE
+  - name: LUNUNDA_STORAGE_TYPE
     value: "postgres"
-  - name: FASTCLAW_STORAGE_DSN
+  - name: LUNUNDA_STORAGE_DSN
     valueFrom:
       secretKeyRef:
         name: lununda-db
         key: dsn
-  - name: FASTCLAW_OBJECT_STORE_ENDPOINT
+  - name: LUNUNDA_OBJECT_STORE_ENDPOINT
     value: "s3.amazonaws.com"
-  - name: FASTCLAW_OBJECT_STORE_BUCKET
+  - name: LUNUNDA_OBJECT_STORE_BUCKET
     value: "lununda-skills"
 ```
 
