@@ -43,9 +43,9 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=go-builder /lununda /usr/local/bin/lununda
 
-# Default data directory. Override at runtime with FASTCLAW_HOME, but the
+# Default data directory. Override at runtime with LUNUNDA_HOME, but the
 # default value here lets `docker run lununda/lununda` work with no env.
-ENV FASTCLAW_HOME=/data/.lununda \
+ENV LUNUNDA_HOME=/data/.lununda \
     HOME=/data
 RUN mkdir -p /data/.lununda /data/.lununda/skills
 VOLUME /data/.lununda

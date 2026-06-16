@@ -350,7 +350,7 @@ export interface MeResponse {
   authMethod?: string;
   actAsUserId?: string;
   readOnly?: boolean;
-  // 'self-hosted' (default) or 'hosted' — driven by FASTCLAW_DEPLOY
+  // 'self-hosted' (default) or 'hosted' — driven by LUNUNDA_DEPLOY
   // env var on the daemon. Frontend uses this to gate local-only
   // conveniences (open-in-Finder, future $EDITOR hooks).
   deployMode?: "self-hosted" | "hosted";

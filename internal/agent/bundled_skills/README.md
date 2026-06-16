@@ -1,6 +1,6 @@
 Bundled skills ship with the binary and get installed to `~/.lununda/skills/`
 on every boot via InstallBundledSkills. Products bring their own skills via
-FASTCLAW_HOME/skills/ or per-agent skills/ — anything dropped in here is the
+LUNUNDA_HOME/skills/ or per-agent skills/ — anything dropped in here is the
 runtime's own baseline.
 
 ## Upgrade behavior
