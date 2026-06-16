@@ -12,6 +12,10 @@ Four compose files cover the common deployment shapes. Stack them with `-f`.
 
 ## Quick start (pre-built image)
 
+> **Pre-v1 note.** Until the first stable release, default to the
+> `dev` tag — that's where CI publishes builds from the dev branch.
+> `latest` is reserved for main-branch releases and is currently empty.
+
 ```bash
 cd deploy/docker
 cp .env.example .env       # edit if you want to change defaults

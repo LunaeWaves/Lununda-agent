@@ -10,10 +10,17 @@
 ##      path, and named volumes are NOT visible from the host
 ##   3. Sets LUNUNDA_SANDBOX_* env vars so the gateway boots with the
 ##      sandbox image pre-wired (no onboard wizard step)
+##   4. Runs as root so it can read /var/run/docker.sock on hosts
+##      where the socket is root:root 0660 (the common default)
 ##
 ## Quick start:
 ##   docker compose -f docker-compose.ghcr-sandbox.yml up -d
 ##   open http://localhost:18953
+##
+## NOTE on image tags: until the first stable release, set
+## LUNUNDA_VERSION=dev (and LUNUNDA_SANDBOX_IMAGE=...:dev) in .env
+## to track the latest CI build from the dev branch. After v1 ships,
+## :latest will be the default and this note can go away.
 ##
 ## Why a separate file (not just an override):
 ##   docker-compose.sandbox.yml is an override meant to stack on top of
@@ -24,21 +31,29 @@
 ##
 services:
   lununda:
-    image: ghcr.io/lunaewaves/lununda:${LUNUNDA_VERSION:-latest}
+    image: ghcr.io/lunaewaves/lununda:${LUNUNDA_VERSION:-dev}
     restart: unless-stopped
     pull_policy: ${LUNUNDA_PULL_POLICY:-missing}
+    # Run as root so we can read /var/run/docker.sock on hosts where
+    # it's root:root 0660 (the dockerd default). On multi-tenant hosts
+    # where the socket is owned by a `docker` group, switch this to
+    # `group_add: ["docker"]` instead and drop user.
+    user: root
     ports:
       - "${LUNUNDA_PORT:-18953}:18953"
     volumes:
       # Sibling-container pattern: the gateway spawns sandbox containers
       # as peers on the host Docker daemon, NOT nested inside itself.
       # The daemon must be reachable from inside the gateway container.
+      # This requires the runtime image to ship `docker-cli` (added in
+      # the Dockerfile); without it, sandbox creation fails with
+      # `exec: "docker": executable file not found in $PATH`.
       - /var/run/docker.sock:/var/run/docker.sock
       # HOST BIND MOUNT — required for the sibling pattern. The gateway
       # passes host paths to `docker create -v <host-path>:/workspace`
       # when spawning each sandbox. Named volumes are invisible from
       # the host, so the sandbox would get an empty /workspace and the
-      # agent's reads/writes wouldn't reach its durable store.
+      # agent's reads/writes wouldn't reach the durable store.
       #
       # The default ./data is relative to this compose file. Override
       # via LUNUNDA_DATA_DIR if you need a different host location
@@ -58,7 +73,23 @@ services:
       # Pre-baked image: Python 3 + Node 22 + Camoufox (anti-detect
       # Firefox) + git + curl + the usual fetch/parse/preview deps.
       # Override via LUNUNDA_SANDBOX_IMAGE in .env.
-      LUNUNDA_SANDBOX_IMAGE: ${LUNUNDA_SANDBOX_IMAGE:-ghcr.io/lunaewaves/lununda-sandbox:latest}
+      LUNUNDA_SANDBOX_IMAGE: ${LUNUNDA_SANDBOX_IMAGE:-ghcr.io/lunaewaves/lununda-sandbox:dev}
     command: ["gateway"]
+    healthcheck:
+      # Lununda exposes /health on the gateway port. Cheap 200 OK.
+      # Marks the container unhealthy after 3 consecutive failures so
+      # `restart: unless-stopped` can recycle it.
+      test: ["CMD", "wget", "-qO-", "http://localhost:18953/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      # Cap log growth on long-running containers. 10 MB × 3 files =
+      # ~30 MB max per container, then oldest rotates out.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # No named volumes — the bind mount lives wherever LUNUNDA_DATA_DIR points.
