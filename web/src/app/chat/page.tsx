@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getStatus, getChatHistory, getChatSessions, sendChatStream, type AgentInfo, type ChatHistoryMessage, type ChatStreamEvent } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { useAgentName } from "@/hooks/use-agent-name";
 import { Bot, Send, Copy, Check, SquarePen, MessageSquare, Wrench, ChevronDown, ChevronRight } from "lucide-react";
 import { ChatMarkdown } from "@/components/chat-markdown";
@@ -69,6 +70,7 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
 }
 
 export default function ChatPage() {
+  const t = useT();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [sessionId, setSessionId] = useState<string>(() => generateSessionId());
@@ -378,7 +380,7 @@ export default function ChatPage() {
               <Bot className="h-4 w-4 text-primary" />
             </div>
             <span className="text-sm font-semibold">
-              {selectedAgent || "Select an agent"}
+              {selectedAgent || t("chat.selectAgent")}
             </span>
             {currentAgent && (
               <Badge variant="secondary" className="font-mono text-[10px]">
@@ -406,7 +408,7 @@ export default function ChatPage() {
             <button
               onClick={handleNewChat}
               className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="New Chat"
+              title={t("chat.newChat")}
             >
               <SquarePen className="h-4 w-4" />
             </button>
@@ -466,7 +468,7 @@ export default function ChatPage() {
                         <button
                           onClick={() => handleCopy(msg)}
                           className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground/60 hover:text-muted-foreground transition-all"
-                          title="Copy"
+                          title={t("chat.copy")}
                         >
                           {copiedId === msg.id ? (
                             <Check className="h-3 w-3 text-emerald-500" />

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ChevronRightIcon, MoreHorizontal } from "lucide-react";
 import { moveChatSessionToProject } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { ChannelIcon, channelLabel } from "@/components/channel-icon";
 import { ChatRowActions } from "@/components/chat-row-actions";
 
@@ -49,6 +50,7 @@ export function NavSessions({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   // Drop-zone state for "drag a project chat back out into Chats".
   // The whole group acts as a target — we only highlight when the
   // drag carries a CHAT_DRAG_MIME payload AND the source chat is
@@ -141,7 +143,7 @@ export function NavSessions({
               (sectionCollapsed ? "rotate-0" : "rotate-90")
             }
           />
-          Chats
+          {t("sidebar.chats")}
         </SidebarGroupLabel>
         {!sectionCollapsed && (
         <SidebarMenu

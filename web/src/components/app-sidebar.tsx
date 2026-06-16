@@ -42,6 +42,7 @@ import {
   type ProjectEntry,
   type StatusResponse,
 } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 // Extract agent ID from pathname like /agents/default/chat/. The second
 // capture is an explicit allow-list of sub-routes so the bare /agents/
@@ -69,34 +70,8 @@ function extractAgentId(pathname: string): string | null {
 // and a slim User group with API Keys. Settings is a click-only item —
 // its onClick is attached at render time so it can call into component
 // state.
-const OVERVIEW_ITEM: NavItem = {
-  title: "Overview",
-  url: "/overview/",
-  icon: LayoutDashboardIcon,
-};
-
-const USER_AGENT_GROUP: NavItem[] = [
-  { title: "Agents", url: "/agents/", icon: BotIcon },
-  { title: "Models", url: "/models/", icon: BrainIcon },
-];
-
-const ADMIN_AGENT_GROUP: NavItem[] = [
-  { title: "Agents", url: "/agents/", icon: BotIcon },
-  { title: "Models", url: "/models/", icon: BrainIcon },
-  { title: "Skills", url: "/skills/", icon: SparklesIcon },
-  { title: "Tools", url: "/tools/", icon: WrenchIcon },
-];
-
-const USER_USER_GROUP: NavItem[] = [
-  { title: "API Keys", url: "/apikeys/", icon: KeyRoundIcon },
-];
-
-const ADMIN_USER_GROUP: NavItem[] = [
-  { title: "Users", url: "/admin/users/", icon: UsersIcon },
-  { title: "Chats", url: "/admin/chats/", icon: MessagesSquareIcon },
-  { title: "Token Usage", url: "/admin/usage/", icon: CoinsIcon },
-  { title: "API Keys", url: "/apikeys/", icon: KeyRoundIcon },
-];
+// NavItem groups are built inside the component (useNavItems) so titles
+// can be i18n-resolved via t(). Icon/url are static; only title varies.
 
 // "New chat" is active iff we're parked on the bare /chat/ page with
 // no session open. A session can be encoded two ways:
@@ -113,12 +88,13 @@ const AGENT_NAV = (
   agentId: string,
   pathname: string,
   hasSession: boolean,
+  t: (k: string) => string,
 ): NavItem[] => {
   const base = `/agents/${agentId}/chat`;
   const onNewChatRoute = pathname === base || pathname === `${base}/`;
   return [
     {
-      title: "New chat",
+      title: t("nav.newChat"),
       url: `${base}/`,
       icon: PlusIcon,
       active: onNewChatRoute && !hasSession,
@@ -130,6 +106,43 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeAgentId = extractAgentId(pathname);
+  const t = useT();
+
+  // NavItem groups — titles i18n-resolved. useMemo so the array identity
+  // is stable across renders (NavMain memoizes on items reference).
+  const OVERVIEW_ITEM = React.useMemo<NavItem>(
+    () => ({ title: t("nav.overview"), url: "/overview/", icon: LayoutDashboardIcon }),
+    [t],
+  );
+  const USER_AGENT_GROUP = React.useMemo<NavItem[]>(
+    () => [
+      { title: t("nav.agents"), url: "/agents/", icon: BotIcon },
+      { title: t("nav.models"), url: "/models/", icon: BrainIcon },
+    ],
+    [t],
+  );
+  const ADMIN_AGENT_GROUP = React.useMemo<NavItem[]>(
+    () => [
+      { title: t("nav.agents"), url: "/agents/", icon: BotIcon },
+      { title: t("nav.models"), url: "/models/", icon: BrainIcon },
+      { title: t("nav.skills"), url: "/skills/", icon: SparklesIcon },
+      { title: t("nav.tools"), url: "/tools/", icon: WrenchIcon },
+    ],
+    [t],
+  );
+  const USER_USER_GROUP = React.useMemo<NavItem[]>(
+    () => [{ title: t("nav.apiKeys"), url: "/apikeys/", icon: KeyRoundIcon }],
+    [t],
+  );
+  const ADMIN_USER_GROUP = React.useMemo<NavItem[]>(
+    () => [
+      { title: t("nav.users"), url: "/admin/users/", icon: UsersIcon },
+      { title: t("nav.chats"), url: "/admin/chats/", icon: MessagesSquareIcon },
+      { title: t("nav.tokenUsage"), url: "/admin/usage/", icon: CoinsIcon },
+      { title: t("nav.apiKeys"), url: "/apikeys/", icon: KeyRoundIcon },
+    ],
+    [t],
+  );
   const hasOpenSession = !!searchParams?.get("session");
 
   const [status, setStatus] = React.useState<StatusResponse | null>(null);
@@ -285,13 +298,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <NavMain
             label="Agent"
             items={[
-              ...AGENT_NAV(activeAgentId, pathname, hasOpenSession),
+              ...AGENT_NAV(activeAgentId, pathname, hasOpenSession, t),
               // Settings sits directly under New chat on agent routes
               // (moved out of the footer) so the agent's own config is
               // the first thing below the chat entry. Click-only: opens
               // the dialog with the full agent tabs (userOnly=false).
               {
-                title: "Settings",
+                title: t("nav.settings"),
                 icon: SettingsIcon,
                 onClick: () => {
                   setSettingsUserOnly(false);
@@ -337,7 +350,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                tooltip="Settings"
+                tooltip={t("nav.settings")}
                 onClick={() => {
                   setSettingsUserOnly(true);
                   setSettingsOpen(true);
