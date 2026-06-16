@@ -20,7 +20,7 @@ export function ActAsBanner() {
 
   if (!actAs) return null;
   return (
-    <div className="sticky top-0 z-50 bg-amber-700/80 px-4 py-2 text-center text-xs text-amber-50 backdrop-blur">
+    <div className="sticky top-0 z-50 bg-destructive/90 px-4 py-2 text-center text-xs text-destructive-foreground backdrop-blur">
       {t("banner.viewingAs")} <code className="font-mono">{actAs}</code> · {t("banner.readOnly")}
     </div>
   );

@@ -116,8 +116,8 @@ export default function OverviewPage() {
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-muted-foreground">{t("overview.agents")}</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/10">
-              <Bot className="h-4 w-4 text-violet-500" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+              <Bot className="h-4 w-4 text-primary" />
             </div>
           </div>
           <p className="text-3xl font-semibold tracking-tight">
@@ -131,8 +131,8 @@ export default function OverviewPage() {
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">{t("overview.users")}</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500/10">
-                <Users className="h-4 w-4 text-cyan-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                <Users className="h-4 w-4 text-primary" />
               </div>
             </div>
             <p className="text-3xl font-semibold tracking-tight">
@@ -147,8 +147,8 @@ export default function OverviewPage() {
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">{t("overview.chats")}</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10">
-                <MessagesSquare className="h-4 w-4 text-amber-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10">
+                <MessagesSquare className="h-4 w-4 text-accent" />
               </div>
             </div>
             <p className="text-3xl font-semibold tracking-tight">
@@ -163,8 +163,8 @@ export default function OverviewPage() {
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">{t("overview.channels")}</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
-                <Radio className="h-4 w-4 text-blue-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10">
+                <Radio className="h-4 w-4 text-accent" />
               </div>
             </div>
             <p className="text-3xl font-semibold tracking-tight">{channelCount}</p>
@@ -180,7 +180,7 @@ export default function OverviewPage() {
         <div className="rounded-lg border border-border bg-card">
           <div className="p-5 pb-3">
             <div className="flex items-center gap-2 mb-1">
-              <Brain className="h-4 w-4 text-amber-500" />
+              <Brain className="h-4 w-4 text-accent" />
               <h3 className="font-medium">{t("overview.configuration")}</h3>
             </div>
             <p className="text-sm text-muted-foreground">

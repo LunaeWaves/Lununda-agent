@@ -58,7 +58,7 @@ export default function SignupPage() {
   if (open === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-violet-500" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-primary" />
       </div>
     );
   }
@@ -73,7 +73,7 @@ export default function SignupPage() {
           </p>
           <Link
             href="/"
-            className="inline-block rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+            className="inline-block rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
           >
             {t("signup.backToSignIn")}
           </Link>
@@ -97,7 +97,7 @@ export default function SignupPage() {
             placeholder={t("signup.usernamePlaceholder")}
             autoFocus
             autoComplete="username"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           <input
             type="email"
@@ -105,7 +105,7 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder={t("signup.emailPlaceholder")}
             autoComplete="email"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           <input
             type="password"
@@ -113,7 +113,7 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder={t("signup.passwordPlaceholder")}
             autoComplete="new-password"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           <input
             type="password"
@@ -121,20 +121,20 @@ export default function SignupPage() {
             onChange={(e) => setConfirm(e.target.value)}
             placeholder={t("signup.confirmPlaceholder")}
             autoComplete="new-password"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"
             disabled={loading || !username.trim() || !email.trim() || !password || !confirm}
-            className="w-full rounded-lg bg-violet-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? t("signup.submitting") : t("signup.submit")}
           </button>
         </form>
         <p className="text-center text-sm text-zinc-500">
           {t("signup.hasAccount")}{" "}
-          <Link href="/" className="text-violet-400 hover:text-violet-300">
+          <Link href="/" className="text-primary hover:text-primary/80">
             {t("signup.signIn")}
           </Link>
         </p>

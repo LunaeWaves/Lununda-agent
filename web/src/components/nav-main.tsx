@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type { LucideIcon } from "lucide-react";
 
@@ -51,6 +52,12 @@ export function NavMain({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  // Indent only applies when the sidebar is expanded. In collapsed mode
+  // the rail shows just icons at the standard width — adding ml-* there
+  // shoves them off-center and breaks the icon grid alignment with the
+  // platform-level nav above it.
+  const { state } = useSidebar();
+  const indentActive = indent && state === "expanded";
 
   // Prefetch target routes on idle so soft nav is ready when the user
   // clicks — mirrors what <Link> does automatically, but we're opting out
@@ -94,7 +101,7 @@ export function NavMain({
                 }
               : undefined;
           return (
-            <SidebarMenuItem key={item.url ?? item.title} className={indent ? "ml-4" : undefined}>
+            <SidebarMenuItem key={item.url ?? item.title} className={indentActive ? "ml-2" : undefined}>
               <SidebarMenuButton
                 isActive={active}
                 tooltip={item.title}

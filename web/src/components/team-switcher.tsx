@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { useTheme } from "@/components/theme-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,16 +36,22 @@ function AgentAvatar({
   React.useEffect(() => {
     setFailed(false);
   }, [agentId]);
+  // Logo variant: logo-light (white logo, for dark backgrounds) on dark
+  // theme, logo-dark (brand-color logo, for light backgrounds) on light
+  // theme. The same favicon is reused as a tiny 32×32 fallback when size
+  // is small enough that the bigger PNGs wouldn't add detail.
+  const { resolvedTheme } = useTheme();
+  const brandSrc = resolvedTheme === "dark" ? "/logo-light.png" : "/logo-dark.png";
 
   if (!agentId) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src="/favicon-32x32.png"
+        src={brandSrc}
         alt="Lununda Agent"
         width={size}
         height={size}
-        className="rounded-lg"
+        className="rounded-lg object-cover"
         style={{ width: size, height: size }}
       />
     );

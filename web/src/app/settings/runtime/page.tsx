@@ -147,7 +147,7 @@ export default function RuntimeSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Container className="h-4 w-4 text-purple-500" />
+                <Container className="h-4 w-4 text-accent" />
                 <h3 className="font-medium">Sandbox</h3>
               </div>
               <p className="text-sm text-muted-foreground">

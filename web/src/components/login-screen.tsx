@@ -142,7 +142,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               autoComplete="new-password"
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
             />
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <button
               type="submit"
               disabled={loading || !signupUsername.trim() || !signupEmail.trim() || !password || !signupConfirm}
@@ -191,7 +191,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             autoComplete="current-password"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
           />
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"
             disabled={loading || !loginField.trim() || !password}

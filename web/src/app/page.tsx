@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTheme } from "@/components/theme-provider";
 import { useRouter } from "next/navigation";
 import { getStatus, getMe, login as loginApi } from "@/lib/api";
 import { logout } from "@/lib/auth";
@@ -12,11 +13,14 @@ import { useT } from "@/lib/i18n";
 export default function RootPage() {
   const router = useRouter();
   const t = useT();
+  const { resolvedTheme } = useTheme();
   const [showLogin, setShowLogin] = useState(false);
   const [loginField, setLoginField] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Logo variant by theme — see team-switcher.tsx for the same pattern.
+  const heroLogo = resolvedTheme === "light" ? "/logo-dark.png" : "/logo-light.png";
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -72,7 +76,7 @@ export default function RootPage() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="w-full max-w-sm space-y-6 p-6">
           <div className="flex flex-col items-center gap-3">
-            <img src="/logo.png" alt="Lununda Agent" className="h-12 w-12" />
+            <img src={heroLogo} alt="Lununda Agent" className="h-12 w-12" />
             <h1 className="text-xl font-bold">Lununda Agent</h1>
             <p className="text-sm text-muted-foreground">{t("root.signInToContinue")}</p>
           </div>

@@ -442,12 +442,12 @@ function TodoPanel({ items, active }: { items: TodoItem[]; active: boolean }) {
             {allDone ? (
               <Check className="size-4 shrink-0 text-emerald-600" />
             ) : active ? (
-              <div className="size-4 shrink-0 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+              <div className="size-4 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             ) : (
               // Paused: agent isn't streaming. Show a static amber ring
               // so the "where we are" cue is visible without implying
               // ongoing work.
-              <div className="size-4 shrink-0 rounded-full border-2 border-amber-500/70" />
+              <div className="size-4 shrink-0 rounded-full border-2 border-primary/70" />
             )}
             <span className="font-medium tabular-nums text-muted-foreground">
               {doneCount}/{total}
@@ -470,16 +470,16 @@ function TodoPanel({ items, active }: { items: TodoItem[]; active: boolean }) {
                     key={i}
                     className={
                       "flex items-start gap-2 rounded px-1.5 py-0.5 " +
-                      (isCurrent ? "bg-amber-500/10" : "")
+                      (isCurrent ? "bg-primary/10" : "")
                     }
                   >
                     {it.done ? (
                       <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
                     ) : isCurrent ? (
                       active ? (
-                        <div className="mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+                        <div className="mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                       ) : (
-                        <div className="mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-amber-500/70" />
+                        <div className="mt-0.5 size-3.5 shrink-0 rounded-full border-2 border-primary/70" />
                       )
                     ) : (
                       <div className="mt-1 size-2.5 shrink-0 rounded-full border border-muted-foreground/40" />
@@ -2072,8 +2072,8 @@ export function ChatScreen() {
                 if (msg.role === "auth-prompt") {
                   elements.push(
                     <div key={msg.id} className="flex justify-start">
-                      <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 space-y-2">
-                        <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-primary/40 bg-primary/10 px-4 py-3 space-y-2">
+                        <div className="text-sm font-medium text-primary">
                           ⚠️ {t("chatScreen.authRequired")}
                         </div>
                         {msg.content && (
@@ -2096,7 +2096,7 @@ export function ChatScreen() {
                                   );
                                   void handleSend(opt.cmd);
                                 }}
-                                className="rounded-full border border-amber-500/50 bg-background px-3 py-1 text-xs font-medium text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-50"
+                                className="rounded-full border border-primary/50 bg-background px-3 py-1 text-xs font-medium text-primary hover:bg-primary/15 disabled:opacity-50"
                               >
                                 <code className="font-mono">{opt.cmd}</code>
                                 <span className="ml-1.5 opacity-70">
@@ -2285,7 +2285,7 @@ export function ChatScreen() {
                         </div>
                       )}
                       {msg.role === "agent" && msg.metadata?.iterationCapReached && (
-                        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-primary">
                           <span className="font-medium">{t("chatScreen.iterationLimit")}</span>
                           <span className="opacity-80">
                             {t("chatScreen.iterationLimitDesc", { count: msg.metadata.iterationCapValue ?? "" })}
@@ -2293,7 +2293,7 @@ export function ChatScreen() {
                         </div>
                       )}
                       {msg.role === "agent" && msg.metadata?.planMode && (
-                        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-primary">
                           <ListChecks className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                           <span className="font-medium">{t("chatScreen.planOnly")}</span>
                           <span className="opacity-80">
@@ -2465,7 +2465,7 @@ export function ChatScreen() {
               // Chats page (?actAs=<uid>). The middleware gates this as
               // read-only for the whole request, so any send would 403
               // — disable the composer and surface why.
-              <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+              <div className="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
                 {t("chatScreen.readOnlyAdmin")}
                 {t("chatScreen.sendingDisabled")}
               </div>
@@ -2834,9 +2834,9 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
     setExpandedTool((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const isRH = !!msg.isRegexHook;
-  const iconColor = isRH ? "text-blue-500" : "text-amber-500";
-  const spinBorderColor = isRH ? "border-blue-500" : "border-amber-500";
-  const spinDotColor = isRH ? "border-blue-500/60" : "border-amber-500/60";
+  const iconColor = isRH ? "text-blue-500" : "text-primary";
+  const spinBorderColor = isRH ? "border-blue-500" : "border-primary";
+  const spinDotColor = isRH ? "border-blue-500/60" : "border-primary/60";
   const checkColor = isRH ? "text-blue-500" : "text-emerald-500";
 
   const inner = (
@@ -2864,7 +2864,7 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
               // glyph carries the round number — gives the bundle's
               // expanded view a built-in step indicator without an
               // extra "ROUND N" label row above each card.
-              <span className="h-5 w-5 shrink-0 inline-flex items-center justify-center rounded-full bg-amber-500/10 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+              <span className="h-5 w-5 shrink-0 inline-flex items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                 {roundIndex}
               </span>
             ) : isRH ? (
@@ -3033,9 +3033,9 @@ function ToolRoundsBundle({
             className="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
           >
             {!allDone ? (
-              <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+              <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             ) : (
-              <Wrench className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <Wrench className="h-3.5 w-3.5 text-primary shrink-0" />
             )}
             <span className="font-medium text-foreground">
               {allDone
