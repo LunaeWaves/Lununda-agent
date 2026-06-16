@@ -111,7 +111,7 @@ type Manager struct {
 // on Manager.previewBase.
 func NewManager(st store.Store, workspaceRoot, image string, policy *sandbox.Policy, previewBase string) *Manager {
 	if image == "" {
-		image = "thinkany/lununda-sandbox:latest"
+		image = "ghcr.io/lunaewaves/lununda-sandbox:latest"
 	}
 	return &Manager{
 		store:         st,

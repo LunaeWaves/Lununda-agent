@@ -37,7 +37,7 @@ func sandboxCreateCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&image, "image", "thinkany/lununda-sandbox:latest", "Docker image to use")
+	cmd.Flags().StringVar(&image, "image", "ghcr.io/lunaewaves/lununda-sandbox:latest", "Docker image to use")
 	return cmd
 }
 

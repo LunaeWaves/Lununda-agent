@@ -1,0 +1,93 @@
+name: sandbox-image
+
+# Build and push the lununda-sandbox runtime image to GHCR.
+# This is the image the agent's exec tool runs inside — pre-baked
+# with Python, Node, Camoufox (anti-detect Firefox), and the usual
+# fetch/parse/preview deps so bundled skills work on turn 1.
+#
+# Image: ghcr.io/lunaewaves/lununda-sandbox
+# Tags : latest (main), dev (dev branch), <sha7>, <version on tags>
+#
+# Triggers:
+#   - push to main or dev
+#   - push to deploy/docker/sandbox/** on any branch
+#   - v*.*.* tags
+#   - manual workflow_dispatch
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "deploy/docker/sandbox/**"
+      - ".github/workflows/sandbox.yml"
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Override image tag (optional)
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Derive version
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(git describe --tags --always --dirty)" >> $GITHUB_OUTPUT
+          fi
+          echo "sha7=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Compute image name
+        id: image
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${OWNER}/lununda-sandbox" >> $GITHUB_OUTPUT
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        run: |
+          I="${{ steps.image.outputs.image }}"
+          TAGS="${I}:${{ steps.meta.outputs.sha7 }}"
+          case "${{ github.ref }}" in
+            refs/heads/main) TAGS="${TAGS},${I}:latest" ;;
+            refs/heads/dev)  TAGS="${TAGS},${I}:dev" ;;
+          esac
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAGS="${TAGS},${I}:${{ steps.meta.outputs.version }}"
+          fi
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/docker/sandbox
+          file: deploy/docker/sandbox/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=sandbox
+          cache-to: type=gha,mode=max,scope=sandbox

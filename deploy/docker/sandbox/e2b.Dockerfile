@@ -1,4 +1,4 @@
-FROM thinkany/fastclaw-sandbox:latest
+FROM ghcr.io/lunaewaves/lununda-sandbox:latest
 
 WORKDIR /workspace
 

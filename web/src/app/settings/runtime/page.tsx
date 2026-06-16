@@ -243,7 +243,7 @@ export default function RuntimeSettingsPage() {
                   <Input
                     value={sandboxDockerImage}
                     onChange={(e) => setSandboxDockerImage(e.target.value)}
-                    placeholder="thinkany/lununda-sandbox:latest"
+                    placeholder="ghcr.io/lunaewaves/lununda-sandbox:latest"
                     className="font-mono text-sm"
                   />
                 </div>

@@ -12,14 +12,14 @@
 #                                                       # multi-arch buildx
 #
 # After building, point the gateway at it via Settings → Sandbox →
-# Image, or during onboard. Default: thinkany/lununda-sandbox:latest.
+# Image, or during onboard. Default: ghcr.io/lunaewaves/lununda-sandbox:latest.
 
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/../../.." && pwd)
 
-IMAGE_NAME=${IMAGE_NAME:-thinkany/lununda-sandbox}
+IMAGE_NAME=${IMAGE_NAME:-ghcr.io/lunaewaves/lununda-sandbox}
 TAG=latest
 PUSH=0
 PLATFORM=""

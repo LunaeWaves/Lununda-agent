@@ -200,7 +200,7 @@ func runGateway(port int) error {
 		rtMgr.RegisterTemplate("shipany-tanstack", coderuntime.TemplateSpec{
 			DevPort: 3000,
 			// Default scaffold, validated end-to-end against
-			// thinkany/lununda-sandbox (node+npm, no pnpm):
+			// ghcr.io/lunaewaves/lununda-sandbox (node+npm, no pnpm):
 			//   1. copy the template EXCLUDING node_modules — the host
 			//      checkout's are platform-specific + huge; a fresh
 			//      in-container install is correct.

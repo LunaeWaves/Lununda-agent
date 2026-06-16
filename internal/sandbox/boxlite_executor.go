@@ -53,7 +53,7 @@ const (
 	defaultBoxliteURL      = "https://api.dev.boxlite.ai/api/v1"
 	defaultBoxliteClientID = "default"
 	defaultBoxlitePrefix   = "default"
-	defaultBoxliteImage    = "thinkany/lununda-sandbox:latest"
+	defaultBoxliteImage    = "ghcr.io/lunaewaves/lununda-sandbox:latest"
 )
 
 // BoxliteExecutor implements Executor against a remote Boxlite REST API.

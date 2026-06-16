@@ -101,6 +101,7 @@ lununda
 ### 工具与沙箱
 - 内置：exec、read_file、write_file、list_dir、web_fetch、web_search、memory_search
 - E2B 云端沙箱或 Docker 沙箱 — 自动同步技能 + 工作区
+- 默认 Docker 镜像：**`ghcr.io/lunaewaves/lununda-sandbox:latest`** — 由本仓库的 `deploy/docker/sandbox/Dockerfile` 自动构建发布。预装 Python 3、Node 22、Camoufox（防检测 Firefox）、git、curl 及常用 fetch/parse/preview 依赖，让 `camoufox-cli` 等内置技能在第一轮对话即可使用，无需 pip/npm 安装。
 - MCP 服务器支持
 - 插件系统（JSON-RPC 子进程）
 

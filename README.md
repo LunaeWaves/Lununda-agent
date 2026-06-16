@@ -134,6 +134,7 @@ table and is edited through the dashboard or `lununda agents config`.
 ### Tools & Sandbox
 - Built-in: exec, read_file, write_file, list_dir, web_fetch, web_search, memory_search
 - E2B cloud sandbox or Docker sandbox — automatic skill + workspace hydrate, post-exec sync (sandbox-side files mirrored back to the durable store after every tool call)
+- Default Docker image: **`ghcr.io/lunaewaves/lununda-sandbox:latest`** — published from this repo's `deploy/docker/sandbox/Dockerfile`. Pre-baked with Python 3, Node 22, Camoufox (anti-detect Firefox), git, curl, and the usual fetch/parse/preview deps so bundled skills like `camoufox-cli` work on turn 1 with zero pip/npm round-trips.
 - MCP server support
 - Plugin system (JSON-RPC subprocess)
 

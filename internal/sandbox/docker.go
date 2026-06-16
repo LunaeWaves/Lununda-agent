@@ -72,7 +72,7 @@ type DockerSandbox struct {
 // explicit policy with NetMode: "none".
 func NewDockerSandbox(image, workspace string, policy *Policy) *DockerSandbox {
 	if image == "" {
-		image = "thinkany/lununda-sandbox:latest"
+		image = "ghcr.io/lunaewaves/lununda-sandbox:latest"
 	}
 	if policy == nil {
 		policy = &Policy{}
