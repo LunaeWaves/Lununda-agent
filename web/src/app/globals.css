@@ -216,6 +216,30 @@ html.theme-transition *::after {
   transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
 }
 
+/* Auto-title swap animation. Fires when sessions[].title changes —
+ * the key prop on the <span> forces remount, the CSS animation does
+ * a slide-out + slide-in. Total ~700ms so the swap is noticeable
+ * but not sluggish. */
+@keyframes lununda-title-swap {
+  0% {
+    opacity: 0;
+    transform: translateX(-6px);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+.animate-title-swap {
+  animation: lununda-title-swap 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

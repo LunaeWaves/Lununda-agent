@@ -266,6 +266,12 @@ type AutoTitleCfg struct {
 	// MaxChars caps the generated title. Default 30 — long enough for a
 	// short summary, short enough to fit the sidebar without ellipsis.
 	MaxChars int `json:"maxChars,omitempty"`
+	// MaxTries is the number of turns AFTER AfterRounds to keep
+	// retrying on LLM failure / empty result. Default 2 — so with
+	// AfterRounds=3 the hook fires on turns 3, 4, 5; gives up at 6.
+	// Each retry is cheap (one DB lookup of sessions.title; the LLM
+	// call only happens when the title is still empty).
+	MaxTries int `json:"maxTries,omitempty"`
 }
 
 type FTSCfg struct {
@@ -404,6 +410,16 @@ type AgentDefaults struct {
 	// so this is the only way for the agent to remember a chatter across
 	// sessions.
 	AutoPersist *bool `json:"autoPersist,omitempty"`
+	// AutoTitle is the per-agent on/off override for the auto-title
+	// PostTurn hook. nil = inherit system default (on), true/false =
+	// authoritative for this agent.
+	AutoTitle *bool `json:"autoTitle,omitempty"`
+	// AutoTitleModel — optional per-agent model override for the
+	// auto-title LLM call. nil/empty = use the agent's primary model
+	// (the same one driving the chat). Set to e.g. "openai/gpt-4o-mini"
+	// to use a cheaper / faster model for the one-shot background
+	// summariser without affecting the chat.
+	AutoTitleModel *string `json:"autoTitleModel,omitempty"`
 	// MCPServers — per-agent MCP server overlay. Round-trips through
 	// the agent-scope agents.defaults row written by the dashboard / CLI.
 	// Applied to ResolvedAgent.MCPServers at userspace assembly time in
@@ -682,6 +698,15 @@ type ResolvedAgent struct {
 	// AutoTitle forwarded from MemoryCfg.AutoTitle. The PostTurn hook
 	// reads this to decide whether to fire the summariser.
 	AutoTitle AutoTitleCfg
+	// AutoTitleEnabled is the per-agent on/off override (same shape as
+	// AutoPersist). nil = inherit MemoryCfg.AutoTitle.Enabled; explicit
+	// true/false wins. The other AutoTitle fields (afterRounds, model,
+	// maxChars) come from MemoryCfg.AutoTitle via the scope merge —
+	// only the on/off switch has a per-agent shortcut.
+	AutoTitleEnabled *bool
+	// AutoTitleModelOverride is the per-agent model override for the
+	// auto-title summariser call. nil = use the agent's primary model.
+	AutoTitleModelOverride *string
 }
 
 type TeamEntry struct {

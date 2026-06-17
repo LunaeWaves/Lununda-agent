@@ -492,7 +492,12 @@ function ProjectRow({
                   // hover. pr-7 ≈ width of the 5-unit chip + gutter.
                   className="pr-7"
                 >
-                  <span className="truncate">{s.title || s.id}</span>
+                  <span
+                    key={s.title || s.id}
+                    className="truncate animate-title-swap"
+                  >
+                    {s.title || s.id}
+                  </span>
                 </SidebarMenuSubButton>
                 <ChatRowActions
                   agentId={agentId}

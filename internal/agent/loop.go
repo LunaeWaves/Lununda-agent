@@ -70,6 +70,7 @@ type Agent struct {
 	skillsCfg       config.SkillsConfig
 	globalSkillsCfg config.SkillsCfg
 	messageBus      *bus.MessageBus
+	eventHub         *EventHub
 	subAgentSpawner tools.SubAgentSpawner
 	ftsStore        *store.FTSStore
 	piiScrubEnabled bool
@@ -413,6 +414,38 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 	// AutoPersist without specifying a cadence.
 	if rc.AutoPersist != nil {
 		ag.memoryCfg.AutoPersist.Enabled = *rc.AutoPersist
+	}
+	// Auto-title per-agent override (same shape as AutoPersist). When
+	// explicit, it wins over the resolver-supplied default.
+	if rc.AutoTitleEnabled != nil {
+		ag.memoryCfg.AutoTitle.Enabled = *rc.AutoTitleEnabled
+		ag.autoTitleCfg.Enabled = *rc.AutoTitleEnabled
+	}
+	// Auto-title model override — optional. Empty = use agent primary.
+	if rc.AutoTitleModelOverride != nil && *rc.AutoTitleModelOverride != "" {
+		ag.memoryCfg.AutoTitle.Model = *rc.AutoTitleModelOverride
+		ag.autoTitleCfg.Model = *rc.AutoTitleModelOverride
+	}
+	// Auto-title defaults — mirrors NewAgentWithFullCfg. AfterRounds
+	// and MaxChars are zero-valued in the config when nothing is set,
+	// so we have to populate sane defaults HERE (the agent factory is
+	// the only place that knows the right values; config alone can't
+	// tell "unset" from "explicitly zero"). Enabled also defaults to
+	// true at this layer — operators opt OUT via memory.autoTitle
+	// .enabled=false or the per-agent toggle, not opt in.
+	if ag.autoTitleCfg.AfterRounds == 0 {
+		ag.autoTitleCfg.AfterRounds = 3
+	}
+	if ag.autoTitleCfg.MaxChars == 0 {
+		ag.autoTitleCfg.MaxChars = 30
+	}
+	if !ag.autoTitleCfg.Enabled {
+		// The override block above may have explicitly set Enabled=false
+		// (operator toggled off via the dashboard). Only flip the
+		// default-on when there's no signal either way.
+		if rc.AutoTitleEnabled == nil && ag.memoryCfg.AutoTitle.Model == "" && ag.memoryCfg.AutoTitle.AfterRounds == 0 {
+			ag.autoTitleCfg.Enabled = true
+		}
 	}
 	if ag.memoryCfg.AutoPersist.EveryNTurns == 0 {
 		ag.memoryCfg.AutoPersist.EveryNTurns = 5
@@ -2613,16 +2646,45 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 	if chatterMem != nil {
 		chatterUID = chatterMem.UserID()
 	}
-	willFire := false
+	// chatterTurns is the chatter's user-message count for this agent,
+	// sourced from session_messages. Computed unconditionally because
+	// TWO consumers need it: autoPersist (every-N-turns gate) AND
+	// autoTitle (window gate). Previously this was tucked inside the
+	// autoPersist if-block — when autoPersist was off (the default),
+	// chatterTurns stayed 0 and autoTitle never fired even though it
+	// had nothing to do with autoPersist.
 	chatterTurns := 0
-	if a.dataStore != nil && a.memoryCfg.AutoPersist.Enabled && a.memoryCfg.AutoPersist.EveryNTurns > 0 && chatterUID != "" {
-		n, err := a.dataStore.CountChatterUserMessages(ctx, a.name, chatterUID)
+	if a.dataStore != nil && chatterUID != "" {
+		// Detach from the request ctx — by the time runPostTurn
+		// runs, the HTTP response is already flushed and the request
+		// ctx is canceled. Counts and downstream LLM calls (auto-
+		// title, auto-persist) need a background ctx that lives as
+		// long as the goroutine, not the request. Previously this
+		// used the request ctx, so every count returned "context
+		// canceled" and chatter_turns stayed 0 → auto-title never
+		// fired.
+		bgCtx := context.Background()
+		n, err := a.dataStore.CountChatterUserMessages(bgCtx, a.agentID, chatterUID)
 		if err != nil {
-			slog.Warn("auto-persist: count query failed", "agent", a.name, "chatter", chatterUID, "error", err)
+			slog.Warn("post-turn: chatter count failed", "agent", a.name, "chatter", chatterUID, "error", err)
 		} else {
 			chatterTurns = n
-			willFire = n > 0 && n%a.memoryCfg.AutoPersist.EveryNTurns == 0
 		}
+		slog.Info("post-turn: chatter count",
+			"agent_id", a.agentID,
+			"agent_name", a.name,
+			"chatter", chatterUID,
+			"count", chatterTurns,
+			"dataStore_wired", a.dataStore != nil)
+	} else {
+		slog.Info("post-turn: chatter count SKIPPED",
+			"agent_id", a.agentID,
+			"chatter", chatterUID,
+			"dataStore_wired", a.dataStore != nil)
+	}
+	willFire := false
+	if a.dataStore != nil && a.memoryCfg.AutoPersist.Enabled && a.memoryCfg.AutoPersist.EveryNTurns > 0 && chatterUID != "" {
+		willFire = chatterTurns > 0 && chatterTurns%a.memoryCfg.AutoPersist.EveryNTurns == 0
 	}
 	slog.Info("auto-persist gate",
 		"agent", a.name,
@@ -2640,18 +2702,65 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 		go AutoPersistMemory(ctx, chatterMem, a.provider, model, messages)
 	}
 
-	// Auto-title: at exactly AfterRounds user turns, ask the LLM for a
-	// short summary we can write to sessions.title. The sidebar shows
-	// the first user message as a fallback when title is empty, so
-	// skipping auto-title leaves a working UI — but a real summary is
-	// much more useful after the conversation has settled. The fire
-	// condition is `==` not `%` so we only do this ONCE per session;
-	// later turns leave the title alone (whether it's the auto-summary
-	// or a manual rename).
-	if a.autoTitleCfg.Enabled && a.autoTitleCfg.AfterRounds > 0 && chatterTurns == a.autoTitleCfg.AfterRounds && chatterUID != "" {
-		sessionKey := a.registry.GoalSessionKey()
-		if sessionKey != "" && a.provider != nil {
-			go a.maybeAutoTitle(sessionKey, messages)
+	// Auto-title: ask the LLM to summarise the conversation into a
+	// short title and write it to sessions.title. The window is
+	// [AfterRounds, AfterRounds + MaxTries] inclusive on THIS SESSION's
+	// user-message count (not the chatter's global count across all
+	// sessions — that one grows monotonically and skips the window on
+	// day one for any active user).
+	//   - Below AfterRounds: the conversation hasn't settled enough
+	//     for a meaningful title; skip.
+	//   - In the window: try every turn. maybeAutoTitle bails when
+	//     the title is already non-empty (user renamed OR a previous
+	//     run landed), so retries are cheap — one DB lookup, no LLM
+	//     call.
+	//   - Above the window: stop trying. The user probably either
+	//     doesn't care about this session's title or every attempt
+	//     so far has failed (network blip, model glitch, …). Avoid
+	//     spamming the LLM on every turn of a long-running chat.
+	//
+	// Default window: AfterRounds=3, MaxTries=2 → tries at turns
+	// 3, 4, 5; gives up at 6+.
+	if a.autoTitleCfg.Enabled && a.autoTitleCfg.AfterRounds > 0 && chatterUID != "" {
+		// Count THIS session's user messages from the in-memory
+		// `messages` slice that runPostTurn already has in hand.
+		// Cheaper than another DB round-trip and naturally scoped to
+		// the right conversation.
+		sessionUserTurns := 0
+		for _, m := range messages {
+			if m.Role == "user" && m.Origin == provider.OriginUser {
+				sessionUserTurns++
+			}
+		}
+		maxTries := a.autoTitleCfg.MaxTries
+		if maxTries == 0 {
+			maxTries = 2
+		}
+		upper := a.autoTitleCfg.AfterRounds + maxTries
+		slog.Info("auto-title gate",
+			"agent", a.name,
+			"session_user_turns", sessionUserTurns,
+			"after_rounds", a.autoTitleCfg.AfterRounds,
+			"max_tries", maxTries,
+			"upper", upper,
+			"will_fire", sessionUserTurns >= a.autoTitleCfg.AfterRounds && sessionUserTurns <= upper)
+		if sessionUserTurns >= a.autoTitleCfg.AfterRounds && sessionUserTurns <= upper {
+			sessionKey := a.registry.GoalSessionKey()
+			if sessionKey != "" && a.provider != nil {
+				// Pull the event hub out of the request ctx so the
+				// background goroutine can still publish live updates
+				// to subscribed dashboards after the request returns.
+				// The hub is process-wide so the reference is safe to
+				// hold past the request lifecycle.
+				var hub *EventHub
+				if stream := streamFromContext(ctx); stream != nil {
+					hub = stream.hub
+				}
+				if hub == nil {
+					hub = a.eventHub
+				}
+				go a.maybeAutoTitle(sessionKey, messages, hub, a.ownerUserID)
+			}
 		}
 	}
 

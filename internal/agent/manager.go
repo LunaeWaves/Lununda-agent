@@ -53,6 +53,7 @@ type managerOpts struct {
 	globalSkillsCfg  config.SkillsCfg
 	wikiCache        *kb.WikiCache
 	kbWikiSearchMode string
+	eventHub         *EventHub
 }
 
 func WithSessionStore(st session.SessionStore) ManagerOption {
@@ -110,6 +111,13 @@ func WithWikiCache(c *kb.WikiCache) ManagerOption {
 
 func WithKBWikiSearchMode(mode string) ManagerOption {
 	return func(o *managerOpts) { o.kbWikiSearchMode = mode }
+}
+
+// WithEventHub wires the process-wide event hub so background tasks
+// (auto-title, auto-persist) can publish live updates back to the
+// dashboard without holding the request ctx open.
+func WithEventHub(h *EventHub) ManagerOption {
+	return func(o *managerOpts) { o.eventHub = h }
 }
 
 func firstNonEmpty(a, b string) string {
@@ -230,6 +238,10 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 		// see a new skill.
 		ag.workspaceStore = m.opts.workspaceStore
 		ag.agentID = rc.ID
+		// eventHub is process-wide; safe to share across agents.
+		if m.opts.eventHub != nil {
+			ag.eventHub = m.opts.eventHub
+		}
 		// Refresh skills now that workspaceStore is wired — the initial
 		// NewAgent pass loaded only the filesystem, missing anything that
 		// lives only in OSS.

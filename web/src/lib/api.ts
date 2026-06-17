@@ -115,6 +115,17 @@ export interface AgentDetail {
   // this is the only path the agent has to remember a chatter across
   // sessions.
   autoPersist?: boolean | null;
+  // autoTitle is the per-agent on/off override for the auto-title
+  // PostTurn hook. When on, after the third user turn the runtime
+  // asks the agent's primary model to summarise the conversation
+  // into a short title and writes it to sessions.title. null =
+  // inherit (default on).
+  autoTitle?: boolean | null;
+  // autoTitleModel — optional per-agent model for the summariser call.
+  // null/undefined/empty = use the agent's primary model. Set e.g.
+  // "openai/gpt-4o-mini" to route the background title pass to a
+  // cheaper / faster model without affecting the chat.
+  autoTitleModel?: string | null;
   // plugins is the per-agent hook-plugin enable overlay: pluginID →
   // enabled. Missing keys fall back to the system-wide enable state
   // (visible via /api/plugins). null/undefined means "no per-agent
@@ -1106,7 +1117,8 @@ export interface ChatStreamEvent {
     | "subagent_progress"
     | "indicator"
     | "regex_hook"
-    | "auth_prompt";
+    | "auth_prompt"
+    | "session_title";
   // Per-session monotonic sequence assigned by chat_events. Lets the
   // chat page dedupe events arriving on both the active POST stream
   // and the parallel /api/chat/subscribe SSE connection. -1 means
@@ -1353,6 +1365,12 @@ export interface AgentUpdatePayload {
   // profile) and MEMORY.md (long-term facts) — see Agent.autoPersist.
   autoPersist?: boolean;
   autoPersistReset?: boolean;
+  // Per-agent auto-title override (same shape as autoPersist).
+  autoTitle?: boolean;
+  autoTitleReset?: boolean;
+  // Per-agent auto-title model override (string, optional).
+  autoTitleModel?: string;
+  autoTitleModelReset?: boolean;
   // Per-agent plugin enable overrides (patch semantics — keys not in
   // the map are preserved). Pass pluginsReset:true to clear ALL
   // per-agent overrides and fall back to system-wide enable state.

@@ -241,7 +241,12 @@ function SessionRow({
         ) : (
           <ChannelIcon channel={session.channel} />
         )}
-        <span className="truncate">{session.title || session.id}</span>
+        <span
+          key={session.title || session.id}
+          className="truncate animate-title-swap"
+        >
+          {session.title || session.id}
+        </span>
       </SidebarMenuButton>
       <ChatRowActions
         agentId={agentId}

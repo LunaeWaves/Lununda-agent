@@ -319,6 +319,11 @@ const zhCN: Record<string, string> = {
   "context.splitRepliesDesc": "让智能体使用分隔符将一条回复拆分为多个聊天气泡——适合 IM 中的短消息多段回复。适用于所有 IM 通道（微信 / Telegram / Discord / Slack / LINE / 飞书）；Web 端忽略。默认关闭——保持每条回复为单条消息。",
   "context.autoPersist": "自动记忆持久化",
   "context.autoPersistDesc": "备份持久化路径：每 5 个用户轮次，运行时会发起一次小型 LLM 调用，将近期对话提炼为 USER.md / MEMORY.md。主要路径是 LLM 通过 write_file / edit_file 直接写入（聊天机器人模式现在也支持）——此开关确保模型忘记写入时仍能保留数据。默认关闭以保持跨会话的无状态行为。",
+  "context.autoTitle": "自动标题",
+  "context.autoTitleDesc": "第 3 个用户轮次后，运行时会调用智能体的主模型，把对话总结成短标题写回侧边栏。用户手动改名过的会话会被跳过，不会被覆盖。默认开启；关闭后退化为使用第一句话作为标题。",
+  "context.autoTitleModel": "标题模型（可选）",
+  "context.autoTitleModelPlaceholder": "openai/gpt-4o-mini（留空 = 使用主模型）",
+  "context.autoTitleModelHint": "留空则使用智能体的主模型。填入更便宜/更快的模型（如 mini 系列），可让后台标题生成不占用对话本身的模型预算。",
   "context.pluginTools": "插件工具",
   "context.pluginToolsDesc": "这些自定义工具始终启用（通过插件标签页安装），不受所选提示模式影响。",
 

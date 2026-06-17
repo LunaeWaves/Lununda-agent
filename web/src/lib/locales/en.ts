@@ -319,6 +319,11 @@ const en: Record<string, string> = {
   "context.splitRepliesDesc": "Let the agent split one reply into multiple chat bubbles using a separator marker — natural for short, multi-beat replies in IM. Applies to every IM channel (WeChat / Telegram / Discord / Slack / LINE / Feishu); ignored on web. Off by default — keeps each reply as a single message.",
   "context.autoPersist": "Auto Memory Persistence",
   "context.autoPersistDesc": "Backup persistence path: every 5 user-turns the runtime fires a small LLM call that distills the recent conversation into USER.md / MEMORY.md. The primary path is the LLM writing those files directly via write_file / edit_file (now available in Chatbot mode too) — this toggle just makes sure something still gets persisted when the model forgets to. Off by default to preserve the stateless-across-sessions behavior.",
+  "context.autoTitle": "Auto Title",
+  "context.autoTitleDesc": "After the third user turn the runtime asks the agent's primary model to summarise the conversation into a short title and writes it to the sidebar. Skips any session you've renamed manually. On by default; turn off to keep titles as the first user message.",
+  "context.autoTitleModel": "Title model (optional)",
+  "context.autoTitleModelPlaceholder": "openai/gpt-4o-mini (blank = use primary)",
+  "context.autoTitleModelHint": "Leave blank to use the agent's primary model. Set a cheaper / faster model here to route the background title pass without affecting the chat.",
   "context.pluginTools": "Plugin Tools",
   "context.pluginToolsDesc": "These custom tools are always enabled (installed via the Plugins tab) regardless of the selected prompt mode.",
 

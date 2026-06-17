@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Brain, Check, MessageSquare, MessagesSquare, Puzzle } from "lucide-react";
+import { Brain, Check, MessageSquare, MessagesSquare, Puzzle, Sparkles } from "lucide-react";
 import { getAgent, updateAgent } from "@/lib/api";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { useAgentName } from "@/hooks/use-agent-name";
@@ -52,6 +54,19 @@ export default function AgentContextPage() {
   // LLM-driven distill pass that appends to USER.md / MEMORY.md.
   const [autoPersist, setAutoPersist] = useState(false);
   const [autoPersistSaving, setAutoPersistSaving] = useState(false);
+  // Per-agent auto-title toggle. Default on at the resolver layer;
+  // this toggle sets an explicit per-agent override.
+  const [autoTitle, setAutoTitle] = useState(true);
+  const [autoTitleSaving, setAutoTitleSaving] = useState(false);
+  // Optional per-agent model for the auto-title summariser call.
+  // Empty = use the agent's primary model. Populated = explicit
+  // override (e.g. "openai/gpt-4o-mini" to use a cheaper model for
+  // the background pass).
+  const [autoTitleModel, setAutoTitleModel] = useState("");
+  const [autoTitleModelSaving, setAutoTitleModelSaving] = useState(false);
+  // Last server-confirmed value so onBlur can roll back on error and
+  // skip API calls when nothing changed.
+  const [autoTitleModelSaved, setAutoTitleModelSaved] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -69,6 +84,13 @@ export default function AgentContextPage() {
       }
       setSplitReplies(agentRec?.splitReplies === true);
       setAutoPersist(agentRec?.autoPersist === true);
+      // autoTitle: null on the wire = "inherit default-on"; treat
+      // anything non-true as off for the toggle (the actual default
+      // value lives in memory.autoTitle.enabled at system/user scope,
+      // surfaced here only when the operator flips the override).
+      setAutoTitle(agentRec?.autoTitle === true);
+      setAutoTitleModel(agentRec?.autoTitleModel ?? "");
+      setAutoTitleModelSaved(agentRec?.autoTitleModel ?? "");
     } finally {
       setLoading(false);
     }
@@ -129,6 +151,44 @@ export default function AgentContextPage() {
       setAutoPersist(prev);
     } finally {
       setAutoPersistSaving(false);
+    }
+  };
+
+  // Same shape as handleAutoPersistChange.
+  const handleAutoTitleChange = async (next: boolean) => {
+    const prev = autoTitle;
+    setAutoTitle(next);
+    setAutoTitleSaving(true);
+    try {
+      await updateAgent(agentId, { autoTitle: next });
+      flashSaved();
+    } catch {
+      setAutoTitle(prev);
+    } finally {
+      setAutoTitleSaving(false);
+    }
+  };
+
+  // Save autoTitleModel on blur (not on every keystroke — avoids
+  // API spam). Trim + treat empty as "use primary model" by sending
+  // autoTitleModelReset:true instead of an empty string.
+  const handleAutoTitleModelBlur = async () => {
+    const next = autoTitleModel.trim();
+    if (next === autoTitleModelSaved) return;
+    setAutoTitleModelSaving(true);
+    try {
+      if (next === "") {
+        await updateAgent(agentId, { autoTitleModelReset: true });
+      } else {
+        await updateAgent(agentId, { autoTitleModel: next });
+      }
+      setAutoTitleModelSaved(next);
+      flashSaved();
+    } catch {
+      // Roll back to the last known server value.
+      setAutoTitleModel(autoTitleModelSaved);
+    } finally {
+      setAutoTitleModelSaving(false);
     }
   };
 
@@ -264,6 +324,51 @@ export default function AgentContextPage() {
             aria-label={t("context.autoPersist")}
           />
         </div>
+      </div>
+
+      {/* Auto-title — LLM-generated chat title after the third user
+          turn. Lives here alongside AutoPersist because both are
+          background LLM passes fired from runPostTurn. The model used
+          defaults to the agent's primary model; the optional input
+          below lets the operator route the title pass to a cheaper /
+          faster model (e.g. gpt-4o-mini) without affecting the chat. */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <h3 className="font-medium">{t("context.autoTitle")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("context.autoTitleDesc")}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={autoTitle}
+            onCheckedChange={handleAutoTitleChange}
+            disabled={autoTitleSaving}
+            aria-label={t("context.autoTitle")}
+          />
+        </div>
+        {autoTitle && (
+          <div className="mt-4 pt-4 border-t border-border space-y-2">
+            <Label className="text-xs text-muted-foreground">
+              {t("context.autoTitleModel")}
+            </Label>
+            <Input
+              type="text"
+              placeholder={t("context.autoTitleModelPlaceholder")}
+              value={autoTitleModel}
+              onChange={(e) => setAutoTitleModel(e.target.value)}
+              onBlur={handleAutoTitleModelBlur}
+              disabled={autoTitleModelSaving}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("context.autoTitleModelHint")}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

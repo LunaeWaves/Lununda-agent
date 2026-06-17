@@ -210,7 +210,15 @@ func (g *Gateway) ProjectRuntime() *coderuntime.Manager { return g.projectRuntim
 // Must be called before Run() so the very first bus-fired web turn
 // streams through the hub rather than landing as one delayed async
 // bubble. Safe to call once.
-func (g *Gateway) SetChatEvents(h *agent.EventHub) { g.chatEvents = h }
+func (g *Gateway) SetChatEvents(h *agent.EventHub) {
+	g.chatEvents = h
+	// Propagate to the user-space registry so background goroutines
+	// inside agents (auto-title, auto-persist) can publish live
+	// updates to subscribed dashboards.
+	if g.users != nil {
+		g.users.setEventHub(h)
+	}
+}
 
 
 // WebChannel returns the in-process fan-out for web SSE subscribers.

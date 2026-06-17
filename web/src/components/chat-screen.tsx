@@ -835,6 +835,9 @@ export function ChatScreen() {
           phase?: "thinking" | "running" | "final-delivery" | "done";
           tools?: string[];
           text?: string;
+          // session_title fields (auto-title background pass)
+          sessionKey?: string;
+          title?: string;
         };
       };
       try {
@@ -940,6 +943,38 @@ export function ChatScreen() {
                 ...prev,
                 { id: "kb-" + Date.now(), role: "agent", content: indicatorText, timestamp: Date.now() },
               ]);
+            }
+            break;
+          }
+          case "session_title": {
+            // Auto-title background pass landed. Update the sidebar
+            // (sessions list) and the in-memory current title so the
+            // user sees the new title without a manual refresh.
+            claim();
+            const sk = data.data?.sessionKey as string | undefined;
+            const newTitle = data.data?.title as string | undefined;
+            if (sk && newTitle) {
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s.id === sk ? { ...s, title: newTitle, preview: newTitle } : s,
+                ),
+              );
+              if (sk === sessionId) setSessionTitle(newTitle);
+              // The sidebar's sessions list lives in AppSidebar's own
+              // state — separate from this component's. Broadcast a
+              // sessions-changed event so AppSidebar re-fetches from
+              // /api/chat/sessions (which now includes the new title
+              // the server already persisted) and updates the sidebar
+              // in real time. Without this the sidebar lags by one
+              // turn — it only refetches on its own after the next
+              // user message completes.
+              if (typeof window !== "undefined" && selectedAgent) {
+                window.dispatchEvent(
+                  new CustomEvent("lununda:sessions-changed", {
+                    detail: { agentId: selectedAgent },
+                  }),
+                );
+              }
             }
             break;
           }
@@ -2798,7 +2833,12 @@ function ChatHeaderTitle({ title, fallback, onSave }: ChatHeaderTitleProps) {
       className="group flex min-w-0 max-w-[min(60vw,18rem)] sm:max-w-[24rem] md:max-w-[28rem] lg:max-w-[32rem] items-center gap-1.5 rounded-md px-2 py-1 text-sm text-foreground hover:bg-muted/50"
       title={title || fallback}
     >
-      <span className="truncate">{title || fallback}</span>
+      <span
+        key={title || fallback}
+        className="truncate animate-title-swap"
+      >
+        {title || fallback}
+      </span>
       <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100" />
     </button>
   );

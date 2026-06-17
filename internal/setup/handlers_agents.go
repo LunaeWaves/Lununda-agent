@@ -229,6 +229,37 @@ func (s *Server) agentScopeAutoPersist(r *http.Request, agentID string) *bool {
 	return &v
 }
 
+// agentScopeAutoTitle reads the per-agent autoTitle override. Returns
+// nil when absent (treated as "inherit default-on" by the agent loop).
+// Drives the auto-title PostTurn hook (LLM-generated chat title after
+// N user turns). Mirrors agentScopeAutoPersist's shape.
+func (s *Server) agentScopeAutoTitle(r *http.Request, agentID string) *bool {
+	rec, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", agentID, "agents.defaults")
+	if err != nil || rec == nil {
+		return nil
+	}
+	v, ok := rec.Data["autoTitle"].(bool)
+	if !ok {
+		return nil
+	}
+	return &v
+}
+
+// agentScopeAutoTitleModel reads the optional per-agent model override
+// for the auto-title summariser call. Returns nil when absent (the
+// agent loop then uses the agent's primary model).
+func (s *Server) agentScopeAutoTitleModel(r *http.Request, agentID string) *string {
+	rec, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", agentID, "agents.defaults")
+	if err != nil || rec == nil {
+		return nil
+	}
+	v, ok := rec.Data["autoTitleModel"].(string)
+	if !ok || v == "" {
+		return nil
+	}
+	return &v
+}
+
 // effectiveUserID returns the resolved user_id for the request: the
 // caller's own id, or — for super_admin in actAs mode — the impersonated
 // user's id.
@@ -513,6 +544,20 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		// system default (currently effectively disabled).
 		AutoPersist      *bool `json:"autoPersist,omitempty"`
 		AutoPersistReset bool  `json:"autoPersistReset,omitempty"`
+		// AutoTitle per-agent on/off override — same shape as AutoPersist.
+		// Controls the auto-title PostTurn hook (LLM-generated chat title
+		// after N user turns). The model used is always the agent's
+		// primary model; afterRounds/maxChars come from memory.autoTitle
+		// at system/user scope. autoTitleReset:true clears the override.
+		AutoTitle      *bool `json:"autoTitle,omitempty"`
+		AutoTitleReset bool  `json:"autoTitleReset,omitempty"`
+		// AutoTitleModel — optional per-agent model for the auto-title
+		// summariser call. nil/empty = use the agent's primary model.
+		// Useful for routing the background title pass to a cheaper /
+		// faster model (e.g. openai/gpt-4o-mini) without affecting the
+		// chat itself. autoTitleModelReset:true clears it.
+		AutoTitleModel      *string `json:"autoTitleModel,omitempty"`
+		AutoTitleModelReset bool    `json:"autoTitleModelReset,omitempty"`
 		// Plugins per-agent enable overlay. Keys are plugin IDs, values
 		// are bool. Patch semantics: only the keys present in this map
 		// get written; other keys in the existing row are preserved.
@@ -617,6 +662,16 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 	} else if req.AutoPersist != nil {
 		defaultsPatch["autoPersist"] = *req.AutoPersist
 	}
+	if req.AutoTitleReset {
+		defaultsPatch["autoTitle"] = nil
+	} else if req.AutoTitle != nil {
+		defaultsPatch["autoTitle"] = *req.AutoTitle
+	}
+	if req.AutoTitleModelReset {
+		defaultsPatch["autoTitleModel"] = nil
+	} else if req.AutoTitleModel != nil {
+		defaultsPatch["autoTitleModel"] = *req.AutoTitleModel
+	}
 	if req.MCPServers != nil {
 		if len(req.MCPServers) == 0 {
 			defaultsPatch["mcpServers"] = nil
@@ -653,6 +708,8 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 			"promptMode":       s.agentScopePromptMode(r, rec.ID),
 			"splitReplies":     s.agentScopeSplitReplies(r, rec.ID),
 			"autoPersist":      s.agentScopeAutoPersist(r, rec.ID),
+			"autoTitle":        s.agentScopeAutoTitle(r, rec.ID),
+			"autoTitleModel":   s.agentScopeAutoTitleModel(r, rec.ID),
 			"plugins":          s.agentScopePlugins(r, rec.ID),
 			"mcpServers":       s.agentScopeMCPServers(r, rec.ID),
 			"config":           rec.Config,
@@ -694,6 +751,8 @@ func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 			"promptMode":       s.agentScopePromptMode(r, rec.ID),
 			"splitReplies":     s.agentScopeSplitReplies(r, rec.ID),
 			"autoPersist":      s.agentScopeAutoPersist(r, rec.ID),
+			"autoTitle":        s.agentScopeAutoTitle(r, rec.ID),
+			"autoTitleModel":   s.agentScopeAutoTitleModel(r, rec.ID),
 			"plugins":          s.agentScopePlugins(r, rec.ID),
 			"mcpServers":       s.agentScopeMCPServers(r, rec.ID),
 			"avatarUrl":        "/api/agents/" + rec.ID + "/files/avatar.png",

@@ -444,7 +444,7 @@ func stripJSONFence(s string) string {
 //
 // This is best-effort background work — it must never break the chat
 // flow. Every error path logs at debug/warn level and returns.
-func (a *Agent) maybeAutoTitle(sessionKey string, messages []provider.Message) {
+func (a *Agent) maybeAutoTitle(sessionKey string, messages []provider.Message, hub *EventHub, ownerUserID string) {
 	if a.dataStore == nil {
 		return
 	}
@@ -527,6 +527,31 @@ func (a *Agent) maybeAutoTitle(sessionKey string, messages []provider.Message) {
 		return
 	}
 	slog.Info("auto-title: wrote", "agent", a.name, "session", sessionKey, "title", title)
+
+	// Push a live event to the dashboard so subscribed chat panels can
+	// update the sidebar / header title without a manual refresh. The
+	// hub is process-wide so safe to call from a background goroutine;
+	// AppendSessionEvent persists the event so reconnecting clients
+	// dedup against the seq.
+	if hub != nil && ownerUserID != "" {
+		evt := ChatEvent{
+			Type: "session_title",
+			Data: map[string]any{
+				"sessionKey": sessionKey,
+				"title":      title,
+			},
+		}
+		var seq int64 = -1
+		if a.dataStore != nil {
+			blob, _ := json.Marshal(evt.Data)
+			if s, err := a.dataStore.AppendSessionEvent(context.Background(), ownerUserID, a.agentID, sessionKey, evt.Type, blob); err == nil {
+				seq = s
+			} else {
+				slog.Debug("auto-title: persist event failed", "error", err)
+			}
+		}
+		hub.Publish(ownerUserID, a.agentID, sessionKey, EventEnvelope{Seq: seq, Event: evt})
+	}
 }
 
 // cleanAutoTitle strips the model's tendency to wrap the title in

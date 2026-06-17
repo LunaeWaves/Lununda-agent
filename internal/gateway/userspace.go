@@ -504,6 +504,16 @@ func (sp *UserSpace) EnsureAgent(ctx context.Context, st store.Store, mb *bus.Me
 				v := *ovr.AutoPersist
 				rc.AutoPersist = &v
 			}
+			// Auto-title per-agent on/off override — same shape.
+			if ovr.AutoTitle != nil {
+				v := *ovr.AutoTitle
+				rc.AutoTitleEnabled = &v
+			}
+			// Auto-title model override — optional. nil = use agent primary.
+			if ovr.AutoTitleModel != nil && *ovr.AutoTitleModel != "" {
+				v := *ovr.AutoTitleModel
+				rc.AutoTitleModelOverride = &v
+			}
 			// Per-agent MCP server overlay — without this, the
 			// dashboard-saved mcpServers never reach the agent loop.
 			if len(ovr.MCPServers) > 0 {
@@ -627,7 +637,7 @@ func (sp *UserSpace) EnsureAgent(ctx context.Context, st store.Store, mb *bus.Me
 // by the resulting UserSpace. Pass nil when sandbox is disabled at
 // system scope; agents will run with path-only file roots in that
 // case.
-func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager, projectRuntime *coderuntime.Manager) (*UserSpace, error) {
+func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager, projectRuntime *coderuntime.Manager, eventHub *agent.EventHub) (*UserSpace, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("loadUserSpace: userID required")
 	}
@@ -730,6 +740,16 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 				v := *agentOverride.AutoPersist
 				rc.AutoPersist = &v
 			}
+			// Auto-title per-agent on/off override — same shape.
+			if agentOverride.AutoTitle != nil {
+				v := *agentOverride.AutoTitle
+				rc.AutoTitleEnabled = &v
+			}
+			// Auto-title model override — optional. nil = use agent primary.
+			if agentOverride.AutoTitleModel != nil && *agentOverride.AutoTitleModel != "" {
+				v := *agentOverride.AutoTitleModel
+				rc.AutoTitleModelOverride = &v
+			}
 			// Per-agent MCP server overlay — mirrors the foreign-chatter
 			// path in EnsureAgent. Without this, mcpServers written to
 			// the agents.defaults row are silently dropped during owner-
@@ -786,6 +806,9 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 	}
 	if meter != nil {
 		managerOpts = append(managerOpts, agent.WithMeter(meter))
+	}
+	if eventHub != nil {
+		managerOpts = append(managerOpts, agent.WithEventHub(eventHub))
 	}
 	agentMgr, err := agent.NewManager(resolved, prov, mb, managerOpts...)
 	if err != nil {
@@ -961,6 +984,11 @@ type userSpaceRegistry struct {
 	// construction (the manager is built later in boot than the
 	// registry), hence the mutable field + mutex rather than a ctor arg.
 	projectRuntime *coderuntime.Manager
+	// eventHub is set post-construction by SetEventHub (called from
+	// gateway.SetChatEvents). Background goroutines inside agents
+	// (auto-title, auto-persist) read this to publish live updates
+	// back to subscribed dashboards without holding the request ctx.
+	eventHub *agent.EventHub
 }
 
 // setProjectRuntime records the manager so subsequent loadUserSpace calls
@@ -968,6 +996,16 @@ type userSpaceRegistry struct {
 func (r *userSpaceRegistry) setProjectRuntime(m *coderuntime.Manager) {
 	r.mu.Lock()
 	r.projectRuntime = m
+	r.mu.Unlock()
+}
+
+// setEventHub records the process-wide event hub so background
+// goroutines spawned by agent code (auto-title PostTurn hook, etc.)
+// can publish live events to subscribed dashboards. Called once at
+// boot from gateway.SetChatEvents.
+func (r *userSpaceRegistry) setEventHub(h *agent.EventHub) {
+	r.mu.Lock()
+	r.eventHub = h
 	r.mu.Unlock()
 }
 
@@ -1012,7 +1050,7 @@ func (r *userSpaceRegistry) getOrLoad(ctx context.Context, userID string) (*User
 		e.lastUsed = time.Now()
 		return e.space, nil
 	}
-	sp, err := loadUserSpace(ctx, userID, r.bus, r.store, r.workspace, r.meter, r.systemSandboxPool, r.pluginMgr, r.projectRuntime)
+	sp, err := loadUserSpace(ctx, userID, r.bus, r.store, r.workspace, r.meter, r.systemSandboxPool, r.pluginMgr, r.projectRuntime, r.eventHub)
 	if err != nil {
 		return nil, err
 	}
