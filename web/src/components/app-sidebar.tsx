@@ -118,6 +118,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     () => [
       { title: t("nav.agents"), url: "/agents/", icon: BotIcon },
       { title: t("nav.models"), url: "/models/", icon: BrainIcon },
+      { title: t("nav.tools"), url: "/tools/", icon: WrenchIcon },
     ],
     [t],
   );

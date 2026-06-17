@@ -24,7 +24,10 @@ const ADMIN_PATH_PREFIXES = [
   "/channels",
   "/channels-config",
   "/plugins",
-  "/tools",
+  // "/tools" was here — removed so regular users can manage their own
+  // tool provider keys (image-gen / web-search / TTS). The backend
+  // /api/tools endpoint is already user-scope aware via loadUserConfig
+  // + saveUserConfig; the only thing keeping users out was this gate.
   "/cron",
 ];
 

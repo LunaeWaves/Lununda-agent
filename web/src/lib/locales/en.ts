@@ -554,6 +554,8 @@ const en: Record<string, string> = {
   "tools.fallbackChain": "Fallback chain (top → bottom)",
   "tools.autoFallback": "Auto fallback",
   "tools.noProviders": "No providers selected. The {name} tool won't be available to agents until you add at least one.",
+  "tools.test": "Test",
+  "tools.testing": "Testing…",
 
   // Plugins
   "plugins.title": "Plugins",

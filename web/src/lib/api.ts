@@ -1595,6 +1595,26 @@ export async function saveTools(payload: {
   return res.json();
 }
 
+// probeToolProvider runs a minimal real call against one provider
+// (1-result search, 1×1 image, etc) so the operator can verify the
+// key + endpoint actually work before saving. The probe uses whatever
+// the caller passes — so a half-saved form can be tested too.
+export async function probeToolProvider(req: {
+  category: string;
+  provider: string;
+  apiKey?: string;
+  endpoint?: string;
+  model?: string;
+  options?: Record<string, string>;
+}): Promise<{ ok: boolean; error?: string; message?: string }> {
+  const res = await apiFetch("/api/tools/probe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return res.json();
+}
+
 // Plugins
 export async function getPlugins(): Promise<PluginInfo[]> {
   const res = await apiFetch("/api/plugins");

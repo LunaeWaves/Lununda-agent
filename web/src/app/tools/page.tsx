@@ -23,10 +23,13 @@ import {
   ChevronDown,
   X,
   Plus,
+  FlaskConical,
 } from "lucide-react";
 import {
   getTools,
   saveTools,
+  probeToolProvider,
+  getMe,
   type ToolsConfig,
   type ToolCategoryCatalog,
   type ToolProviderCatalog,
@@ -46,6 +49,11 @@ export default function ToolsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // showRuntime gates the Runtime tab (sandbox backend / image), which
+  // is super_admin-only. Loaded once on mount; the rail skips the entry
+  // entirely for regular users so they never see a path they'd just be
+  // redirected away from.
+  const [showRuntime, setShowRuntime] = useState(false);
 
   // Mutable copies of the two config maps. The catalog itself is immutable.
   const [providers, setProviders] = useState<Record<string, ToolProviderSettings>>({});
@@ -62,6 +70,9 @@ export default function ToolsPage() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "load failed"))
       .finally(() => setLoading(false));
+    getMe()
+      .then((me) => setShowRuntime(me.ok && me.user?.role === "super_admin"))
+      .catch(() => setShowRuntime(false));
   }, []);
 
   const updateProvider = (name: string, patch: Partial<ToolProviderSettings>) => {
@@ -123,6 +134,7 @@ export default function ToolsPage() {
           categories={cfg?.categories || []}
           active={active}
           onSelect={setActive}
+          showRuntime={showRuntime}
         />
       </aside>
       <div className="flex-1 min-w-0">
@@ -175,10 +187,12 @@ function CategoryRail({
   categories,
   active,
   onSelect,
+  showRuntime,
 }: {
   categories: ToolCategoryCatalog[];
   active: string;
   onSelect: (name: string) => void;
+  showRuntime: boolean;
 }) {
   const itemClass = (isActive: boolean) =>
     "shrink-0 md:shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm text-left transition " +
@@ -199,17 +213,21 @@ function CategoryRail({
         </button>
       ))}
       {/* Runtime sits at the bottom of the rail (or rightmost on mobile);
-          super_admin-only — the underlying RuntimeSettingsPage redirects
-          anyone else away. The hairline divider visually separates it
+          super_admin-only — gated by showRuntime so regular users never
+          see the entry. The hairline divider visually separates it
           from the per-category tool entries. */}
-      <div className="hidden md:block my-1 border-t border-border/60" />
-      <button
-        type="button"
-        onClick={() => onSelect(RUNTIME_ACTIVE)}
-        className={itemClass(active === RUNTIME_ACTIVE)}
-      >
-        Runtime
-      </button>
+      {showRuntime && (
+        <>
+          <div className="hidden md:block my-1 border-t border-border/60" />
+          <button
+            type="button"
+            onClick={() => onSelect(RUNTIME_ACTIVE)}
+            className={itemClass(active === RUNTIME_ACTIVE)}
+          >
+            Runtime
+          </button>
+        </>
+      )}
     </nav>
   );
 }
@@ -296,6 +314,7 @@ function CategoryPanel({
                 provider={selected}
                 settings={providers[selected.name] || {}}
                 onChange={(patch) => setProvider(selected.name, patch)}
+                category={catalog.name}
               />
             )}
           </div>
@@ -312,20 +331,44 @@ function ProviderFields({
   provider,
   settings,
   onChange,
+  category,
 }: {
   provider: ToolProviderCatalog;
   settings: ToolProviderSettings;
   onChange: (patch: Partial<ToolProviderSettings>) => void;
+  category: string;
 }) {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const defaultModel = settings.options?.model || "";
+  const [probing, setProbing] = useState(false);
+  const [probeResult, setProbeResult] = useState<{ ok: boolean; error?: string; message?: string } | null>(null);
 
   const setOption = (k: string, v: string) => {
     const opts = { ...(settings.options || {}) };
     if (v === "") delete opts[k];
     else opts[k] = v;
     onChange({ options: opts });
+  };
+
+  const handleProbe = async () => {
+    setProbing(true);
+    setProbeResult(null);
+    try {
+      const res = await probeToolProvider({
+        category,
+        provider: provider.name,
+        apiKey: settings.apiKey,
+        endpoint: settings.endpoint,
+        model: settings.options?.model,
+        options: settings.options,
+      });
+      setProbeResult(res);
+    } catch {
+      setProbeResult({ ok: false, error: "network error" });
+    } finally {
+      setProbing(false);
+    }
   };
 
   return (
@@ -400,6 +443,40 @@ function ProviderFields({
           options={settings.options || {}}
           onChange={(next) => onChange({ options: next })}
         />
+      )}
+
+      {/* Probe: run a minimal real call to verify key + endpoint work
+          before saving. No-op providers and the direct fetcher skip
+          the probe explicitly. */}
+      {provider.name !== "none" && provider.name !== "direct" && (
+        <>
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleProbe}
+              disabled={probing}
+            >
+              {probing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FlaskConical className="h-3.5 w-3.5" />
+              )}
+              <span className="ml-1.5">{probing ? t("tools.testing") : t("tools.test")}</span>
+            </Button>
+            {probeResult && (
+              probeResult.ok ? (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Check className="h-3 w-3" /> {probeResult.message || "✓"}
+                </span>
+              ) : (
+                <span className="text-xs text-destructive truncate max-w-[18rem]" title={probeResult.error}>
+                  {probeResult.error}
+                </span>
+              )
+            )}
+          </div>
+        </>
       )}
     </div>
   );

@@ -343,9 +343,17 @@ func (s *Server) Run(ctx context.Context) error {
 	// admins) need this to know what plugins they can enable.
 	mux.HandleFunc("GET /api/plugins/hook", auth(s.handleListHookPlugins))
 
-	// Tools (super_admin only).
-	mux.HandleFunc("GET /api/tools", admin(s.handleGetTools))
-	mux.HandleFunc("PUT /api/tools", admin(s.handleSaveTools))
+	// Tools — super_admin reads/writes system scope; regular users
+	// read the merged view (system + their own user scope) and writes
+	// land in their own user scope. Lets each user plug in their own
+	// API keys without an admin middleman, while still falling back to
+	// whatever the admin shared at system scope.
+	mux.HandleFunc("GET /api/tools", auth(s.handleGetTools))
+	mux.HandleFunc("PUT /api/tools", auth(s.handleSaveTools))
+	// Probe: test a single provider with the current form values,
+	// before save. Same scope semantics — admin probes system, user
+	// probes their own override merged with system.
+	mux.HandleFunc("POST /api/tools/probe", auth(s.handleToolProbe))
 
 	// Channels (read-only list of registered channel adapters at runtime)
 	mux.HandleFunc("GET /api/channels", auth(s.handleListChannels))

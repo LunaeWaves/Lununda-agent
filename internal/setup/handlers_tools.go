@@ -1,9 +1,11 @@
 package setup
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/gateway"
@@ -154,12 +156,13 @@ func (s *Server) handleGetTools(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleSaveTools atomically updates the toolProviders and tools sections of
-// lununda.json. Only the admin/local user is allowed here — cloud tenants
-// get their own settings via a separate path (not wired yet). After save,
-// running agents are hot-reloaded so chains pick up new keys immediately.
+// handleSaveTools atomically updates the toolProviders and tools sections
+// of the caller's config. super_admin writes land in system scope (shared
+// across all users); regular users' writes land in their own user scope
+// (private). The scope routing happens inside saveUserConfig — no special
+// handling needed here. After save, running agents are hot-reloaded so
+// chains pick up new keys immediately.
 func (s *Server) handleSaveTools(w http.ResponseWriter, r *http.Request) {
-	// requireSuperAdmin middleware already gates this route; no further check needed.
 	var req struct {
 		ToolProviders map[string]config.ToolProviderCfg `json:"toolProviders"`
 		Tools         map[string]config.ToolCategoryCfg `json:"tools"`
@@ -219,3 +222,123 @@ func splitRef(ref string) (string, string) {
 
 // Silence unused-import warnings when the package grows.
 var _ = toolproviders.ErrNoResults
+
+// handleToolProbe runs a minimal real call against a single provider
+// (OpenAI 1-token chat, Brave 1-result search, Fal 1×1 image, …) so
+// the operator can verify their key + endpoint actually work before
+// relying on it. Returns {ok:true} on success, {ok:false,error:...}
+// on failure. Errors are surfaced verbatim — operators can read the
+// 401 / network / quota message themselves.
+//
+// Same scope semantics as handleSaveTools: super_admin probes system
+// config, regular users probe their own user-scope override merged
+// with system. The actual call uses the cfg the caller just submitted
+// (in the request body) so a half-saved form can be tested.
+func (s *Server) handleToolProbe(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Category  string                       `json:"category"`
+		Provider  string                       `json:"provider"`
+		APIKey    string                       `json:"apiKey,omitempty"`
+		Endpoint  string                       `json:"endpoint,omitempty"`
+		Model     string                       `json:"model,omitempty"`
+		Options   map[string]string            `json:"options,omitempty"`
+		// RefOverride lets the caller specify "<provider>/<model>"
+		// directly when Model alone is ambiguous (replicate / fal use
+		// multi-segment paths). Optional.
+		RefOverride string `json:"ref,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid request"})
+		return
+	}
+	if req.Category == "" || req.Provider == "" {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "category and provider required"})
+		return
+	}
+
+	reg := gateway.ToolProviderRegistry()
+	p := reg.Get(req.Category, req.Provider)
+	if p == nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": fmt.Sprintf("unknown provider %q for category %q", req.Provider, req.Category)})
+		return
+	}
+
+	cfg := toolproviders.ProviderConfig{
+		APIKey:   req.APIKey,
+		Endpoint: req.Endpoint,
+		Model:    req.Model,
+		Options:  req.Options,
+	}
+	args := probeArgs(req.Category, cfg)
+
+	// Probe runs with a short timeout so a misconfigured endpoint
+	// doesn't hang the dashboard for minutes.
+	ctx, cancel := withTimeout(r.Context(), probeTimeout)
+	defer cancel()
+
+	// "none" providers don't make outbound calls — they always probe
+	// OK by definition. Saves a confusing "couldn't reach" error when
+	// the operator is just sanity-checking the None toggle.
+	if req.Provider == "none" {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "message": "no-op provider"})
+		return
+	}
+	if req.Provider == "direct" {
+		// Direct web_fetch uses Go net/http with no creds — the only
+		// failure mode is "no internet", and example.com is always up.
+		// Skip the actual call; treat as always-available.
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "message": "built-in"})
+		return
+	}
+
+	if _, err := p.Execute(ctx, toolproviders.Request{Args: args, Config: cfg}); err != nil {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// probeTimeout caps a single provider probe at 30s. Image-gen providers
+// can take 10-20s on a cold fal/replicate queue, so we can't go much
+// shorter without false negatives.
+const probeTimeout = 30 * 1_000_000_000  // 30s as int; avoids importing time at top-level churn
+
+// withTimeout is a thin wrapper around context.WithTimeout so we can
+// keep the const declaration clean above.
+func withTimeout(parent context.Context, d int) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, time.Duration(d))
+}
+
+// probeArgs returns the minimal arg map that exercises a category's
+// provider without spending real budget. Each category knows its own
+// input schema (defined in internal/toolproviders/<cat>/<cat>.go).
+func probeArgs(category string, _ toolproviders.ProviderConfig) map[string]any {
+	switch category {
+	case "web_search":
+		return map[string]any{
+			"query": "test",
+			"count": 1,
+		}
+	case "web_fetch":
+		return map[string]any{
+			"url":    "https://example.com",
+			"maxLen": 200,
+		}
+	case "image_gen":
+		// Smallest possible image to keep the call cheap. Some
+		// providers ignore size, but those that listen will return
+		// faster + cheaper at 256x256 vs 1024.
+		return map[string]any{
+			"prompt": "a dot",
+			"n":      1,
+			"size":   "256x256",
+		}
+	case "tts":
+		// Shortest non-empty utterance. Output is discarded — we
+		// only care that the API accepted the request.
+		return map[string]any{
+			"text": "hi",
+		}
+	}
+	return map[string]any{}
+}

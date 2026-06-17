@@ -554,6 +554,8 @@ const zhCN: Record<string, string> = {
   "tools.fallbackChain": "回退链（从上到下）",
   "tools.autoFallback": "自动回退",
   "tools.noProviders": "未选择提供商。{name} 工具在添加至少一个提供商之前对智能体不可用。",
+  "tools.test": "测试",
+  "tools.testing": "测试中…",
 
   // Plugins
   "plugins.title": "插件",
