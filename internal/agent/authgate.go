@@ -36,9 +36,18 @@ type authPolicyFile struct {
 type authGate struct {
 	agentRoot string // ~/.lununda/agents/<id>/  (allowlist entries resolve under here)
 	workspace string // absolute workspace path (inside-workside writes are free)
+	sandboxed bool   // when true: dangerous cmds + workspace boundary → allow (container = boundary)
 
 	mu         sync.RWMutex
 	allowWrite []string // absolute path prefixes that are pre-authorized
+}
+
+// setSandboxed flips the sandbox-aware gating. Called by SetSandboxPool when
+// the executor pool is wired or unwired post-construction.
+func (g *authGate) setSandboxed(v bool) {
+	g.mu.Lock()
+	g.sandboxed = v
+	g.mu.Unlock()
 }
 
 // newAuthGate builds a gate for the given agent. allowWrite prefixes are
@@ -123,6 +132,10 @@ var execTools = map[string]bool{
 // failures fall through to authAllow (the tool itself will report the
 // bad args), so a malformed payload can't lock the agent out.
 func (g *authGate) evaluateCall(toolName, argsJSON, mode string) authDecision {
+	g.mu.RLock()
+	sandboxed := g.sandboxed
+	g.mu.RUnlock()
+
 	// exec-family tools: hardline + dangerous + workspace boundary.
 	if execTools[toolName] {
 		command := extractStringArg(argsJSON, "command")
@@ -130,7 +143,9 @@ func (g *authGate) evaluateCall(toolName, argsJSON, mode string) authDecision {
 			if tier, desc := classifyCommand(command); tier == tierHardline {
 				return authDecision{action: authBlock, reason: "hardline: " + desc}
 			} else if tier == tierDangerous {
-				return modeGate(mode, "dangerous command: "+desc)
+				if !sandboxed {
+					return modeGate(mode, "dangerous command: "+desc)
+				}
 			}
 		}
 		// exec commands that didn't trip a pattern are still subject to
@@ -139,6 +154,9 @@ func (g *authGate) evaluateCall(toolName, argsJSON, mode string) authDecision {
 		// through. (Inside-workspace freedom is already enforced by the
 		// exec tool's cmd.Dir; the gate here is about commands that reach
 		// outside it.)
+		if sandboxed {
+			return authDecision{action: authAllow}
+		}
 		return modeGate(mode, "command execution (may touch outside workspace)")
 	}
 
@@ -161,6 +179,9 @@ func (g *authGate) evaluateCall(toolName, argsJSON, mode string) authDecision {
 			}
 		}
 		g.mu.RUnlock()
+		if sandboxed {
+			return authDecision{action: authAllow}
+		}
 		return modeGate(mode, "write outside workspace: "+path)
 	}
 
@@ -184,8 +205,16 @@ func modeGate(mode, reason string) authDecision {
 // writeTargetOutsideWorkspace returns the absolute resolved path and true
 // when the call is a file-write tool whose path lands outside the
 // workspace. Used by the loop to collect sandbox-bypass prefixes when a
-// single-use /yes authorizes such a call.
+// single-use /yes authorizes such a call. When sandboxed, returns false —
+// the container IS the boundary, so there's no "outside workspace" to
+// bypass.
 func (g *authGate) writeTargetOutsideWorkspace(toolName, argsJSON string) (string, bool) {
+	g.mu.RLock()
+	sandboxed := g.sandboxed
+	g.mu.RUnlock()
+	if sandboxed {
+		return "", false
+	}
 	if !fileWriteTools[toolName] {
 		return "", false
 	}

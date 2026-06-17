@@ -152,8 +152,9 @@ type Agent struct {
 // the container. The two states must agree.
 func (a *Agent) SetSandboxPool(p sandbox.ExecutorPool) {
 	a.sandboxPool = p
+	sandboxed := p != nil
 	if a.ctxBuilder != nil {
-		a.ctxBuilder.sandboxEnabled = p != nil
+		a.ctxBuilder.sandboxEnabled = sandboxed
 	}
 	// Tell the tool registry sandbox is required so its host-shell exec
 	// fallback refuses to run when bindSession can't bind an executor.
@@ -162,7 +163,12 @@ func (a *Agent) SetSandboxPool(p sandbox.ExecutorPool) {
 	// daemon hiccup turns into "sh: python: command not found" on the
 	// host instead of a clear "sandbox required but unavailable" error.
 	if a.registry != nil {
-		a.registry.SetSandboxRequired(p != nil)
+		a.registry.SetSandboxRequired(sandboxed)
+	}
+	// Sync sandbox state to auth gate so dangerous commands and workspace
+	// boundary checks are relaxed when the container provides isolation.
+	if a.authGate != nil {
+		a.authGate.setSandboxed(sandboxed)
 	}
 }
 
