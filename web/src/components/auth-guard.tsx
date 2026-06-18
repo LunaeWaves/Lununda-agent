@@ -18,6 +18,7 @@ interface AuthGuardProps {
 // apikeys lets non-admins issue type=user/agent (only type=admin
 // requires super_admin and that gate lives inside the create handler).
 const ADMIN_PATH_PREFIXES = [
+  "/memory",
   "/admin/",
   "/skills",
   "/providers",
