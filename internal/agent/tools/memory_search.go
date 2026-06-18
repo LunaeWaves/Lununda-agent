@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
@@ -23,6 +24,12 @@ type FTSSearcher interface {
 type VectorSearcher interface {
 	SearchConversationSummariesVector(ctx context.Context, embedding []float32, limit int) ([]int64, error)
 	GetConversationSummariesByIDs(ctx context.Context, ids []int64) ([]store.ConversationSummary, error)
+}
+
+// Reranker is the local mirror of embedding.Reranker used by memory_search.
+type Reranker interface {
+	Rerank(ctx context.Context, query string, documents []string, topN int) ([]embedding.ScoredDocument, error)
+	Available() bool
 }
 
 type memorySearchArgs struct {
@@ -100,19 +107,23 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 		}
 
 		// Path A (preferred): conversation_summaries table — cross-session
-		// recall scoped to the current chatter. Two-stage:
+		// recall scoped to the current chatter. Three-stage pipeline:
 		//   A1. FTS/LIKE keyword search (always available)
 		//   A2. Vector KNN (if embedder is configured)
-		// Results are unioned with dedup by summary ID.
+		//   A3. Cross-encoder reranker (if configured)
+		// A1+A2 merge into a pool; A3 re-ranks to top-K.
 		if r != nil && r.summaryDB != nil {
 			chatter := r.chatterUserID
 			if chatter == "" {
 				chatter = r.userID
 			}
 			if chatter != "" && r.agentID != "" {
-				hits, err := r.summaryDB.SearchConversationSummariesFTS(ctx, chatter, r.agentID, args.Query, limit*2)
+				poolSize := limit * 3
+				if poolSize < 30 {
+					poolSize = 30
+				}
+				hits, err := r.summaryDB.SearchConversationSummariesFTS(ctx, chatter, r.agentID, args.Query, poolSize)
 				if err != nil {
-					// On DB error fall through to legacy path
 					goto fallback
 				}
 
@@ -124,7 +135,7 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 						if vecErr == nil && len(vecIDs) > 0 {
 							vecHits, fetchErr := r.vecDB.GetConversationSummariesByIDs(ctx, vecIDs)
 							if fetchErr == nil {
-								hits = mergeSummaryResults(hits, vecHits, limit)
+								hits = mergeSummaryResults(hits, vecHits, poolSize)
 							}
 						}
 					}
@@ -133,6 +144,19 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 				if len(hits) == 0 {
 					return "No matching conversation summaries found. Try different keywords, or call fetch_messages directly if you know the session_key.", nil
 				}
+
+				// Cross-encoder reranker: extract summaries as documents, rerank
+				if r.reranker != nil && r.reranker.Available() && len(hits) > limit {
+					docs := make([]string, len(hits))
+					for i, h := range hits {
+						docs[i] = h.Summary
+					}
+					scored, rerankErr := r.reranker.Rerank(ctx, args.Query, docs, limit)
+					if rerankErr == nil {
+						hits = reorderByRerank(hits, scored)
+					}
+				}
+
 				return formatSummaryResults(hits, args.Query), nil
 			}
 		}
@@ -180,6 +204,21 @@ func mergeSummaryResults(fts, vec []store.ConversationSummary, limit int) []stor
 
 	if len(out) > limit {
 		out = out[:limit]
+	}
+	return out
+}
+
+// reorderByRerank reorders hits according to the reranker's scored indices.
+// Hits whose indices don't appear in scored are dropped.
+func reorderByRerank(hits []store.ConversationSummary, scored []embedding.ScoredDocument) []store.ConversationSummary {
+	out := make([]store.ConversationSummary, 0, len(scored))
+	for _, s := range scored {
+		if s.Index >= 0 && s.Index < len(hits) {
+			out = append(out, hits[s.Index])
+		}
+	}
+	if len(out) == 0 {
+		return hits // fallback: keep original order
 	}
 	return out
 }
