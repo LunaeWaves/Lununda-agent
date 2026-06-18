@@ -115,6 +115,13 @@ type Registry struct {
 	// builder still reads them via the separate small-state Store.
 	workspaceStore workspace.Store
 	agentID        string
+
+	// summaryDB is the relational store handle used by memory_search to
+	// query conversation_summaries across sessions. Wired after Agent
+	// construction by the manager (dataStore isn't available at
+	// RegisterMemorySearch call time). nil → memory_search falls back
+	// to the legacy JSONL scan.
+	summaryDB SummarySearcher
 	// sessionID scopes workspace.Store reads/writes so concurrent sessions
 	// of the same agent don't collide on `report.md` etc. Set per-turn by
 	// the agent loop via SetSessionID; an empty value falls back to
@@ -328,6 +335,13 @@ func (r *Registry) SetOwnerUserID(userID string) {
 // binder rather than the actual chatter. Pass "" to clear.
 func (r *Registry) SetChatterUserID(uid string) {
 	r.chatterUserID = uid
+}
+
+// SetSummarySearcher wires the relational DB handle that memory_search
+// uses to query conversation_summaries. Called by the agent manager
+// after Agent construction once dataStore is available.
+func (r *Registry) SetSummarySearcher(db SummarySearcher) {
+	r.summaryDB = db
 }
 
 // ChatterUserID returns the per-turn chatter set by SetChatterUserID,

@@ -32,31 +32,52 @@ type searchResult struct {
 	Score     float64 `json:"-"`
 }
 
+// SummarySearcher is the subset of *store.DBStore the memory_search
+// tool needs. *store.DBStore satisfies this implicitly.
+type SummarySearcher interface {
+	SearchConversationSummariesFTS(
+		ctx context.Context,
+		chatterUserID, agentID, query string,
+		limit int,
+	) ([]store.ConversationSummary, error)
+}
+
 // RegisterMemorySearch registers the memory_search tool.
-// If fts is non-nil, FTS5 search is used; otherwise falls back to file scan.
+//
+// Cross-session recall via conversation_summaries is enabled by calling
+// SetSummarySearcher on the registry after Agent construction (the
+// relational store isn't available at registration time). Until wired,
+// the tool falls back to the legacy JSONL scan / FTS5 index.
+//
+// Per-turn chatter and agent IDs are read from the Registry each call
+// so per-sender isolation is preserved across IM channels.
 func RegisterMemorySearch(r *Registry, workspace string, fts ...FTSSearcher) {
 	var searcher FTSSearcher
 	if len(fts) > 0 {
 		searcher = fts[0]
 	}
 
-	r.Register("memory_search", "Search through conversation history logs using keyword matching with recency weighting", map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"query": map[string]interface{}{
-				"type":        "string",
-				"description": "Keywords to search for in memory logs",
+	r.Register("memory_search",
+		"Search through summaries of past conversations with this chatter across all sessions. "+
+			"Returns each summary + keywords + a (session_key, seq_start, seq_end) pointer; "+
+			"call fetch_messages() with the pointer to retrieve verbatim original messages.",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"query": map[string]interface{}{
+					"type":        "string",
+					"description": "Keywords or phrases to search for in past summaries",
+				},
+				"limit": map[string]interface{}{
+					"type":        "integer",
+					"description": "Maximum number of results to return (default 10)",
+				},
 			},
-			"limit": map[string]interface{}{
-				"type":        "integer",
-				"description": "Maximum number of results to return (default 10)",
-			},
-		},
-		"required": []string{"query"},
-	}, makeMemorySearch(workspace, searcher))
+			"required": []string{"query"},
+		}, makeMemorySearch(r, workspace, searcher))
 }
 
-func makeMemorySearch(workspace string, fts FTSSearcher) ToolFunc {
+func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 	return func(ctx context.Context, rawArgs json.RawMessage) (string, error) {
 		var args memorySearchArgs
 		if err := json.Unmarshal(rawArgs, &args); err != nil {
@@ -72,31 +93,76 @@ func makeMemorySearch(workspace string, fts FTSSearcher) ToolFunc {
 			limit = 10
 		}
 
-		// Try FTS5 first if available
+		// Path A (preferred): conversation_summaries table — cross-session
+		// recall scoped to the current chatter. r.summaryDB is wired
+		// post-construction by SetSummarySearcher. r.chatterUserID /
+		// r.agentID are set per-turn by the agent loop.
+		if r != nil && r.summaryDB != nil {
+			chatter := r.chatterUserID
+			if chatter == "" {
+				chatter = r.userID
+			}
+			if chatter != "" && r.agentID != "" {
+				hits, err := r.summaryDB.SearchConversationSummariesFTS(ctx, chatter, r.agentID, args.Query, limit)
+				if err == nil {
+					if len(hits) == 0 {
+						return "No matching conversation summaries found. Try different keywords, or call fetch_messages directly if you know the session_key.", nil
+					}
+					return formatSummaryResults(hits, args.Query), nil
+				}
+				// On DB error fall through to legacy path
+			}
+		}
+
+		// Path B (legacy fallback): FTS5 index of memory/logs/*.jsonl
 		if fts != nil {
 			ftsResults, err := fts.Search(args.Query, limit)
 			if err == nil && len(ftsResults) > 0 {
 				return formatFTSResults(ftsResults, args.Query), nil
 			}
-			// Fall through to file scan on error or empty results
 		}
 
+		// Path C (legacy last resort): raw file scan of memory/logs/*.jsonl
 		results := searchMemoryLogs(workspace, args.Query, limit)
-
 		if len(results) == 0 {
 			return "No matching entries found.", nil
 		}
-
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("Found %d results for %q:\n\n", len(results), args.Query))
-		for i, r := range results {
-			sb.WriteString(fmt.Sprintf("--- Result %d (file: %s, line: %d) ---\n", i+1, filepath.Base(r.File), r.Line))
-			sb.WriteString(r.Content)
-			sb.WriteString("\n\n")
-		}
-
-		return sb.String(), nil
+		return formatLegacyResults(results, args.Query), nil
 	}
+}
+
+// formatSummaryResults renders conversation_summaries hits for the LLM.
+// Each hit shows summary + keywords + a (session_key, seq_start, seq_end)
+// pointer the LLM can pass to fetch_messages to retrieve verbatim
+// original messages.
+func formatSummaryResults(hits []store.ConversationSummary, query string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Found %d conversation summaries for %q:\n\n", len(hits), query))
+	for i, h := range hits {
+		fmt.Fprintf(&sb, "--- Summary %d (session=%s, time=%s) ---\n",
+			i+1, h.SessionKey, h.CreatedAt.Format("2006-01-02 15:04"))
+		sb.WriteString(h.Summary)
+		if len(h.Keywords) > 0 {
+			sb.WriteString("\n\nKeywords: ")
+			sb.WriteString(strings.Join(h.Keywords, ", "))
+		}
+		fmt.Fprintf(&sb, "\n\n[session_key=%s seq_start=%d seq_end=%d]\n\n",
+			h.SessionKey, h.SeqStart, h.SeqEnd)
+	}
+	sb.WriteString("\nTo retrieve the verbatim original messages of any summary above, call:\n")
+	sb.WriteString("  fetch_messages(session_key=<value>, seq_start=<value>, seq_end=<value>)\n")
+	return sb.String()
+}
+
+func formatLegacyResults(results []searchResult, query string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Found %d results for %q:\n\n", len(results), query))
+	for i, r := range results {
+		fmt.Fprintf(&sb, "--- Result %d (file: %s, line: %d) ---\n", i+1, filepath.Base(r.File), r.Line)
+		sb.WriteString(r.Content)
+		sb.WriteString("\n\n")
+	}
+	return sb.String()
 }
 
 func formatFTSResults(results []store.FTSResult, query string) string {
