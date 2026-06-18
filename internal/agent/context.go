@@ -557,6 +557,29 @@ not workspace/report.pdf. Pass the absolute path shown above to
 write_file so the runtime routes it correctly (relative paths resolve
 against the working directory).`, cb.home)
 		}
+
+		// Cross-session memory recall guidance. Always present in agent
+		// mode — even when summaryDB isn't wired, the LLM should still
+		// know memory_search exists (it'll just return "no matches").
+		// Skipped in chatbot/customize modes — those don't expose
+		// memory_search.
+		if mode == config.PromptModeAgent {
+			runtimeInfo += `
+
+Cross-session memory recall:
+- You have a memory_search tool to recall summaries of past conversations
+  with this chatter (across all sessions, scoped per-chatter).
+- Use it when:
+  • The user references something discussed before ("上次说的那个 X",
+    "do you remember...", "之前怎么解决的")
+  • You need to verify a past decision or context
+  • The user asks about a topic you've discussed earlier
+- memory_search returns summary + keywords + a (session_key, seq_start,
+  seq_end) pointer. To retrieve the verbatim original messages of a
+  matched summary, call:
+    fetch_messages(session_key=<value>, seq_start=<value>, seq_end=<value>)
+`
+		}
 		parts = append(parts, runtimeInfo)
 	}
 
