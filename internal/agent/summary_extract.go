@@ -63,10 +63,12 @@ func extractConversationSummary(
 
 	prompt := fmt.Sprintf(`Analyze this conversation excerpt (message seq range: %d to %d).
 
+**Language requirement**: Detect the primary language used in the conversation (Chinese, English, Japanese, etc.). Generate BOTH the summary and the keywords in that SAME language. This is load-bearing — a user who chats in Chinese will later search in Chinese, and FTS5 keyword search must be able to match. If the conversation is mixed, default to the language the user typed in.
+
 Output STRICT JSON only — no markdown fences, no commentary:
 {
-  "summary": "1-2 sentence summary of the key content, decisions, or outcomes",
-  "keywords": ["3-7 keywords for search recall"],
+  "summary": "1-2 sentence summary in the conversation's primary language",
+  "keywords": ["3-7 keywords in the conversation's primary language"],
   "seq_start": %d,
   "seq_end": %d
 }

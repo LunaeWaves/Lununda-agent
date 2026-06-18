@@ -136,3 +136,45 @@ func TestConversationSummaryMetaRoundTrip(t *testing.T) {
 		t.Errorf("expected nomic, got %q", v)
 	}
 }
+
+// TestConversationSummaryChineseRecall verifies CJK search works.
+// unicode61 tokenizer (the original FTS5 setup) can't match CJK
+// substrings — "讨论" returns 0 rows against Chinese summaries.
+// The current LIKE-based path fixes this.
+func TestConversationSummaryChineseRecall(t *testing.T) {
+	d := setupTestDB(t)
+	ctx := context.Background()
+
+	_, err := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "我们今天讨论了 sqlite-vec 集成方案",
+		Keywords: []string{"sqlite-vec", "集成", "向量搜索"},
+		SeqStart: 1, SeqEnd: 2,
+	})
+	if err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	// CJK substrings that unicode61 cannot match
+	cases := []struct {
+		query string
+		want  int // expected hit count
+	}{
+		{"讨论", 1},   // 2-char CJK
+		{"集成", 1},   // 2-char CJK in summary AND keywords
+		{"向量", 1},   // 2-char CJK keyword-only
+		{"今天", 1},   // 2-char CJK summary-only
+		{"sqlite", 1}, // ASCII substring
+		{"不存在的词", 0}, // negative
+	}
+	for _, c := range cases {
+		hits, err := d.SearchConversationSummariesFTS(ctx, "c1", "a1", c.query, 10)
+		if err != nil {
+			t.Errorf("search %q: %v", c.query, err)
+			continue
+		}
+		if len(hits) != c.want {
+			t.Errorf("search %q: got %d hits, want %d", c.query, len(hits), c.want)
+		}
+	}
+}
