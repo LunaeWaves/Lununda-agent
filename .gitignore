@@ -76,3 +76,6 @@ fastclaw-patched
 .playwright-mcp/
 cookies.txt
 onboard-welcome.png
+
+# Runtime logs
+/lununda.*.log

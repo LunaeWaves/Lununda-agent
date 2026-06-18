@@ -1443,6 +1443,52 @@ export async function getAgentConfig(id: string): Promise<AgentFileConfig> {
   return res.json();
 }
 
+export interface MemoryEmbeddingConfig {
+  enabled: boolean;
+  provider?: string;
+  model?: string;
+  apiKey?: string;
+  apiBase?: string;
+  dim?: number;
+}
+
+export interface MemoryRerankerConfig {
+  enabled: boolean;
+  provider?: string;
+  model?: string;
+  apiKey?: string;
+  apiBase?: string;
+}
+
+export interface MemoryConfig {
+  embedding?: MemoryEmbeddingConfig;
+  reranker?: MemoryRerankerConfig;
+  settings?: { enabled?: boolean };
+}
+
+export interface AgentMemoryResponse {
+  memory: MemoryConfig;
+  hasOverride: boolean;
+}
+
+export async function getAgentMemory(id: string): Promise<AgentMemoryResponse> {
+  const res = await apiFetch(`/api/agents/${id}/memory`);
+  return res.json();
+}
+
+export async function setAgentMemory(
+  id: string,
+  memory: MemoryConfig | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await apiFetch(`/api/agents/${id}/memory`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    // null memory clears the agent-scope override (delete row).
+    body: JSON.stringify({ memory }),
+  });
+  return res.json();
+}
+
 export async function deleteAgent(id: string) {
   const res = await apiFetch(`/api/agents/${id}`, {
     method: "DELETE",

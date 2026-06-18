@@ -777,6 +777,58 @@ func (s *Server) handleGetAgentConfig(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, cfg)
 }
 
+// handleGetAgentMemory returns the effective Memory config for one agent,
+// merged system → owner-user → agent. `hasOverride` is true when an
+// agent-scope "memory" row exists, so the UI can render an
+// Override/Inheriting badge and offer to clear it. Memory's embedding /
+// reranker sub-blocks are NOT masked — the config response ships API
+// keys in plaintext (same as the top-level /api/config memory block).
+func (s *Server) handleGetAgentMemory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	rec := s.requireAgentOwner(w, r, id)
+	if rec == nil {
+		return
+	}
+	var mem config.MemoryCfg
+	if s.dataStore != nil {
+		_ = scope.SettingInto(r.Context(), s.dataStore, "memory", rec.UserID, id, &mem)
+	}
+	hasOverride := false
+	if s.dataStore != nil {
+		if row, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", id, "memory"); err == nil && row != nil {
+			hasOverride = true
+		}
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"memory":       mem,
+		"hasOverride":  hasOverride,
+	})
+}
+
+// handleUpdateAgentMemory upserts (or deletes, on empty body) the
+// agent-scope "memory" override row. An agent-scope row keys on
+// (userID="", agentID) and wins the merge over system + owner-user.
+func (s *Server) handleUpdateAgentMemory(w http.ResponseWriter, r *http.Request) {
+	if !s.requireWritable(w, r) {
+		return
+	}
+	id := r.PathValue("id")
+	if s.requireAgentOwner(w, r, id) == nil {
+		return
+	}
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	mem, _ := body["memory"].(map[string]any)
+	if err := scope.SaveSetting(r.Context(), s.dataStore, "", id, "memory", mem); err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func (s *Server) handleDeleteAgent(w http.ResponseWriter, r *http.Request) {
 	if !s.requireWritable(w, r) {
 		return

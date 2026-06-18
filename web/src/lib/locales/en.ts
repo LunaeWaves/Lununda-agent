@@ -30,6 +30,7 @@ const en: Record<string, string> = {
   "settings.profile": "Profile",
   "settings.customize": "Customize",
   "settings.models": "Models",
+  "settings.memory": "Memory",
   "settings.context": "Context",
   "settings.skills": "Skills",
   "settings.plugins": "Plugins",
@@ -448,6 +449,11 @@ const en: Record<string, string> = {
   "memory.enableForVector": "Turn on to enable semantic (vector) recall across sessions.",
   "memory.enableForRerank": "Turn on to re-rank recalled candidates with a cross-encoder.",
   "memory.enableRecall": "Turn on so agents can recall summaries of past conversations.",
+  "memory.agentSubtitle": "Memory for {name}. Overrides here win over system and owner-user defaults.",
+  "memory.inheriting": "Inheriting",
+  "memory.override": "Override",
+  "memory.clearOverride": "Clear override",
+  "memory.clearConfirm": "Clear this agent's memory override and inherit system/user defaults?",
 
   // Regex hooks page
   "regexHooks.subtitle": "Intercept messages matching a pattern and execute a CLI instead of the LLM.",

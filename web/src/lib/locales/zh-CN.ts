@@ -30,6 +30,7 @@ const zhCN: Record<string, string> = {
   "settings.profile": "资料",
   "settings.customize": "自定义",
   "settings.models": "模型",
+  "settings.memory": "记忆",
   "settings.context": "上下文",
   "settings.skills": "技能",
   "settings.plugins": "插件",
@@ -448,6 +449,11 @@ const zhCN: Record<string, string> = {
   "memory.enableForVector": "开启后启用跨会话的语义（向量）召回。",
   "memory.enableForRerank": "开启后用交叉编码器对召回结果重排。",
   "memory.enableRecall": "开启后智能体可以回忆过往对话的摘要。",
+  "memory.agentSubtitle": "{name} 的记忆设置。此处的覆盖优先于系统和所有者的用户级默认值。",
+  "memory.inheriting": "继承中",
+  "memory.override": "已覆盖",
+  "memory.clearOverride": "清除覆盖",
+  "memory.clearConfirm": "清除该智能体的记忆覆盖，恢复继承系统/用户默认值？",
 
   // Regex hooks page
   "regexHooks.subtitle": "拦截匹配特定模式的消息并执行 CLI 命令，而非调用 LLM。",

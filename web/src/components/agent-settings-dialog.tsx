@@ -6,6 +6,7 @@ import {
   Cable,
   ClockIcon,
   CoinsIcon,
+  DatabaseIcon,
   IdCardIcon,
   InfoIcon,
   LayersIcon,
@@ -26,6 +27,7 @@ import AgentProfilePanel from "@/components/agent-profile-panel";
 import AgentCustomizePage from "@/app/agents/[id]/customize/page";
 import AgentModelsPage from "@/app/agents/[id]/models/page";
 import AgentContextPage from "@/app/agents/[id]/context/page";
+import AgentMemoryPage from "@/app/agents/[id]/memory/page";
 import AgentSkillsPage from "@/app/agents/[id]/skills/page";
 import AgentPluginsPage from "@/app/agents/[id]/plugins/page";
 import AgentMcpPage from "@/app/agents/[id]/mcp/page";
@@ -42,6 +44,7 @@ export type AgentSettingsTab =
   | "profile"
   | "customize"
   | "models"
+  | "memory"
   | "context"
   | "skills"
   | "plugins"
@@ -60,6 +63,7 @@ const AGENT_TABS = (t: ReturnType<typeof useT>): Array<{ id: AgentSettingsTab; l
   { id: "profile", label: t("settings.profile"), icon: IdCardIcon },
   { id: "customize", label: t("settings.customize"), icon: Wand2Icon },
   { id: "models", label: t("settings.models"), icon: BrainIcon },
+  { id: "memory", label: t("settings.memory"), icon: DatabaseIcon },
   { id: "context", label: t("settings.context"), icon: LayersIcon },
   { id: "skills", label: t("settings.skills"), icon: SparklesIcon },
   { id: "plugins", label: t("settings.plugins"), icon: Plug },
@@ -177,6 +181,7 @@ export function AgentSettingsDialog({
           {tab === "customize" && <AgentCustomizePage />}
           {tab === "models" &&
             (role === "viewer" ? <UserModelsPage /> : <AgentModelsPage />)}
+          {tab === "memory" && <AgentMemoryPage />}
           {tab === "context" && <AgentContextPage />}
           {tab === "skills" && <AgentSkillsPage />}
           {tab === "plugins" && <AgentPluginsPage />}
