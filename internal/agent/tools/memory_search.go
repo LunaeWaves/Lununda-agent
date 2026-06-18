@@ -127,15 +127,26 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 					goto fallback
 				}
 
-				// Vector recall: embed query → KNN → fetch by ID → merge
+				// Vector recall: embed query → KNN → fetch by ID → merge.
+				// SearchConversationSummariesVector is a GLOBAL KNN (vec0
+				// can't filter by metadata), so the fetched rows MUST be
+				// re-scoped to (chatter, agent) here — otherwise one
+				// participant's semantic match leaks another participant's
+				// summary across the multi-tenant boundary.
 				if r.vecDB != nil && r.embedder != nil && r.embedder.Available() {
 					vecs, embErr := r.embedder.Embed(ctx, []string{args.Query})
 					if embErr == nil && len(vecs) == 1 {
-						vecIDs, vecErr := r.vecDB.SearchConversationSummariesVector(ctx, vecs[0], limit)
+						vecIDs, vecErr := r.vecDB.SearchConversationSummariesVector(ctx, vecs[0], poolSize)
 						if vecErr == nil && len(vecIDs) > 0 {
 							vecHits, fetchErr := r.vecDB.GetConversationSummariesByIDs(ctx, vecIDs)
 							if fetchErr == nil {
-								hits = mergeSummaryResults(hits, vecHits, poolSize)
+								scoped := make([]store.ConversationSummary, 0, len(vecHits))
+								for _, h := range vecHits {
+									if h.ChatterUserID == chatter && h.AgentID == r.agentID {
+										scoped = append(scoped, h)
+									}
+								}
+								hits = mergeSummaryResults(hits, scoped, poolSize)
 							}
 						}
 					}
