@@ -11,6 +11,7 @@ const zhCN: Record<string, string> = {
   "nav.apiKeys": "API 密钥",
   "nav.wiki": "知识维基",
   "nav.knowledgeBase": "知识库",
+  "nav.memory": "记忆",
   "nav.newChat": "新对话",
   "nav.settings": "设置",
   "nav.manageAgents": "管理智能体",
@@ -419,6 +420,23 @@ const zhCN: Record<string, string> = {
   "knowledge.text": "文本",
   "knowledge.url": "URL",
   "knowledge.urlLabel": "URL",
+
+  // Memory
+  "memory.title": "记忆",
+  "memory.subtitle": "配置语义记忆 —— Embedding 用于向量召回，Reranker 用于交叉编码器重排。",
+  "memory.embedding": "Embedding 服务",
+  "memory.embeddingDesc": "把对话摘要向量化以便语义召回。支持任何 OpenAI 兼容的 /v1/embeddings 接口。",
+  "memory.reranker": "Reranker 服务",
+  "memory.rerankerDesc": "对粗筛候选进行交叉编码器重排。兼容 Jina AI 或 Cohere 的 /v1/rerank 接口。",
+  "memory.memorySettings": "记忆设置",
+  "memory.settingsDesc": "为智能体启用跨会话的记忆召回。",
+  "memory.enabled": "启用",
+  "memory.providerPlaceholder": "openai",
+  "memory.modelPlaceholder": "text-embedding-3-small",
+  "memory.rerankerModelPlaceholder": "jina-reranker-v2-base-multilingual",
+  "memory.apiKeyPlaceholder": "API 密钥",
+  "memory.apiBasePlaceholder": "https://api.openai.com/v1",
+  "memory.rerankerApiBasePlaceholder": "https://api.jina.ai/v1",
 
   // Regex hooks page
   "regexHooks.subtitle": "拦截匹配特定模式的消息并执行 CLI 命令，而非调用 LLM。",

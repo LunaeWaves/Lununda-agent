@@ -11,6 +11,7 @@ const en: Record<string, string> = {
   "nav.apiKeys": "API Keys",
   "nav.wiki": "Wiki",
   "nav.knowledgeBase": "Knowledge Base",
+  "nav.memory": "Memory",
   "nav.newChat": "New chat",
   "nav.settings": "Settings",
   "nav.manageAgents": "Manage agents",
@@ -419,6 +420,23 @@ const en: Record<string, string> = {
   "knowledge.text": "Text",
   "knowledge.url": "URL",
   "knowledge.urlLabel": "URL",
+
+  // Memory
+  "memory.title": "Memory",
+  "memory.subtitle": "Configure semantic memory — embedding for vector recall and reranker for cross-encoder re-rank.",
+  "memory.embedding": "Embedding Provider",
+  "memory.embeddingDesc": "Vectorize conversation summaries for semantic recall. Any OpenAI-compatible /v1/embeddings endpoint works.",
+  "memory.reranker": "Reranker Provider",
+  "memory.rerankerDesc": "Cross-encoder that re-ranks coarse retrieval candidates. Jina AI or Cohere /v1/rerank compatible endpoints.",
+  "memory.memorySettings": "Memory Settings",
+  "memory.settingsDesc": "Enable cross-session memory recall for agents.",
+  "memory.enabled": "Enabled",
+  "memory.providerPlaceholder": "openai",
+  "memory.modelPlaceholder": "text-embedding-3-small",
+  "memory.rerankerModelPlaceholder": "jina-reranker-v2-base-multilingual",
+  "memory.apiKeyPlaceholder": "API key",
+  "memory.apiBasePlaceholder": "https://api.openai.com/v1",
+  "memory.rerankerApiBasePlaceholder": "https://api.jina.ai/v1",
 
   // Regex hooks page
   "regexHooks.subtitle": "Intercept messages matching a pattern and execute a CLI instead of the LLM.",
