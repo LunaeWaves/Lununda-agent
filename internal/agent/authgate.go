@@ -285,25 +285,85 @@ func isUnder(path, root string) bool {
 // hardlinePatterns are catastrophic, unrecoverable commands. Blocked
 // unconditionally — yolo, ask, auto all refuse. Opting into yolo trusts
 // the agent with files/services, not with wiping the disk or powering off.
+//
+// Patterns are matched against the lowercased command, so PowerShell
+// cmdlet casing (Format-Volume vs format-volume) doesn't matter. The
+// list covers the catastrophic surface on Linux, macOS, and Windows —
+// gaps left in earlier revisions (PowerShell disk/shutdown equivalents,
+// macOS diskutil / csrutil, Windows rd/del shorthand, etc.) are closed
+// here so the floor holds on every host OS, not just Linux.
 var hardlinePatterns = []struct {
 	re  *regexp.Regexp
 	desc string
 }{
+	// ---- POSIX (Linux + macOS) ----
 	// rm -rf targeting root or system dirs
-	{regexp.MustCompile(`\brm\s+(-[^\s]*\s+)*(/|/\*|/home|/etc|/usr|/var|/bin|/boot|~|\$HOME)(/?|/\*)?(\s|$)`), "recursive delete of root/system/home directory"},
+	{regexp.MustCompile(`\brm\s+(-[^\s]*\s+)*(/|/\*|/home|/etc|/usr|/var|/bin|/boot|~|\$home)(/?|/\*)?(\s|$)`), "recursive delete of root/system/home directory"},
 	{regexp.MustCompile(`\bmkfs(\.[a-z0-9]+)?\b`), "format filesystem (mkfs)"},
 	// dd to raw block device
-	{regexp.MustCompile(`\bdd\b[^\n]*\bof=/dev/(sd|nvme|hd|mmcblk|vd|xvd)`), "dd to raw block device"},
-	{regexp.MustCompile(`>\s*/dev/(sd|nvme|hd|mmcblk|vd|xvd)`), "redirect to raw block device"},
+	{regexp.MustCompile(`\bdd\b[^\n]*\bof=/dev/(sd|nvme|hd|mmcblk|vd|xvd|disk|rdisk)`), "dd to raw block device"},
+	{regexp.MustCompile(`>\s*/dev/(sd|nvme|hd|mmcblk|vd|xvd|disk|rdisk)`), "redirect to raw block device"},
 	// fork bomb
 	{regexp.MustCompile(`:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:`), "fork bomb"},
 	// kill all processes
 	{regexp.MustCompile(`\bkill\s+(-[^\s]+\s+)*-1\b`), "kill all processes"},
-	// system shutdown / reboot (anchored to command start)
-	{regexp.MustCompile(`(?:^|[;&|\n])\s*(?:sudo\s+)?(?:shutdown|reboot|halt|poweroff)\b`), "system shutdown/reboot"},
-	// Windows disk format / shutdown
-	{regexp.MustCompile(`\bformat\s+[a-z]:\b`), "format disk (Windows format)"},
+	// pkill -9 (kill -KILL all matching) — broad enough to be catastrophic
+	// when matched against system process families. Kept in dangerous below
+	// for the targeted case; here we only catch "kill everything" shapes.
+	// system shutdown / reboot. Covers Linux (System V / systemd) and
+	// macOS (/sbin/shutdown, `sudo shutdown -h now`). Requires either a
+	// trailing POSIX-style flag (`-h`, `-r`, `-p`, `now`) or end-of-token
+	// so `shutdown /?` (Windows help) doesn't trip the POSIX pattern;
+	// the Windows `/s|/p|/r|/t` variant has its own entry below.
+	{regexp.MustCompile(`(?:^|[;&|\n])\s*(?:sudo\s+)?(?:/sbin/|/usr/sbin/)?(?:shutdown|reboot|halt|poweroff)(?:\s+(?:-(?:h|r|p|f|k|c|t)|now|fast)\b|\s*[;&|\n]|$)`), "system shutdown/reboot"},
+	// Linux: drop into single-user / rescue / emergency mode
+	{regexp.MustCompile(`\bsystemctl\b.*\b(rescue|emergency)\b`), "systemctl rescue/emergency (single-user mode)"},
+	// macOS: wipe a disk entirely
+	{regexp.MustCompile(`\bdiskutil\b[^\n]*\b(erasedisk|secureerase|erasevolume)\b`), "diskutil eraseDisk / secureErase / eraseVolume (macOS format)"},
+	// macOS: turn off System Integrity Protection. Only works in recovery
+	// mode, but a chatter prompting "disable SIP" is unambiguous intent.
+	{regexp.MustCompile(`\bcsrutil\b.*\bdisable\b`), "csrutil disable (macOS System Integrity Protection off)"},
+	// macOS: rewrite NVRAM boot variables. Persistent, survives reinstall.
+	{regexp.MustCompile(`\bnvram\b[^\n]*\bboot-args\b`), "nvram boot-args write (macOS NVRAM boot variables)"},
+	// macOS: zero-fill / random-fill the entire disk via dd-style on the
+	// raw rdisk device (rdisk = char device, no buffering, faster wipe).
+	{regexp.MustCompile(`\bdd\b[^\n]*\bof=/dev/r?disk\d+`), "dd to macOS raw disk"},
+
+	// ---- Windows (cmd + PowerShell) ----
+	// Windows format <drive>:. Trailing `\b` would miss `format C:` at
+	// end-of-string (`:` is non-word so there's no word boundary between
+	// `:` and EOL); drop the trailing `\b` and accept anything after the
+	// drive letter.
+	{regexp.MustCompile(`\bformat\s+[a-z]:`), "format disk (Windows format)"},
+	// Windows shutdown /t 0 etc. (POSIX-style `shutdown -h` is caught
+	// above; this catches the cmd /s|/p|/r|/t switch form).
 	{regexp.MustCompile(`\bshutdown\s+/(s|p|r|t)\b`), "Windows shutdown/restart"},
+	// rd /s against a Windows drive path — catastrophic. Plain
+	// `rmdir /s .\build` falls through to dangerous below.
+	{regexp.MustCompile(`\b(rmdir|rd)\s+/s\b[^\n]*[a-z]:\\`), "rmdir /s or rd /s on a Windows drive path"},
+	// del /s against a Windows system root or wildcard on a system drive.
+	{regexp.MustCompile(`\bdel\s+(/[a-z]+\s+)*[a-z]:\\(windows|program files|users|system32|config|\*)`), "del /s on Windows system path"},
+	// PowerShell equivalents of mkfs / format
+	{regexp.MustCompile(`\bformat-volume\b`), "Format-Volume (PowerShell partition format)"},
+	{regexp.MustCompile(`\bclear-disk\b`), "Clear-Disk (PowerShell disk wipe)"},
+	{regexp.MustCompile(`\binitialize-disk\b`), "Initialize-Disk (PowerShell disk repartition)"},
+	// PowerShell recursive remove of system roots — `Remove-Item -Recurse
+	// -Force C:\Windows` etc. Catches both -Recurse + -Force and -Force +
+	// -Recurse ordering, plus the `ri`/`rm` aliases. Constrained to
+	// system paths so a benign `Remove-Item -Recurse -Force .\build`
+	// falls through to dangerous.
+	{regexp.MustCompile(`\b(remove-item|ri|rm)\b[^\n]*-(?:recurse|force)\b[^\n]*-(?:force|recurse)\b[^\n]*[a-z]:\\(windows|program files|users|system32|\*)`), "Remove-Item -Recurse -Force on Windows system path"},
+	// PowerShell shutdown / restart cmdlets
+	{regexp.MustCompile(`\bstop-computer\b`), "Stop-Computer (PowerShell shutdown)"},
+	{regexp.MustCompile(`\brestart-computer\b`), "Restart-Computer (PowerShell reboot)"},
+	// Windows boot config rewrite — bcdedit /set will brick boot.
+	{regexp.MustCompile(`\bbcdedit\b.*/set\b`), "bcdedit /set (Windows boot configuration rewrite)"},
+	// cipher /w does a 3-pass wipe of free space on a volume. Slow but
+	// unrecoverable for any file already deleted on that volume.
+	{regexp.MustCompile(`\bcipher\b[^|;&\n]*\s/w[:\\]`), "cipher /w (Windows raw free-space wipe)"},
+	// Windows registry hive file deletion — wiping a hive bricks the OS.
+	// Catches `del ... \System32\config\SYSTEM` etc.
+	{regexp.MustCompile(`\bdel\s+(/[a-z]+\s+)*[a-z]:\\[^;\n]*\\config\\(system|software|sam|security|default|components)`), "del on Windows registry hive file"},
 }
 
 // dangerousPatterns are high-risk but potentially recoverable commands.
@@ -317,26 +377,53 @@ var dangerousPatterns = []struct {
 	{regexp.MustCompile(`\brm\s+-[^\s]*r`), "recursive delete"},
 	{regexp.MustCompile(`\brm\s+-[^\s]*\s+--recursive\b`), "recursive delete (long flag)"},
 	{regexp.MustCompile(`\bchmod\s+(-[^\s]*\s+)*(777|666)\b`), "world-writable permissions"},
-	{regexp.MustCompile(`\bchown\s+(-[^\s]*)?R\s+root`), "recursive chown to root"},
-	{regexp.MustCompile(`\bDROP\s+(TABLE|DATABASE)\b`), "SQL DROP"},
-	{regexp.MustCompile(`\bDELETE\s+FROM\b`), "SQL DELETE (verify it has a WHERE)"},
-	{regexp.MustCompile(`\bTRUNCATE\s+(TABLE)?\s*\w`), "SQL TRUNCATE"},
+	{regexp.MustCompile(`\bchown\s+-\S*r\S*\s+root\b`), "recursive chown to root"},
+	{regexp.MustCompile(`\bdrop\s+(table|database)\b`), "SQL DROP"},
+	{regexp.MustCompile(`\bdelete\s+from\b`), "SQL DELETE (verify it has a WHERE)"},
+	{regexp.MustCompile(`\btruncate\s+(table)?\s*\w`), "SQL TRUNCATE"},
 	{regexp.MustCompile(`\b(curl|wget)\b.*\|\s*(?:[/\w]*/)?(?:ba)?sh`), "pipe remote content to shell"},
 	{regexp.MustCompile(`\bgit\s+reset\s+--hard\b`), "git reset --hard (destroys uncommitted changes)"},
 	{regexp.MustCompile(`\bgit\s+push\b.*--force\b`), "git force push (rewrites remote history)"},
 	{regexp.MustCompile(`\bgit\s+push\b.*\s-f\b`), "git force push short flag"},
 	{regexp.MustCompile(`\bgit\s+clean\s+-[^\s]*f`), "git clean with force"},
-	{regexp.MustCompile(`\bgit\s+branch\s+-D\b`), "git branch force delete"},
+	{regexp.MustCompile(`\bgit\s+branch\s+-d\b`), "git branch force delete"},
 	{regexp.MustCompile(`\bsystemctl\s+(stop|restart|disable)\b`), "stop/restart system service"},
 	{regexp.MustCompile(`\bpkill\s+-9\b`), "force kill processes"},
 	{regexp.MustCompile(`\bxargs\s+.*\brm\b`), "xargs with rm"},
 	{regexp.MustCompile(`\bfind\b.*-exec(?:dir)?\s+(?:/\S*/)?rm\b`), "find -exec/-execdir rm"},
 	{regexp.MustCompile(`\bfind\b.*-delete\b`), "find -delete"},
 	// Windows recursive delete variants
-	{regexp.MustCompile(`\brmdir\s+/s\b`), "rmdir /s (recursive, Windows)"},
-	{regexp.MustCompile(`\bdel\s+/s\b`), "del /s (recursive, Windows)"},
+	{regexp.MustCompile(`\b(rmdir|rd)\s+/s\b`), "rmdir /s or rd /s (recursive, Windows)"},
+	{regexp.MustCompile(`\bdel\s+/[a-z]*s\b`), "del /s (recursive, Windows)"},
 	// disk/partition wipe on Windows
 	{regexp.MustCompile(`\bdiskpart\b`), "diskpart (partition management)"},
+	// PowerShell recursive / forced remove — the everyday PowerShell
+	// equivalent of `rm -rf`. Caught in dangerous (not hardline) so
+	// ask-mode users can still approve a legit cleanup of a build dir.
+	{regexp.MustCompile(`\b(remove-item|ri|rm)\b[^\n]*-recurse[^\n]*-force\b`), "PowerShell Remove-Item -Recurse -Force"},
+	{regexp.MustCompile(`\b(remove-item|ri|rm)\b[^\n]*-force[^\n]*-recurse\b`), "PowerShell Remove-Item -Force -Recurse"},
+	// Windows registry: delete a key (HKLM/HKCU/...). Restorable from
+	// backup, but a non-trivial system-state change.
+	{regexp.MustCompile(`\breg(\.exe)?\s+(delete|import|restore)\b`), "reg delete/import/restore (Windows registry rewrite)"},
+	// Windows ACL / ownership takeover — `takeown /f C:\` or
+	// `icacls C:\* /grant everyone:F`. Privilege escalation primitive.
+	{regexp.MustCompile(`\btakeown\b.*/f\b`), "takeown (Windows ownership takeover)"},
+	{regexp.MustCompile(`\bicacls\b.*/grant\b`), "icacls /grant (Windows ACL modification)"},
+	// Windows user / group mutation — `net user X /add`, `net localgroup
+	// administrators X /add`. Account-creation primitive.
+	{regexp.MustCompile(`\bnet(\.exe)?\s+(user|localgroup)\b`), "net user/localgroup (Windows account change)"},
+	// Windows scheduled-task creation — `schtasks /create` is the
+	// persistence primitive of choice for post-exploitation.
+	{regexp.MustCompile(`\bschtasks\b.*/create\b`), "schtasks /create (Windows scheduled task creation)"},
+	// PowerShell ExecutionPolicy bypass — common social-engineering
+	// precursor to running an untrusted script.
+	{regexp.MustCompile(`\bset-executionpolicy\b`), "Set-ExecutionPolicy (PowerShell policy bypass)"},
+	// macOS: defaults write touches user/system preferences; usually
+	// benign but qualifies as "modifies system state outside workspace".
+	// Kept as dangerous so ask-mode can still allow legit config scripts.
+	{regexp.MustCompile(`\bdefaults\b.*\bwrite\b`), "defaults write (macOS preferences modify)"},
+	// macOS: launchctl load/unload — system daemon control.
+	{regexp.MustCompile(`\blaunchctl\b.*\b(load|unload|bootout)\b`), "launchctl load/unload/bootout (macOS service control)"},
 }
 
 // classifyCommand inspects a shell command against hardline + dangerous
