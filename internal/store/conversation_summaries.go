@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -383,4 +385,139 @@ func reRankSummaries(summaries []ConversationSummary, query string, topK int) []
 		out = append(out, summaries[ranked[i].idx])
 	}
 	return out
+}
+
+// ── Vector CRUD (vec0 / pgvector) ───────────────────────────────────
+
+func float32ToBlob(vec []float32) []byte {
+	buf := make([]byte, len(vec)*4)
+	for i, v := range vec {
+		binary.LittleEndian.PutUint32(buf[i*4:], math.Float32bits(v))
+	}
+	return buf
+}
+
+// InsertConversationSummaryVector writes an embedding row.
+// SQLite: INSERT OR REPLACE into vec0 virtual table.
+// Postgres: UPDATE the main table's vector column.
+func (d *DBStore) InsertConversationSummaryVector(ctx context.Context, summaryID int64, embedding []float32) error {
+	if len(embedding) == 0 {
+		return fmt.Errorf("empty embedding")
+	}
+	switch d.dialect {
+	case "postgres":
+		_, err := d.db.ExecContext(ctx,
+			`UPDATE conversation_summaries SET embedding = $1::vector WHERE id = $2`,
+			float32ToPGVector(embedding), summaryID)
+		return err
+	default:
+		_, err := d.db.ExecContext(ctx,
+			`INSERT OR REPLACE INTO conversation_summaries_vec(summary_id, embedding) VALUES (?, ?)`,
+			summaryID, float32ToBlob(embedding))
+		return err
+	}
+}
+
+func float32ToPGVector(vec []float32) string {
+	parts := make([]string, len(vec))
+	for i, v := range vec {
+		parts[i] = fmt.Sprintf("%.8g", v)
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// SearchConversationSummariesVector runs KNN over vec0 and returns the
+// matching summary IDs with distances. Does NOT join to the main table —
+// callers should batch-fetch summaries by ID.
+func (d *DBStore) SearchConversationSummariesVector(ctx context.Context, embedding []float32, limit int) ([]int64, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if len(embedding) == 0 {
+		return nil, nil
+	}
+
+	var rows *sql.Rows
+	var err error
+
+	switch d.dialect {
+	case "postgres":
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT id FROM conversation_summaries
+			 ORDER BY embedding <=> $1::vector
+			 LIMIT $2`,
+			float32ToPGVector(embedding), limit)
+	default:
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT summary_id FROM conversation_summaries_vec
+			 WHERE embedding MATCH ?
+			 ORDER BY distance
+			 LIMIT ?`,
+			float32ToBlob(embedding), limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// ClearConversationSummaryVectors deletes every row from the vector
+// table. Called before a rebuild.
+func (d *DBStore) ClearConversationSummaryVectors(ctx context.Context) error {
+	switch d.dialect {
+	case "postgres":
+		_, err := d.db.ExecContext(ctx, `UPDATE conversation_summaries SET embedding = NULL`)
+		return err
+	default:
+		_, err := d.db.ExecContext(ctx, `DELETE FROM conversation_summaries_vec`)
+		return err
+	}
+}
+
+// ListConversationSummariesNeedingVector returns summaries that have no
+// embedding yet. When model is non-empty, also returns summaries that
+// were embedded with a different model.
+func (d *DBStore) ListConversationSummariesNeedingVector(ctx context.Context, model string, limit int) ([]ConversationSummary, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	var rows *sql.Rows
+	var err error
+
+	switch d.dialect {
+	case "postgres":
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
+			        summary, keywords, seq_start, seq_end, embedding_model, created_at
+			 FROM conversation_summaries
+			 WHERE embedding IS NULL OR ($1 != '' AND (embedding_model IS NULL OR embedding_model != $1))
+			 ORDER BY created_at
+			 LIMIT $2`, model, limit)
+	default:
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT s.id, s.user_id, s.agent_id, s.session_key, s.chatter_user_id,
+			        s.summary, s.keywords, s.seq_start, s.seq_end, s.embedding_model, s.created_at
+			 FROM conversation_summaries s
+			 LEFT JOIN conversation_summaries_vec v ON v.summary_id = s.id
+			 WHERE v.summary_id IS NULL OR (? != '' AND (s.embedding_model IS NULL OR s.embedding_model != ?))
+			 ORDER BY s.created_at
+			 LIMIT ?`, model, model, limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanConversationSummaries(rows)
 }

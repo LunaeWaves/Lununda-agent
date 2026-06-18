@@ -178,3 +178,110 @@ func TestConversationSummaryChineseRecall(t *testing.T) {
 		}
 	}
 }
+
+func TestConversationSummaryVectorRoundTrip(t *testing.T) {
+	d := setupTestDB(t)
+	ctx := context.Background()
+
+	// Insert a summary
+	id, err := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "We discussed vector search integration",
+		Keywords: []string{"vector", "search"},
+		SeqStart: 1, SeqEnd: 2,
+	})
+	if err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	// Insert vector
+	vec := make([]float32, 1024)
+	vec[0] = 0.5
+	vec[1] = 0.3
+	if err := d.InsertConversationSummaryVector(ctx, id, vec); err != nil {
+		t.Fatalf("insert vector: %v", err)
+	}
+
+	// KNN search with a similar vector
+	queryVec := make([]float32, 1024)
+	queryVec[0] = 0.5
+	queryVec[1] = 0.3
+	ids, err := d.SearchConversationSummariesVector(ctx, queryVec, 10)
+	if err != nil {
+		t.Fatalf("search vector: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(ids))
+	}
+	if ids[0] != id {
+		t.Errorf("expected id %d, got %d", id, ids[0])
+	}
+}
+
+func TestConversationSummaryVectorNeedsList(t *testing.T) {
+	d := setupTestDB(t)
+	ctx := context.Background()
+
+	// Insert 2 summaries, only 1 gets a vector
+	id1, _ := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "summary 1", Keywords: []string{"a"},
+		SeqStart: 1, SeqEnd: 2,
+	})
+	id2, _ := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "summary 2", Keywords: []string{"b"},
+		SeqStart: 3, SeqEnd: 4, EmbeddingModel: "old-model",
+	})
+
+	vec := make([]float32, 1024)
+	d.InsertConversationSummaryVector(ctx, id1, vec)
+
+	// List needing vector
+	needs, err := d.ListConversationSummariesNeedingVector(ctx, "", 100)
+	if err != nil {
+		t.Fatalf("list needing: %v", err)
+	}
+	if len(needs) != 1 {
+		t.Fatalf("expected 1 needing vector, got %d", len(needs))
+	}
+	if needs[0].ID != id2 {
+		t.Errorf("expected id2 needing vector, got %d", needs[0].ID)
+	}
+
+	// With model filter: id2 has old-model, should surface
+	needs2, err := d.ListConversationSummariesNeedingVector(ctx, "new-model", 100)
+	if err != nil {
+		t.Fatalf("list needing with model: %v", err)
+	}
+	if len(needs2) != 2 { // both: id1 has no model set, id2 has old-model
+		t.Fatalf("expected 2 needing vector with model switch, got %d", len(needs2))
+	}
+}
+
+func TestConversationSummaryClearVectors(t *testing.T) {
+	d := setupTestDB(t)
+	ctx := context.Background()
+
+	id, _ := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "test", Keywords: []string{"x"},
+		SeqStart: 1, SeqEnd: 2,
+	})
+	vec := make([]float32, 1024)
+	d.InsertConversationSummaryVector(ctx, id, vec)
+
+	// Clear
+	if err := d.ClearConversationSummaryVectors(ctx); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+
+	// Verify empty
+	ids, err := d.SearchConversationSummariesVector(ctx, vec, 10)
+	if err != nil {
+		t.Fatalf("search after clear: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("expected 0 results after clear, got %d", len(ids))
+	}
+}
