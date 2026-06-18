@@ -1,6 +1,6 @@
 module github.com/LunaeWaves/Lununda-agent
 
-go 1.25.0
+go 1.25.11
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
@@ -11,7 +11,8 @@ require (
 	github.com/larksuite/oapi-sdk-go/v3 v3.6.1
 	github.com/lib/pq v1.12.3
 	github.com/minio/minio-go/v7 v7.0.100
-	github.com/slack-go/slack v0.19.0
+	github.com/redis/go-redis/v9 v9.20.0
+	github.com/slack-go/slack v0.26.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.46.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -32,7 +33,6 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/redis/go-redis/v9 v9.20.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect

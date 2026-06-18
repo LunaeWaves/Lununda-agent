@@ -13,7 +13,11 @@ COPY web/ .
 RUN pnpm build
 
 # --- Stage 2: Build Go binary ---
-FROM golang:1.25-alpine AS go-builder
+# Pinned to 1.25.11+ to pick up stdlib security fixes (govulncheck
+# flagged 16 called paths in go1.25.4: crypto/tls, crypto/x509, net/http
+# HTTP/2 DoS, archive/tar GNU sparse, etc.). Update in lockstep with
+# go.mod's `go` directive.
+FROM golang:1.25.11-alpine AS go-builder
 RUN apk add --no-cache git
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -39,7 +43,7 @@ RUN CGO_ENABLED=0 go build \
     -o /lununda ./cmd/lununda
 
 # --- Stage 3: Runtime ---
-FROM alpine:3.21
+FROM alpine:3.22
 # docker-cli is required when LUNUNDA_SANDBOX_BACKEND=docker: the agent
 # runtime shells out to `docker create/start/exec/rm` to spawn sibling
 # sandbox containers on the host daemon (via the mounted
