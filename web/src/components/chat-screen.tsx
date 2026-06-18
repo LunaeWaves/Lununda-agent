@@ -2602,7 +2602,7 @@ export function ChatScreen() {
                   <div className="mt-2 flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <label
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors ${
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors ${
                           !selectedAgent || sending || isReadOnlyView
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-muted hover:text-foreground cursor-pointer"
@@ -2635,7 +2635,7 @@ export function ChatScreen() {
                       <Button
                         onClick={handleStop}
                         size="icon"
-                        className="h-9 w-9 shrink-0 rounded-full"
+                        className="h-8 w-8 shrink-0 rounded-lg"
                         aria-label={t("chat.stopGenerating")}
                       >
                         <Square className="h-3.5 w-3.5 fill-current" />
@@ -2645,10 +2645,10 @@ export function ChatScreen() {
                         onClick={() => handleSend()}
                         disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView}
                         size="icon"
-                        className="h-9 w-9 shrink-0 rounded-full"
+                        className="h-8 w-8 shrink-0 rounded-lg"
                         aria-label={t("chat.send")}
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-4 w-4" style={{ transform: "translate(-1px, 1px)" }} />
                       </Button>
                     )}
                   </div>
@@ -2710,7 +2710,7 @@ export function ChatScreen() {
                       className="h-8 w-8 shrink-0 rounded-lg"
                       aria-label={t("chat.sendMessage")}
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className="h-4 w-4" style={{ transform: "translate(-1px, 1px)" }} />
                     </Button>
                   )}
                 </div>
