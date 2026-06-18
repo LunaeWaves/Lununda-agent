@@ -1905,6 +1905,17 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 	// real reply is coming on the next bus-fired turn." Without it,
 	// the stream closes immediately and the typing indicator vanishes
 	// while the model is still warming up.
+	// Stamp the session's chatter before slash dispatch. /compact, /new,
+	// /reset extract conversation summaries scoped to the participant; if
+	// this runs after handleSlashCommand (the normal-turn SetChatter at
+	// ~1990 is too late), the summary persists with an empty
+	// chatter_user_id and the per-chatter recall isolation leaks.
+	// Resolving here is cheap (Get is a map lookup) and a no-op for
+	// slashes that don't touch summaries.
+	{
+		sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
+		sess.SetChatter(a.chatterUserID(msg))
+	}
 	if result := a.handleSlashCommand(msg); result.handled {
 		// Persist the slash command + its reply into the session history so
 		// the user sees them on refresh (web) and the audit trail is intact.
@@ -2874,9 +2885,13 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		return provider.NewStreamReader(ch)
 	}
 
-	// Reuse setup logic from HandleMessage. Empty reply is "handled
-	// but silent" — see the HandleMessage twin. Still emit a Done
-	// chunk so callers waiting on the stream don't hang.
+	// Stamp the session's chatter before slash dispatch — see the
+	// HandleMessage twin. Without this /compact /new /reset extract
+	// summaries with an empty chatter_user_id.
+	{
+		sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID)
+		sess.SetChatter(a.chatterUserID(msg))
+	}
 	if result := a.handleSlashCommand(msg); result.handled {
 		// Persist slash + reply into the session history (see HandleMessage
 		// twin for rationale). continueToLoop falls through to the loop,

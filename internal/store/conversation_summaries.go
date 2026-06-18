@@ -31,14 +31,24 @@ type ConversationSummary struct {
 	CreatedAt      time.Time
 }
 
-// InsertConversationSummary writes the main row. The FTS5 trigger
-// auto-populates conversation_summaries_fts. Does NOT write the vec0
-// row — call InsertConversationSummaryVector separately when an
-// embedding is available (MVP-2).
+// InsertConversationSummary writes the main row, upserting on the unique
+// (chatter_user_id, agent_id, session_key, seq_start, seq_end) key so
+// re-summarizing the same range (e.g. /compact twice) merges instead of
+// duplicating. The FTS5 trigger auto-populates conversation_summaries_fts.
+// Does NOT write the vec0 row — call InsertConversationSummaryVector
+// separately when an embedding is available.
+//
+// Returns an error when chatter_user_id is empty: an empty chatter
+// defeats per-chatter recall isolation and would let one participant's
+// summaries leak to another, so callers must resolve a chatter before
+// persisting.
 func (d *DBStore) InsertConversationSummary(
 	ctx context.Context,
 	s ConversationSummary,
 ) (int64, error) {
+	if strings.TrimSpace(s.ChatterUserID) == "" {
+		return 0, fmt.Errorf("InsertConversationSummary: chatter_user_id is required (agent=%s session=%s)", s.AgentID, s.SessionKey)
+	}
 	keywordsJSON, err := json.Marshal(s.Keywords)
 	if err != nil {
 		return 0, fmt.Errorf("marshal keywords: %w", err)
@@ -47,33 +57,42 @@ func (d *DBStore) InsertConversationSummary(
 	var id int64
 	switch d.dialect {
 	case "postgres":
+		// On conflict over the unique composite key, replace the mutable
+		// content (summary/keywords/embedding_model). embedding_model
+		// resets to the caller's value so a re-summarize without an
+		// embeder clears the stamp and the next vectorize re-stamps it.
 		err = d.db.QueryRowContext(ctx, `
 			INSERT INTO conversation_summaries
 				(user_id, agent_id, session_key, chatter_user_id,
 				 summary, keywords, seq_start, seq_end, embedding_model)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (chatter_user_id, agent_id, session_key, seq_start, seq_end)
+			DO UPDATE SET summary = EXCLUDED.summary,
+			              keywords = EXCLUDED.keywords,
+			              embedding_model = EXCLUDED.embedding_model
 			RETURNING id`,
 			s.UserID, s.AgentID, s.SessionKey, s.ChatterUserID,
 			s.Summary, string(keywordsJSON), s.SeqStart, s.SeqEnd,
 			nilIfEmpty(s.EmbeddingModel),
 		).Scan(&id)
 	default:
-		res, err := d.db.ExecContext(ctx, `
+		// SQLite upsert. RETURNING id (modernc supports it) gives the
+		// rowid of either the inserted or the updated row — needed so
+		// the caller can stamp the vector on the right summary.
+		err = d.db.QueryRowContext(ctx, `
 			INSERT INTO conversation_summaries
 				(user_id, agent_id, session_key, chatter_user_id,
 				 summary, keywords, seq_start, seq_end, embedding_model)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(chatter_user_id, agent_id, session_key, seq_start, seq_end)
+			DO UPDATE SET summary = excluded.summary,
+			              keywords = excluded.keywords,
+			              embedding_model = excluded.embedding_model
+			RETURNING id`,
 			s.UserID, s.AgentID, s.SessionKey, s.ChatterUserID,
 			s.Summary, string(keywordsJSON), s.SeqStart, s.SeqEnd,
 			nilIfEmpty(s.EmbeddingModel),
-		)
-		if err != nil {
-			return 0, err
-		}
-		id, err = res.LastInsertId()
-		if err != nil {
-			return 0, err
-		}
+		).Scan(&id)
 	}
 	return id, err
 }
@@ -445,8 +464,10 @@ func float32ToBlob(vec []float32) []byte {
 }
 
 // InsertConversationSummaryVector writes an embedding row.
-// SQLite: INSERT OR REPLACE into vec0 virtual table.
-// Postgres: UPDATE the main table's vector column.
+// SQLite: vec0 ignores INSERT OR REPLACE, so delete-then-insert makes
+// re-vectorizing an existing summary_id idempotent (needed after a
+// summary upsert or a force rebuild). Postgres: UPDATE the vector
+// column directly.
 func (d *DBStore) InsertConversationSummaryVector(ctx context.Context, summaryID int64, embedding []float32) error {
 	if len(embedding) == 0 {
 		return fmt.Errorf("empty embedding")
@@ -458,8 +479,12 @@ func (d *DBStore) InsertConversationSummaryVector(ctx context.Context, summaryID
 			float32ToPGVector(embedding), summaryID)
 		return err
 	default:
+		if _, err := d.db.ExecContext(ctx,
+			`DELETE FROM conversation_summaries_vec WHERE summary_id = ?`, summaryID); err != nil {
+			return err
+		}
 		_, err := d.db.ExecContext(ctx,
-			`INSERT OR REPLACE INTO conversation_summaries_vec(summary_id, embedding) VALUES (?, ?)`,
+			`INSERT INTO conversation_summaries_vec(summary_id, embedding) VALUES (?, ?)`,
 			summaryID, float32ToBlob(embedding))
 		return err
 	}

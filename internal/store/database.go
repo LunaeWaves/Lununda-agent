@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -154,6 +155,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateConversationSummaries(ctx); err != nil {
 		return fmt.Errorf("migrate conversation_summaries: %w", err)
 	}
+	if err := d.migrateConversationSummariesUniqueIndex(ctx); err != nil {
+		return fmt.Errorf("migrate conversation_summaries unique index: %w", err)
+	}
 	return nil
 }
 
@@ -239,20 +243,11 @@ func (d *DBStore) migrateConversationSummaries(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_conv_summ_session
 			ON conversation_summaries(agent_id, session_key)`,
 
-		`CREATE VIRTUAL TABLE conversation_summaries_fts USING fts5(
-			summary_id UNINDEXED,
-			summary,
-			keywords,
-			tokenize='porter unicode61'
-		)`,
-		`CREATE TRIGGER conv_summ_ai AFTER INSERT ON conversation_summaries BEGIN
-			INSERT INTO conversation_summaries_fts(summary_id, summary, keywords)
-			VALUES (new.id, new.summary, new.keywords);
-		END`,
-		`CREATE TRIGGER conv_summ_ad AFTER DELETE ON conversation_summaries BEGIN
-			INSERT INTO conversation_summaries_fts(conversation_summaries_fts, summary_id, summary, keywords)
-			VALUES ('delete', old.id, old.summary, old.keywords);
-		END`,
+		// No FTS5 table here — keyword recall uses LIKE on the main table
+		// (unicode61 can't match CJK substrings, so an FTS index added no
+		// value and its delete trigger was buggy). migrateConversation
+		// SummariesUniqueIndex drops any legacy FTS table + triggers on
+		// existing installs.
 
 		`CREATE VIRTUAL TABLE conversation_summaries_vec USING vec0(
 			summary_id INTEGER PRIMARY KEY,
@@ -269,6 +264,76 @@ func (d *DBStore) migrateConversationSummaries(ctx context.Context) error {
 		if _, err := d.db.ExecContext(ctx, s); err != nil {
 			return fmt.Errorf("migrate conversation_summaries (sqlite): %w (stmt=%q)", err, s)
 		}
+	}
+	return nil
+}
+
+// migrateConversationSummariesUniqueIndex backfills a unique composite
+// index onto an existing conversation_summaries table so the
+// InsertConversationSummary upsert (ON CONFLICT) works. It runs on every
+// boot (idempotent) and cleans up data that would otherwise violate the
+// unique constraint:
+//
+//  1. Delete rows with empty chatter_user_id — invalid under the new
+//     store rule (empty chatter defeats per-chatter recall isolation).
+//  2. Collapse duplicate (chatter,agent,session,seq_start,seq_end)
+//     groups to the newest id (pre-upsert code could have written dups).
+//  3. Drop vec0 orphans left behind by step 1/2 (SQLite only — Postgres
+//     embeds the vector in the main row).
+//  4. CREATE UNIQUE INDEX IF NOT EXISTS.
+func (d *DBStore) migrateConversationSummariesUniqueIndex(ctx context.Context) error {
+	hasTable, err := d.tableExists(ctx, "conversation_summaries")
+	if err != nil {
+		return err
+	}
+	if !hasTable {
+		return nil
+	}
+
+	// Drop the legacy FTS5 table + its triggers. The FTS index was never
+	// queried (keyword recall uses LIKE) and the delete trigger was buggy
+	// — it passed summary_id where FTS5 expects rowid, so every DELETE on
+	// conversation_summaries errored with "SQL logic error". Dropping
+	// them unblocks the cleanup DELETEs below and removes dead weight.
+	for _, drop := range []string{
+		`DROP TRIGGER IF EXISTS conv_summ_ad`,
+		`DROP TRIGGER IF EXISTS conv_summ_ai`,
+		`DROP TABLE IF EXISTS conversation_summaries_fts`,
+	} {
+		if _, err := d.db.ExecContext(ctx, drop); err != nil {
+			return fmt.Errorf("drop legacy FTS (%q): %w", drop, err)
+		}
+	}
+
+	if _, err := d.db.ExecContext(ctx,
+		`DELETE FROM conversation_summaries WHERE chatter_user_id = ''`); err != nil {
+		return fmt.Errorf("drop empty-chatter summaries: %w", err)
+	}
+	if _, err := d.db.ExecContext(ctx, `DELETE FROM conversation_summaries WHERE id NOT IN (
+		SELECT MAX(id) FROM conversation_summaries
+		GROUP BY chatter_user_id, agent_id, session_key, seq_start, seq_end)`); err != nil {
+		return fmt.Errorf("dedupe summaries: %w", err)
+	}
+	if d.dialect != "postgres" {
+		if _, err := d.db.ExecContext(ctx,
+			`DELETE FROM conversation_summaries_vec WHERE summary_id NOT IN
+			 (SELECT id FROM conversation_summaries)`); err != nil {
+			// vec table may not exist on a fresh install where
+			// migrateConversationSummaries hasn't created it yet — non-fatal.
+			slog.Debug("conversation_summaries_vec orphan cleanup skipped", "error", err)
+		}
+	}
+
+	switch d.dialect {
+	case "postgres":
+		_, err = d.db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_summ_unique
+			ON conversation_summaries(chatter_user_id, agent_id, session_key, seq_start, seq_end)`)
+	default:
+		_, err = d.db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_summ_unique
+			ON conversation_summaries(chatter_user_id, agent_id, session_key, seq_start, seq_end)`)
+	}
+	if err != nil {
+		return fmt.Errorf("create unique index: %w", err)
 	}
 	return nil
 }

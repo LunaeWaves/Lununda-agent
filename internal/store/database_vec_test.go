@@ -94,10 +94,11 @@ func TestConversationSummariesMigration(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	// verify all 4 tables exist
+	// verify the tables exist. conversation_summaries_fts was dropped —
+	// keyword recall uses LIKE on the main table and the FTS delete
+	// trigger was buggy.
 	for _, tbl := range []string{
 		"conversation_summaries",
-		"conversation_summaries_fts",
 		"conversation_summaries_vec",
 		"conversation_summaries_meta",
 	} {
@@ -109,17 +110,26 @@ func TestConversationSummariesMigration(t *testing.T) {
 			t.Errorf("table %s not created by migration", tbl)
 		}
 	}
+	if exists, _ := d.tableExists(ctx, "conversation_summaries_fts"); exists {
+		t.Error("legacy conversation_summaries_fts should be dropped")
+	}
 
-	// verify triggers
+	// legacy conv_summ_ai / conv_summ_ad triggers must be gone.
 	var trigCount int
-	err = d.db.QueryRowContext(ctx,
+	d.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'conv_summ_%'",
 	).Scan(&trigCount)
-	if err != nil {
-		t.Fatalf("query triggers: %v", err)
+	if trigCount != 0 {
+		t.Errorf("expected 0 legacy conv_summ triggers, got %d", trigCount)
 	}
-	if trigCount < 2 {
-		t.Errorf("expected >=2 triggers, got %d", trigCount)
+
+	// unique composite index must back the upsert.
+	var idxCount int
+	d.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_conv_summ_unique'",
+	).Scan(&idxCount)
+	if idxCount != 1 {
+		t.Errorf("expected unique index idx_conv_summ_unique, got count=%d", idxCount)
 	}
 }
 
@@ -144,7 +154,12 @@ func TestConversationSummariesMigrationIdempotent(t *testing.T) {
 
 // TestConversationSummariesFtsTrigger verifies the INSERT trigger
 // auto-populates the FTS5 table.
-func TestConversationSummariesFtsTrigger(t *testing.T) {
+func TestConversationSummariesDeleteAndUpsert(t *testing.T) {
+	// The legacy FTS5 delete trigger passed summary_id where FTS5 wanted
+	// rowid, so every DELETE errored. FTS is gone now; this test pins the
+	// fixes: deletes succeed, empty-chatter inserts fail, and the unique
+	// index makes InsertConversationSummary upsert (merge) on the
+	// composite key instead of duplicating.
 	d, err := NewDBStore("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("NewDBStore: %v", err)
@@ -156,25 +171,51 @@ func TestConversationSummariesFtsTrigger(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	// Insert a row into main table — trigger should auto-write FTS row
-	_, err = d.db.ExecContext(ctx, `
-		INSERT INTO conversation_summaries
-			(user_id, agent_id, session_key, chatter_user_id, summary, keywords, seq_start, seq_end)
-		VALUES ('u1', 'a1', 's1', 'c1', 'we fixed a bug in auth', '["bug","auth"]', 100, 200)
-	`)
+	id1, err := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "first summary", Keywords: []string{"a"},
+		SeqStart: 1, SeqEnd: 10,
+	})
 	if err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
-	// FTS should find it
-	var summaryID int
-	err = d.db.QueryRowContext(ctx,
-		`SELECT summary_id FROM conversation_summaries_fts WHERE conversation_summaries_fts MATCH 'bug'`,
-	).Scan(&summaryID)
-	if err != nil {
-		t.Fatalf("fts match: %v", err)
+	// Empty chatter must be rejected.
+	if _, err := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "",
+		Summary: "no chatter", Keywords: []string{"a"}, SeqStart: 1, SeqEnd: 10,
+	}); err == nil {
+		t.Fatal("expected error for empty chatter_user_id, got nil")
 	}
-	if summaryID == 0 {
-		t.Error("expected non-zero summary_id from FTS trigger")
+
+	// Upsert: same composite key with new content reuses the row id.
+	upsertID, err := d.InsertConversationSummary(ctx, ConversationSummary{
+		UserID: "u1", AgentID: "a1", SessionKey: "s1", ChatterUserID: "c1",
+		Summary: "updated summary", Keywords: []string{"a", "b"},
+		SeqStart: 1, SeqEnd: 10,
+	})
+	if err != nil {
+		t.Fatalf("upsert insert: %v", err)
+	}
+
+	var count int
+	d.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM conversation_summaries
+		WHERE chatter_user_id='c1' AND agent_id='a1' AND session_key='s1' AND seq_start=1 AND seq_end=10`).Scan(&count)
+	if count != 1 {
+		t.Errorf("expected 1 row after upsert, got %d", count)
+	}
+	if upsertID != id1 {
+		t.Errorf("upsert should reuse id %d, got %d", id1, upsertID)
+	}
+
+	var got string
+	d.db.QueryRowContext(ctx, `SELECT summary FROM conversation_summaries WHERE id=?`, upsertID).Scan(&got)
+	if got != "updated summary" {
+		t.Errorf("upsert did not update content: %q", got)
+	}
+
+	// DELETE must succeed (the FTS-trigger regression we fixed).
+	if _, err := d.db.ExecContext(ctx, `DELETE FROM conversation_summaries WHERE id = ?`, id1); err != nil {
+		t.Fatalf("delete failed (FTS trigger regression): %v", err)
 	}
 }
