@@ -533,6 +533,30 @@ new files or full rewrites. This matters most for MEMORY.md / SOUL.md /
 USER.md, which grow over time and would lose context if rewritten in full.`,
 			dateLine, lunundaLine,
 			runtime.GOOS, runtime.GOARCH, workdir, homeDesc)
+		// Preset allowlist dirs (host mode only). The auth gate pre-
+		// authorizes {home}/temp, /download, /data for writes so the
+		// agent has obvious safe targets outside the workspace without
+		// triggering /yes prompts — but only when it knows they exist.
+		// Skipped in sandbox mode (those dirs aren't bind-mounted into
+		// the container, so mentioning them would mislead) and in
+		// non-agent modes (chatbot/customize agents don't write files).
+		if !cb.sandboxEnabled && mode == config.PromptModeAgent && cb.home != "" {
+			runtimeInfo += fmt.Sprintf(`
+
+Pre-authorized write directories — writes here are auto-approved in every
+auth mode (no /yes prompt in ask, no denial in auto):
+- %[1]s/temp/     scratch space for transient files (intermediate
+                  artifacts, caches you can regenerate, debug logs)
+- %[1]s/download/ user-facing outputs the chatter will pull down
+                  (generated reports, exports, PDFs, images)
+- %[1]s/data/     durable datasets you want to persist across turns
+
+Use these instead of workspace/ when the file doesn't belong with your
+working output — e.g. a PDF the user will download goes in %[1]s/download/,
+not workspace/report.pdf. Pass the absolute path shown above to
+write_file so the runtime routes it correctly (relative paths resolve
+against the working directory).`, cb.home)
+		}
 		parts = append(parts, runtimeInfo)
 	}
 
