@@ -730,6 +730,53 @@ func (a *Agent) SetOwnerUserID(uid string) {
 // without reaching into agent internals.
 func (a *Agent) OwnerUserID() string { return a.ownerUserID }
 
+// maybeExtractSummary spawns a best-effort background goroutine that
+// distills a message range into conversation_summaries. Triggered after
+// context compaction and at new-session boundaries.
+//
+// Skips silently when:
+//   - dataStore is nil (legacy single-user FS installs)
+//   - dataStore isn't *store.DBStore (different store backend)
+//   - the message range has <4 entries (too short to summarize)
+//
+// `trigger` is a label for log context ("compaction", "new_session").
+func (a *Agent) maybeExtractSummary(
+	msgs []provider.Message,
+	seqStart, seqEnd int,
+	sess *session.Session,
+	trigger string,
+) {
+	if a.dataStore == nil || len(msgs) < 4 {
+		return
+	}
+	db, ok := a.dataStore.(*store.DBStore)
+	if !ok {
+		slog.Debug("summary extraction: store is not DBStore, skipping",
+			"agent", a.agentID, "trigger", trigger)
+		return
+	}
+
+	// Capture variables — the goroutine outlives the calling turn.
+	owner := a.ownerUserID
+	agentID := a.agentID
+	sessionKey := sess.SessionKey()
+	chatterUID := sess.ChatterUserID()
+	msgsCopy := append([]provider.Message(nil), msgs...)
+	prov := a.provider
+	model := a.model
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		slog.Debug("summary extraction: background goroutine started",
+			"agent", agentID, "session", sessionKey,
+			"trigger", trigger, "msg_count", len(msgsCopy))
+		persistConversationSummary(ctx, db, prov, model,
+			owner, agentID, sessionKey, chatterUID,
+			msgsCopy, seqStart, seqEnd)
+	}()
+}
+
 // SetMeter wires the admin token meter onto this agent. Called by the
 // gateway at boot / hot-reload so every Chat call lands a RecordTokens
 // invocation. Nil is fine — meterTokens() is a no-op when unset.
@@ -2002,6 +2049,11 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 
 	// Context compaction: check if session messages are too large
 	sessionMsgs := sess.GetMessages()
+	// Pre-compaction snapshot — captured BEFORE CompactMessages replaces
+	// sess.Messages, so the summary-extraction hook below sees the FULL
+	// original range, not the post-compaction working set.
+	preCompactMsgs := append([]provider.Message(nil), sessionMsgs...)
+	preCompactLen := len(preCompactMsgs)
 	compactResult, err := CompactMessages(sessionMsgs, a.homePath, a.provider, a.model)
 	if err != nil {
 		slog.Warn("compaction error", "agent", a.name, "error", err)
@@ -2011,6 +2063,11 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		sess.ReplaceMessages(compactResult.Messages)
 		sessionMsgs = compactResult.Messages
 		slog.Info("context compacted", "agent", a.name, "log_file", compactResult.LogFile)
+
+		// Summary extraction hook: distill the pre-compaction range into
+		// conversation_summaries so future memory_search calls can recall
+		// it. Best-effort — failures only log, never crash the turn.
+		a.maybeExtractSummary(preCompactMsgs, 1, preCompactLen, sess, "compaction")
 	}
 
 	messages := make([]provider.Message, 0, len(sessionMsgs)+4)

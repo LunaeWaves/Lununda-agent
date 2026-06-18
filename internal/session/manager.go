@@ -91,6 +91,16 @@ type Session struct {
 // the (channel, account, chat) quadruple every time.
 func (s *Session) SessionKey() string { return s.sessionKey }
 
+// ChatterUserID returns the per-turn conversation participant. Differs
+// from the UserSpace owner whenever an IM channel routes per-sender
+// app_users into a channel-owner UserSpace. Empty if SetChatter was
+// never called (web chats: equals the owner).
+func (s *Session) ChatterUserID() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.chatterUserID
+}
+
 // ctx returns a context tagged with this Session's user so the store layer
 // can scope SQL by user_id. Falls back to context.Background() when no
 // user is set; the store will then default to config.DefaultUserID.
