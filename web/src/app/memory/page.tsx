@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { MemoryTestButton } from "@/components/memory-test-button";
 import { Database, Boxes, Settings2, Check, Loader2 } from "lucide-react";
 import {
   getConfig,
@@ -273,6 +274,13 @@ export default function MemoryPage() {
                 />
               </div>
             </div>
+            <MemoryTestButton
+              kind="embedding"
+              apiBase={embedding.apiBase || ""}
+              apiKey={embedding.apiKey || ""}
+              model={embedding.model || ""}
+              dim={embedding.dim}
+            />
           </div>
         )}
       </div>
@@ -346,6 +354,12 @@ export default function MemoryPage() {
                 className="font-mono text-sm placeholder:text-muted-foreground/70"
               />
             </div>
+            <MemoryTestButton
+              kind="reranker"
+              apiBase={reranker.apiBase || ""}
+              apiKey={reranker.apiKey || ""}
+              model={reranker.model || ""}
+            />
           </div>
         )}
       </div>

@@ -236,6 +236,8 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("PUT /api/me", auth(s.handleUpdateMe))
 	mux.HandleFunc("POST /api/me/password", auth(s.handleChangeMyPassword))
 	mux.HandleFunc("POST /api/test-provider", opt(s.handleTestProvider))
+	mux.HandleFunc("POST /api/memory/test-embedding", auth(s.handleTestEmbedding))
+	mux.HandleFunc("POST /api/memory/test-reranker", auth(s.handleTestReranker))
 	mux.HandleFunc("POST /api/onboard", s.handleOnboard)
 	mux.HandleFunc("POST /api/register", s.handleRegister)
 	mux.HandleFunc("GET /api/admin/registration", admin(s.handleGetRegistration))

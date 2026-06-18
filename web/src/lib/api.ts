@@ -1489,6 +1489,36 @@ export async function setAgentMemory(
   return res.json();
 }
 
+// testEmbedding pings /v1/embeddings with the inline credentials from the
+// form (not the saved row), so the operator can verify apiBase/apiKey/
+// model before saving. Mirrors the Models page's testProvider flow.
+export async function testEmbedding(req: {
+  apiBase: string;
+  apiKey: string;
+  model: string;
+  dim?: number;
+}): Promise<{ ok: boolean; error?: string; dim?: number }> {
+  const res = await apiFetch("/api/memory/test-embedding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return res.json();
+}
+
+export async function testReranker(req: {
+  apiBase: string;
+  apiKey: string;
+  model: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const res = await apiFetch("/api/memory/test-reranker", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return res.json();
+}
+
 export async function deleteAgent(id: string) {
   const res = await apiFetch(`/api/agents/${id}`, {
     method: "DELETE",
