@@ -151,6 +151,125 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateKBSourcesAddWikiGeneratedAt(ctx); err != nil {
 		return fmt.Errorf("migrate kb_sources.wiki_generated_at: %w", err)
 	}
+	if err := d.migrateConversationSummaries(ctx); err != nil {
+		return fmt.Errorf("migrate conversation_summaries: %w", err)
+	}
+	return nil
+}
+
+// migrateConversationSummaries creates the four tables that back the
+// cross-session memory recall system:
+//
+//	conversation_summaries       — main table (1 row per extracted summary)
+//	conversation_summaries_fts   — FTS5 virtual table for keyword recall
+//	conversation_summaries_vec   — vec0 virtual table for vector recall (1024-dim)
+//	conversation_summaries_meta  — key-value metadata (model switching detection)
+//
+// Triggers keep FTS in sync with the main table on INSERT/DELETE.
+//
+// SQLite path uses FTS5 + sqlite-vec (vec0). Postgres path uses ILIKE
+// fallback + pgvector — pgvector must be installed in the database
+// (CREATE EXTENSION vector) before this migration runs. The vec0
+// table is skipped on Postgres; the embedding column lives directly
+// on conversation_summaries with an HNSW index.
+func (d *DBStore) migrateConversationSummaries(ctx context.Context) error {
+	hasTable, err := d.tableExists(ctx, "conversation_summaries")
+	if err != nil {
+		return fmt.Errorf("check conversation_summaries existence: %w", err)
+	}
+	if hasTable {
+		return nil // idempotent
+	}
+
+	if d.dialect == "postgres" {
+		pgStmts := []string{
+			`CREATE TABLE IF NOT EXISTS conversation_summaries (
+				id SERIAL PRIMARY KEY,
+				user_id TEXT NOT NULL,
+				agent_id TEXT NOT NULL,
+				session_key TEXT NOT NULL,
+				chatter_user_id TEXT NOT NULL DEFAULT '',
+				summary TEXT NOT NULL,
+				keywords TEXT NOT NULL DEFAULT '[]',
+				seq_start INTEGER NOT NULL,
+				seq_end INTEGER NOT NULL,
+				embedding_model TEXT,
+				embedding vector(1024),
+				created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_conv_summ_chatter
+				ON conversation_summaries(chatter_user_id, agent_id, created_at DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_conv_summ_session
+				ON conversation_summaries(agent_id, session_key)`,
+			`CREATE TABLE IF NOT EXISTS conversation_summaries_meta (
+				key TEXT PRIMARY KEY,
+				value TEXT NOT NULL
+			)`,
+		}
+		for _, s := range pgStmts {
+			if _, err := d.db.ExecContext(ctx, s); err != nil {
+				return fmt.Errorf("migrate conversation_summaries (pg): %w (stmt=%q)", err, s)
+			}
+		}
+		// HNSW index on embedding — wrapped in a check because pgvector
+		// extension or the index may already exist.
+		_, _ = d.db.ExecContext(ctx,
+			`CREATE INDEX IF NOT EXISTS idx_conv_summ_emb
+				ON conversation_summaries USING hnsw (embedding vector_cosine_ops)`)
+		return nil
+	}
+
+	// SQLite path
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS conversation_summaries (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			session_key TEXT NOT NULL,
+			chatter_user_id TEXT NOT NULL DEFAULT '',
+			summary TEXT NOT NULL,
+			keywords TEXT NOT NULL DEFAULT '[]',
+			seq_start INTEGER NOT NULL,
+			seq_end INTEGER NOT NULL,
+			embedding_model TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_conv_summ_chatter
+			ON conversation_summaries(chatter_user_id, agent_id, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_conv_summ_session
+			ON conversation_summaries(agent_id, session_key)`,
+
+		`CREATE VIRTUAL TABLE conversation_summaries_fts USING fts5(
+			summary_id UNINDEXED,
+			summary,
+			keywords,
+			tokenize='porter unicode61'
+		)`,
+		`CREATE TRIGGER conv_summ_ai AFTER INSERT ON conversation_summaries BEGIN
+			INSERT INTO conversation_summaries_fts(summary_id, summary, keywords)
+			VALUES (new.id, new.summary, new.keywords);
+		END`,
+		`CREATE TRIGGER conv_summ_ad AFTER DELETE ON conversation_summaries BEGIN
+			INSERT INTO conversation_summaries_fts(conversation_summaries_fts, summary_id, summary, keywords)
+			VALUES ('delete', old.id, old.summary, old.keywords);
+		END`,
+
+		`CREATE VIRTUAL TABLE conversation_summaries_vec USING vec0(
+			summary_id INTEGER PRIMARY KEY,
+			embedding float[1024]
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS conversation_summaries_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		)`,
+	}
+
+	for _, s := range stmts {
+		if _, err := d.db.ExecContext(ctx, s); err != nil {
+			return fmt.Errorf("migrate conversation_summaries (sqlite): %w (stmt=%q)", err, s)
+		}
+	}
 	return nil
 }
 
