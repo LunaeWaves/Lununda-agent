@@ -3637,3 +3637,51 @@ func (d *DBStore) ReorderRegexHooks(ctx context.Context, agentID string, hookIDs
 }
 
 var _ Store = (*DBStore)(nil)
+
+// ListSessionMessagesBySeq returns messages where seq is between seqStart
+// and seqEnd inclusive. Used by the fetch_messages tool to retrieve the
+// original conversation a summary points to.
+func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey string, seqStart, seqEnd int) ([]SessionMessage, error) {
+	rows, err := d.db.QueryContext(ctx,
+		fmt.Sprintf(`SELECT role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
+			FROM session_messages
+			WHERE user_id = %s AND agent_id = %s AND session_key = %s AND seq >= %s AND seq <= %s
+			ORDER BY seq ASC`,
+			d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5)),
+		userID, agentID, sessionKey, seqStart, seqEnd)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SessionMessage
+	for rows.Next() {
+		var m SessionMessage
+		var contentParts, toolCalls, metadata, rawAssistant string
+		if err := rows.Scan(&m.Role, &m.Content, &contentParts, &toolCalls, &m.ToolCallID, &m.Name, &metadata, &m.Thinking, &rawAssistant, &m.Origin, &m.Timestamp); err != nil {
+			return nil, err
+		}
+		if contentParts != "" && contentParts != "null" {
+			var v interface{}
+			if json.Unmarshal([]byte(contentParts), &v) == nil {
+				m.ContentParts = v
+			}
+		}
+		if toolCalls != "" && toolCalls != "null" {
+			var v interface{}
+			if json.Unmarshal([]byte(toolCalls), &v) == nil {
+				m.ToolCalls = v
+			}
+		}
+		if metadata != "" && metadata != "null" {
+			var v map[string]interface{}
+			if json.Unmarshal([]byte(metadata), &v) == nil {
+				m.Metadata = v
+			}
+		}
+		if rawAssistant != "" && rawAssistant != "null" {
+			m.RawAssistant = json.RawMessage(rawAssistant)
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}

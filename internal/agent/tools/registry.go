@@ -132,6 +132,8 @@ type Registry struct {
 	// reranker is the cross-encoder for stage-3 re-rank.
 	// nil or !Available() → reranker path skipped.
 	reranker Reranker
+	// msgFetcher is the store handle for fetch_messages.
+		msgFetcher MessageFetcher
 	// sessionID scopes workspace.Store reads/writes so concurrent sessions
 	// of the same agent don't collide on `report.md` etc. Set per-turn by
 	// the agent loop via SetSessionID; an empty value falls back to
@@ -361,14 +363,19 @@ func (r *Registry) SetSummarySearcher(db SummarySearcher) {
 	// SetEmbedder wires the embedding model for KNN recall.
 	func (r *Registry) SetEmbedder(emb embedding.Embedder) {
 		r.embedder = emb
-	// SetReranker wires the reranker model for cross-encoder re-rank.
-}
+	}
 
+	// SetReranker wires the reranker model for cross-encoder re-rank.
 	func (r *Registry) SetReranker(rr Reranker) {
 		r.reranker = rr
 	}
 
-// ChatterUserID returns the per-turn chatter set by SetChatterUserID,
+	// SetMessageFetcher wires the store handle for fetch_messages.
+	func (r *Registry) SetMessageFetcher(f MessageFetcher) {
+		r.msgFetcher = f
+	}
+
+
 // falling back to the UserSpace owner when no per-turn override is in
 // effect (single-user / legacy case). Tools that persist per-person
 // state (set_timezone, cron jobs) use this so the row keys on the
