@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LunaeWaves/Lununda-agent/internal/httpclient"
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders"
 )
 
@@ -37,13 +38,13 @@ var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
 // close the TOCTOU between our check and the actual connection.
 var safeFetchClient = &http.Client{
 	Timeout: fetchTimeout,
-	Transport: &http.Transport{
+	Transport: httpclient.Wrap(&http.Transport{
 		DialContext:           safeDialContext,
 		ForceAttemptHTTP2:     true,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: 20 * time.Second,
 		IdleConnTimeout:       60 * time.Second,
-	},
+	}),
 	// Cap redirect chains so an attacker can't follow a public URL into
 	// an internal one. Each redirect target also goes through
 	// safeDialContext, but bounded depth keeps the request finite.

@@ -16,6 +16,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/daemon"
 	"github.com/LunaeWaves/Lununda-agent/internal/gateway"
+	"github.com/LunaeWaves/Lununda-agent/internal/httpclient"
 	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
 	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
 	"github.com/LunaeWaves/Lununda-agent/internal/setup"
@@ -84,6 +85,14 @@ func (a *apiResolver) DispatchLINEWebhook(accountID string, body []byte, signatu
 }
 
 func main() {
+	// Brand every outbound HTTP request as lununda-agent/<version> by
+	// installing a UA-injecting transport as the process default. Nil-
+	// transport *http.Client{} instances (the bulk of our outbound calls)
+	// resolve DefaultTransport at request time, so this covers them for
+	// free; the few sites that build their own *http.Transport wrap
+	// explicitly via httpclient.Wrap. Must run before any client is built.
+	httpclient.Install()
+
 	rootCmd := &cobra.Command{
 		Use:   "lununda",
 		Short: "Lununda Agent - Multi-User AI Agent Platform",
