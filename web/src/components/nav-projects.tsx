@@ -174,7 +174,7 @@ export function NavSessions({
             );
           })}
           {sessions.length > MAX_SIDEBAR_SESSIONS && (
-            <SidebarMenuItem>
+            <SidebarMenuItem className="ml-4">
               <SidebarMenuButton
                 onClick={() => navigateOnce(`/agents/${agentId}/chats`)}
                 tooltip={t("sidebar.seeAllChats")}
