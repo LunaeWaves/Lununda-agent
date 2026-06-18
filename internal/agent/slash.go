@@ -94,6 +94,15 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 		// thread is preserved as history. Subsequent inbound messages
 		// resolve to the new (max updated_at) row via Manager.Get's
 		// active-session lookup.
+		//
+		// Before minting: distill the OLD session into conversation_summaries
+		// so its content survives as searchable memory. Best-effort.
+		if oldSess := a.sessions.GetByKey(oldKey); oldSess != nil {
+			oldMsgs := oldSess.GetMessages()
+			if len(oldMsgs) > 0 {
+				a.maybeExtractSummary(oldMsgs, 1, len(oldMsgs), oldSess, "new_session")
+			}
+		}
 		a.sessions.OpenNewSession(msg.Channel, msg.AccountID, msg.ChatID)
 		// IM channels reuse the physical chat_id across `/new`s, so the
 		// pre-fix workspace layout (`sessions/<chat_id>/`) let every
