@@ -400,10 +400,17 @@ export default function WikiPage() {
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   components={{
                     a: ExternalAnchor,
-                    // Handle [[type:slug]] wiki links
+                    // Handle [[type:slug]] wiki links inside plain-text
+                    // paragraphs. Only runs when children is a string —
+                    // ReactMarkdown passes an element array when a
+                    // paragraph has inline markup (bold/links/...), and
+                    // String()-ing that produced "[object Object]" in
+                    // front of the link list. Rich paragraphs render as-is.
                     p: ({ children }) => {
-                      const text = String(children);
-                      const parts = text.split(
+                      if (typeof children !== "string") {
+                        return <p>{children}</p>;
+                      }
+                      const parts = children.split(
                         /\[\[(\w+:[\w-]+)\]\]/g,
                       );
                       if (parts.length <= 1) return <p>{children}</p>;
