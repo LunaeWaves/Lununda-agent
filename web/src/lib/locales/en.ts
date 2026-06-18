@@ -437,6 +437,17 @@ const en: Record<string, string> = {
   "memory.apiKeyPlaceholder": "API key",
   "memory.apiBasePlaceholder": "https://api.openai.com/v1",
   "memory.rerankerApiBasePlaceholder": "https://api.jina.ai/v1",
+  "memory.provider": "Provider",
+  "memory.model": "Model",
+  "memory.apiKey": "API Key",
+  "memory.apiBase": "API Base URL",
+  "memory.dimensions": "Dimensions",
+  "memory.configured": "Configured",
+  "memory.notConfigured": "Not configured",
+  "memory.keepKey": "Leave empty to keep the existing key.",
+  "memory.enableForVector": "Turn on to enable semantic (vector) recall across sessions.",
+  "memory.enableForRerank": "Turn on to re-rank recalled candidates with a cross-encoder.",
+  "memory.enableRecall": "Turn on so agents can recall summaries of past conversations.",
 
   // Regex hooks page
   "regexHooks.subtitle": "Intercept messages matching a pattern and execute a CLI instead of the LLM.",

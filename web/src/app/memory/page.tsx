@@ -1,11 +1,17 @@
 "use client";
-import { useT } from "@/lib/i18n";
 
 import { useEffect, useState, useCallback } from "react";
+import { useT } from "@/lib/i18n";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Database, Boxes, Settings2, Check, Loader2 } from "lucide-react";
 import {
   getConfig,
   updateConfig,
-  type ConfigResponse,
 } from "@/lib/api";
 
 interface MemoryEmbeddingConfig {
@@ -33,19 +39,13 @@ interface MemoryConfig {
   embedding?: MemoryEmbeddingConfig;
   reranker?: MemoryRerankerConfig;
   settings?: MemorySettingsConfig;
-  [key: string]: unknown;
 }
 
 export default function MemoryPage() {
   const t = useT();
-  const [config, setConfig] = useState<ConfigResponse | null>(null);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
-
-  // Extract memory sub-config or defaults
-  const mem = config as unknown as Record<string, unknown>;
-  const memory = mem?.memory as MemoryConfig | undefined;
+  const [saved, setSaved] = useState(false);
 
   const [embedding, setEmbedding] = useState<MemoryEmbeddingConfig>({
     enabled: false,
@@ -68,213 +68,287 @@ export default function MemoryPage() {
     enabled: true,
   });
 
-  const rekey = useCallback((key: string) => {
-    // Keep existing API key placeholder
-  }, []);
-
   const refresh = useCallback(async () => {
-    setError("");
     try {
       const r = await getConfig();
-      setConfig(r);
-      const mem = r as unknown as Record<string, unknown>;
-      const mm = mem?.memory as MemoryConfig | undefined;
-      if (mm?.embedding) {
+      const mem = (r as unknown as Record<string, unknown>)?.memory as MemoryConfig | undefined;
+      if (mem?.embedding) {
+        const e = mem.embedding as MemoryEmbeddingConfig;
         setEmbedding({
-          enabled: mm.embedding.enabled ?? false,
-          provider: mm.embedding.provider || "",
-          model: mm.embedding.model || "",
-          apiKey: "",
-          apiBase: mm.embedding.apiBase || "",
-          dim: mm.embedding.dim || 1024,
+          enabled: e.enabled ?? false,
+          provider: e.provider || "",
+          model: e.model || "",
+          apiKey: e.apiKey || "",
+          apiBase: e.apiBase || "",
+          dim: e.dim || 1024,
         });
       }
-      if (mm?.reranker) {
+      if (mem?.reranker) {
+        const rr = mem.reranker as MemoryRerankerConfig;
         setReranker({
-          enabled: mm.reranker.enabled ?? false,
-          provider: mm.reranker.provider || "",
-          model: mm.reranker.model || "",
-          apiKey: "",
-          apiBase: mm.reranker.apiBase || "",
+          enabled: rr.enabled ?? false,
+          provider: rr.provider || "",
+          model: rr.model || "",
+          apiKey: rr.apiKey || "",
+          apiBase: rr.apiBase || "",
         });
       }
-      if (mm?.settings) {
-        setSettings({
-          enabled: mm.settings.enabled ?? true,
-        });
+      if (mem?.settings) {
+        setSettings({ enabled: mem.settings.enabled ?? true });
       }
-    } catch (e) {
-      setError(String(e));
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  async function handleSave() {
+  const flashSaved = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  // Save persists the whole memory block at once. The config response
+  // returns these keys in plaintext (no masking), so we round-trip the
+  // loaded value; editing a toggle or URL never wipes a stored secret.
+  const handleSave = async () => {
     setSaving(true);
-    setError("");
     try {
-      const body: Record<string, unknown> = {
+      await updateConfig({
         memory: {
-          embedding: {
-            ...embedding,
-            apiKey: embedding.apiKey || undefined,
-          },
-          reranker: {
-            ...reranker,
-            apiKey: reranker.apiKey || undefined,
-          },
+          embedding,
+          reranker,
           settings,
         },
-      };
-      await updateConfig(body);
-      setDirty(false);
-    } catch (e) {
-      setError(String(e));
+      });
+      flashSaved();
+      await refresh();
     } finally {
       setSaving(false);
     }
-  }
-
-  const markDirty = (fn: () => void) => {
-    fn();
-    setDirty(true);
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+        <Skeleton className="h-10 w-48" />
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-32" />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8 text-zinc-100">
-      <h1 className="mb-2 text-2xl font-bold">{t("memory.title") || "Memory"}</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        {t("memory.subtitle") || "Configure semantic memory — embedding for vector recall and reranker for cross-encoder re-rank."}
-      </p>
-
-      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
-
-      {/* Embedding */}
-      <section className="mb-8 rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="mb-1 font-semibold">{t("memory.embedding") || "Embedding Provider"}</h2>
-        <p className="mb-4 text-sm text-zinc-500">
-          {t("memory.embeddingDesc") || "Vectorize conversation summaries for semantic recall. Any OpenAI-compatible /v1/embeddings endpoint works."}
-        </p>
-        <label className="mb-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={embedding.enabled}
-            onChange={(e) => markDirty(() => setEmbedding({ ...embedding, enabled: e.target.checked }))}
-            className="rounded"
-          />
-          {t("memory.enabled") || "Enabled"}
-        </label>
-        {embedding.enabled && (
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              value={embedding.provider}
-              onChange={(e) => markDirty(() => setEmbedding({ ...embedding, provider: e.target.value }))}
-              placeholder={t("memory.providerPlaceholder") || "openai"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              value={embedding.model}
-              onChange={(e) => markDirty(() => setEmbedding({ ...embedding, model: e.target.value }))}
-              placeholder={t("memory.modelPlaceholder") || "text-embedding-3-small"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              type="password"
-              value={embedding.apiKey}
-              onChange={(e) => markDirty(() => setEmbedding({ ...embedding, apiKey: e.target.value }))}
-              placeholder={t("memory.apiKeyPlaceholder") || "API key"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              value={embedding.apiBase}
-              onChange={(e) => markDirty(() => setEmbedding({ ...embedding, apiBase: e.target.value }))}
-              placeholder={t("memory.apiBasePlaceholder") || "https://api.openai.com/v1"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              type="number"
-              value={embedding.dim}
-              onChange={(e) => markDirty(() => setEmbedding({ ...embedding, dim: parseInt(e.target.value) || 1024 }))}
-              placeholder="1024"
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-          </div>
-        )}
-      </section>
-
-      {/* Reranker */}
-      <section className="mb-8 rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="mb-1 font-semibold">{t("memory.reranker") || "Reranker Provider"}</h2>
-        <p className="mb-4 text-sm text-zinc-500">
-          {t("memory.rerankerDesc") || "Cross-encoder that re-ranks coarse retrieval candidates. Jina AI or Cohere /v1/rerank compatible endpoints."}
-        </p>
-        <label className="mb-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={reranker.enabled}
-            onChange={(e) => markDirty(() => setReranker({ ...reranker, enabled: e.target.checked }))}
-            className="rounded"
-          />
-          {t("memory.enabled") || "Enabled"}
-        </label>
-        {reranker.enabled && (
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              value={reranker.provider}
-              onChange={(e) => markDirty(() => setReranker({ ...reranker, provider: e.target.value }))}
-              placeholder={t("memory.providerPlaceholder") || "jina"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              value={reranker.model}
-              onChange={(e) => markDirty(() => setReranker({ ...reranker, model: e.target.value }))}
-              placeholder={t("memory.rerankerModelPlaceholder") || "jina-reranker-v2-base-multilingual"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              type="password"
-              value={reranker.apiKey}
-              onChange={(e) => markDirty(() => setReranker({ ...reranker, apiKey: e.target.value }))}
-              placeholder={t("memory.apiKeyPlaceholder") || "API key"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-            <input
-              value={reranker.apiBase}
-              onChange={(e) => markDirty(() => setReranker({ ...reranker, apiBase: e.target.value }))}
-              placeholder={t("memory.rerankerApiBasePlaceholder") || "https://api.jina.ai/v1"}
-              className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-            />
-          </div>
-        )}
-      </section>
-
-      {/* Settings */}
-      <section className="mb-8 rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="mb-1 font-semibold">{t("memory.memorySettings") || "Memory Settings"}</h2>
-        <p className="mb-4 text-sm text-zinc-500">
-          {t("memory.settingsDesc") || "Enable cross-session memory recall for agents."}
-        </p>
-        <label className="mb-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.enabled}
-            onChange={(e) => markDirty(() => setSettings({ enabled: e.target.checked }))}
-            className="rounded"
-          />
-          {t("memory.enabled") || "Enabled"}
-        </label>
-      </section>
-
-      {dirty && (
-        <button
+    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("memory.title")}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{t("memory.subtitle")}</p>
+        </div>
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="rounded bg-primary px-4 py-2 text-sm text-primary-foreground"
+          variant={saved ? "outline" : "default"}
+          className={saved ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : ""}
         >
-          {saving ? (t("common.saving") || "Saving...") : (t("common.save") || "Save")}
-        </button>
-      )}
+          {saved ? (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              {t("common.saved")}
+            </>
+          ) : saving ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {t("common.saving")}
+            </>
+          ) : (
+            t("common.save")
+          )}
+        </Button>
+      </div>
+
+      {/* Settings — master switch */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <Settings2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <h3 className="font-medium">{t("memory.memorySettings")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">{t("memory.settingsDesc")}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t("memory.enableRecall")}</p>
+            </div>
+          </div>
+          <Switch
+            checked={settings.enabled}
+            onCheckedChange={(v: boolean) => setSettings({ enabled: v })}
+            aria-label={t("memory.memorySettings")}
+          />
+        </div>
+      </div>
+
+      {/* Embedding */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <Database className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium">{t("memory.embedding")}</h3>
+                {embedding.enabled ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 text-[10px]">
+                    {t("memory.configured")}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                    {t("memory.notConfigured")}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">{t("memory.embeddingDesc")}</p>
+            </div>
+          </div>
+          <Switch
+            checked={embedding.enabled}
+            onCheckedChange={(v: boolean) => setEmbedding({ ...embedding, enabled: v })}
+            aria-label={t("memory.embedding")}
+          />
+        </div>
+
+        {embedding.enabled && (
+          <div className="mt-5 pt-5 border-t border-border space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t("memory.provider")}</Label>
+                <Input
+                  value={embedding.provider}
+                  onChange={(e) => setEmbedding({ ...embedding, provider: e.target.value })}
+                  placeholder={t("memory.providerPlaceholder")}
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("memory.model")}</Label>
+                <Input
+                  value={embedding.model}
+                  onChange={(e) => setEmbedding({ ...embedding, model: e.target.value })}
+                  placeholder={t("memory.modelPlaceholder")}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("memory.apiBase")}</Label>
+              <Input
+                value={embedding.apiBase}
+                onChange={(e) => setEmbedding({ ...embedding, apiBase: e.target.value })}
+                placeholder={t("memory.apiBasePlaceholder")}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t("memory.apiKey")}</Label>
+                <Input
+                  type="password"
+                  value={embedding.apiKey}
+                  onChange={(e) => setEmbedding({ ...embedding, apiKey: e.target.value })}
+                  placeholder={t("memory.apiKeyPlaceholder")}
+                  className="font-mono text-sm placeholder:text-muted-foreground/70"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("memory.dimensions")}</Label>
+                <Input
+                  type="number"
+                  value={embedding.dim}
+                  onChange={(e) =>
+                    setEmbedding({ ...embedding, dim: parseInt(e.target.value) || 1024 })
+                  }
+                  placeholder="1024"
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Reranker */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <Boxes className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium">{t("memory.reranker")}</h3>
+                {reranker.enabled ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 text-[10px]">
+                    {t("memory.configured")}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                    {t("memory.notConfigured")}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">{t("memory.rerankerDesc")}</p>
+            </div>
+          </div>
+          <Switch
+            checked={reranker.enabled}
+            onCheckedChange={(v: boolean) => setReranker({ ...reranker, enabled: v })}
+            aria-label={t("memory.reranker")}
+          />
+        </div>
+
+        {reranker.enabled && (
+          <div className="mt-5 pt-5 border-t border-border space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t("memory.provider")}</Label>
+                <Input
+                  value={reranker.provider}
+                  onChange={(e) => setReranker({ ...reranker, provider: e.target.value })}
+                  placeholder={t("memory.providerPlaceholder")}
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("memory.model")}</Label>
+                <Input
+                  value={reranker.model}
+                  onChange={(e) => setReranker({ ...reranker, model: e.target.value })}
+                  placeholder={t("memory.rerankerModelPlaceholder")}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("memory.apiBase")}</Label>
+              <Input
+                value={reranker.apiBase}
+                onChange={(e) => setReranker({ ...reranker, apiBase: e.target.value })}
+                placeholder={t("memory.rerankerApiBasePlaceholder")}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("memory.apiKey")}</Label>
+              <Input
+                type="password"
+                value={reranker.apiKey}
+                onChange={(e) => setReranker({ ...reranker, apiKey: e.target.value })}
+                placeholder={t("memory.apiKeyPlaceholder")}
+                className="font-mono text-sm placeholder:text-muted-foreground/70"
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

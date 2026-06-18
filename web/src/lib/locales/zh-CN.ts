@@ -437,6 +437,17 @@ const zhCN: Record<string, string> = {
   "memory.apiKeyPlaceholder": "API 密钥",
   "memory.apiBasePlaceholder": "https://api.openai.com/v1",
   "memory.rerankerApiBasePlaceholder": "https://api.jina.ai/v1",
+  "memory.provider": "服务商",
+  "memory.model": "模型",
+  "memory.apiKey": "API 密钥",
+  "memory.apiBase": "API 地址",
+  "memory.dimensions": "维度",
+  "memory.configured": "已配置",
+  "memory.notConfigured": "未配置",
+  "memory.keepKey": "留空则保留已有密钥。",
+  "memory.enableForVector": "开启后启用跨会话的语义（向量）召回。",
+  "memory.enableForRerank": "开启后用交叉编码器对召回结果重排。",
+  "memory.enableRecall": "开启后智能体可以回忆过往对话的摘要。",
 
   // Regex hooks page
   "regexHooks.subtitle": "拦截匹配特定模式的消息并执行 CLI 命令，而非调用 LLM。",
