@@ -80,6 +80,20 @@ func NewClient(timeout time.Duration) *http.Client {
 	}
 }
 
+// NewStreamingClient is like NewClient but lets the caller set a
+// ResponseHeaderTimeout on the underlying *http.Transport (streaming
+// endpoints hang mid-request, so a per-call timeout is wrong; a header
+// timeout catches a wedged connection without killing live streams).
+//
+// This is the safe way to get a branded client with transport tuning —
+// callers must NOT type-assert http.DefaultTransport themselves, because
+// Install() replaces it with a UA wrapper.
+func NewStreamingClient(headerTimeout time.Duration) *http.Client {
+	tr := cloneDefault()
+	tr.ResponseHeaderTimeout = headerTimeout
+	return &http.Client{Transport: Wrap(tr)}
+}
+
 // cloneDefault returns a fresh *http.Transport with Go's sensible default
 // tuning, independent of whatever http.DefaultTransport currently points
 // at (so wrapping DefaultTransport doesn't recurse).

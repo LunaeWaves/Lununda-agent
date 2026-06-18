@@ -32,9 +32,11 @@ import (
 // under 1s on a healthy path; 60s catches a hung connection without
 // false-positives on a slow but live network.
 func newLLMHTTPClient() *http.Client {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.ResponseHeaderTimeout = 60 * time.Second
-	return &http.Client{Transport: httpclient.Wrap(tr)}
+	// Do NOT type-assert http.DefaultTransport — main() installs a
+	// httpclient UA wrapper as DefaultTransport at startup, so it's no
+	// longer a bare *http.Transport. NewStreamingClient builds a fresh
+	// transport with the same defaults and UA-brands it.
+	return httpclient.NewStreamingClient(60 * time.Second)
 }
 
 // Origin tags a Message that was produced by the runtime rather than a
