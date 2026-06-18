@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"  // PostgreSQL driver
-	_ "modernc.org/sqlite" // SQLite driver (pure Go)
+	_ "github.com/lib/pq"      // PostgreSQL driver
+	_ "modernc.org/sqlite"     // SQLite driver (pure Go)
+	_ "modernc.org/sqlite/vec" // sqlite-vec vector search (auto-registers vec_* SQL funcs)
 )
 
 // DBStore implements Store using a SQL database (PostgreSQL or SQLite).
