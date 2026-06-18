@@ -521,3 +521,33 @@ func (d *DBStore) ListConversationSummariesNeedingVector(ctx context.Context, mo
 
 	return scanConversationSummaries(rows)
 }
+
+// GetConversationSummariesByIDs fetches summaries by primary key.
+// Used by memory_search after vector KNN returns matching IDs.
+func (d *DBStore) GetConversationSummariesByIDs(ctx context.Context, ids []int64) ([]ConversationSummary, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	// Build IN clause dynamically.
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	q := fmt.Sprintf(`SELECT id, user_id, agent_id, session_key, chatter_user_id,
+	       summary, keywords, seq_start, seq_end, embedding_model, created_at
+	FROM conversation_summaries
+	WHERE id IN (%s)
+	ORDER BY created_at DESC`, strings.Join(placeholders, ","))
+
+	rows, err := d.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanConversationSummaries(rows)
+}

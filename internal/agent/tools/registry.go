@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"crypto/sha256"
+	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -122,6 +123,12 @@ type Registry struct {
 	// RegisterMemorySearch call time). nil → memory_search falls back
 	// to the legacy JSONL scan.
 	summaryDB SummarySearcher
+	// vecDB is the vector-search handle for memory_search KNN recall.
+		// Wired alongside summaryDB. nil → vector path skipped.
+		vecDB VectorSearcher
+		// embedder converts query text to vectors for KNN search.
+		// nil or !Available() → vector path skipped.
+		embedder embedding.Embedder
 	// sessionID scopes workspace.Store reads/writes so concurrent sessions
 	// of the same agent don't collide on `report.md` etc. Set per-turn by
 	// the agent loop via SetSessionID; an empty value falls back to
@@ -343,6 +350,15 @@ func (r *Registry) SetChatterUserID(uid string) {
 func (r *Registry) SetSummarySearcher(db SummarySearcher) {
 	r.summaryDB = db
 }
+	// SetVectorSearcher wires the vector search handle.
+	func (r *Registry) SetVectorSearcher(db VectorSearcher) {
+		r.vecDB = db
+	}
+
+	// SetEmbedder wires the embedding model for KNN recall.
+	func (r *Registry) SetEmbedder(emb embedding.Embedder) {
+		r.embedder = emb
+	}
 
 // ChatterUserID returns the per-turn chatter set by SetChatterUserID,
 // falling back to the UserSpace owner when no per-turn override is in

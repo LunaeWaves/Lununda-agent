@@ -19,6 +19,12 @@ type FTSSearcher interface {
 	Search(query string, limit int) ([]store.FTSResult, error)
 }
 
+// VectorSearcher is the subset of *store.DBStore needed for vector recall.
+type VectorSearcher interface {
+	SearchConversationSummariesVector(ctx context.Context, embedding []float32, limit int) ([]int64, error)
+	GetConversationSummariesByIDs(ctx context.Context, ids []int64) ([]store.ConversationSummary, error)
+}
+
 type memorySearchArgs struct {
 	Query string `json:"query"`
 	Limit int    `json:"limit,omitempty"` // default 10
@@ -94,25 +100,43 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 		}
 
 		// Path A (preferred): conversation_summaries table — cross-session
-		// recall scoped to the current chatter. r.summaryDB is wired
-		// post-construction by SetSummarySearcher. r.chatterUserID /
-		// r.agentID are set per-turn by the agent loop.
+		// recall scoped to the current chatter. Two-stage:
+		//   A1. FTS/LIKE keyword search (always available)
+		//   A2. Vector KNN (if embedder is configured)
+		// Results are unioned with dedup by summary ID.
 		if r != nil && r.summaryDB != nil {
 			chatter := r.chatterUserID
 			if chatter == "" {
 				chatter = r.userID
 			}
 			if chatter != "" && r.agentID != "" {
-				hits, err := r.summaryDB.SearchConversationSummariesFTS(ctx, chatter, r.agentID, args.Query, limit)
-				if err == nil {
-					if len(hits) == 0 {
-						return "No matching conversation summaries found. Try different keywords, or call fetch_messages directly if you know the session_key.", nil
-					}
-					return formatSummaryResults(hits, args.Query), nil
+				hits, err := r.summaryDB.SearchConversationSummariesFTS(ctx, chatter, r.agentID, args.Query, limit*2)
+				if err != nil {
+					// On DB error fall through to legacy path
+					goto fallback
 				}
-				// On DB error fall through to legacy path
+
+				// Vector recall: embed query → KNN → fetch by ID → merge
+				if r.vecDB != nil && r.embedder != nil && r.embedder.Available() {
+					vecs, embErr := r.embedder.Embed(ctx, []string{args.Query})
+					if embErr == nil && len(vecs) == 1 {
+						vecIDs, vecErr := r.vecDB.SearchConversationSummariesVector(ctx, vecs[0], limit)
+						if vecErr == nil && len(vecIDs) > 0 {
+							vecHits, fetchErr := r.vecDB.GetConversationSummariesByIDs(ctx, vecIDs)
+							if fetchErr == nil {
+								hits = mergeSummaryResults(hits, vecHits, limit)
+							}
+						}
+					}
+				}
+
+				if len(hits) == 0 {
+					return "No matching conversation summaries found. Try different keywords, or call fetch_messages directly if you know the session_key.", nil
+				}
+				return formatSummaryResults(hits, args.Query), nil
 			}
 		}
+	fallback:
 
 		// Path B (legacy fallback): FTS5 index of memory/logs/*.jsonl
 		if fts != nil {
@@ -129,6 +153,35 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 		}
 		return formatLegacyResults(results, args.Query), nil
 	}
+}
+
+// mergeSummaryResults unions two result sets, deduplicating by ID.
+// FTS results come first (exact keyword matches), vector results follow.
+// Returns at most `limit` entries.
+func mergeSummaryResults(fts, vec []store.ConversationSummary, limit int) []store.ConversationSummary {
+	seen := make(map[int64]bool)
+	var out []store.ConversationSummary
+
+	for _, s := range fts {
+		if seen[s.ID] {
+			continue
+		}
+		seen[s.ID] = true
+		out = append(out, s)
+	}
+
+	for _, s := range vec {
+		if seen[s.ID] {
+			continue
+		}
+		seen[s.ID] = true
+		out = append(out, s)
+	}
+
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
 }
 
 // formatSummaryResults renders conversation_summaries hits for the LLM.
