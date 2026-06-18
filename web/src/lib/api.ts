@@ -1489,6 +1489,19 @@ export async function setAgentMemory(
   return res.json();
 }
 
+// reindexAgentMemory force re-vectorizes every summary for one agent:
+// clears existing vectors, re-embeds all summaries. Returns counts.
+// Synchronous but per-call paced; can take a while on large backlogs.
+export async function reindexAgentMemory(
+  id: string,
+): Promise<{ ok: boolean; processed?: number; failed?: number; error?: string }> {
+  const res = await apiFetch(`/api/agents/${id}/memory/reindex`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  return res.json();
+}
+
 // testEmbedding pings /v1/embeddings with the inline credentials from the
 // form (not the saved row), so the operator can verify apiBase/apiKey/
 // model before saving. Mirrors the Models page's testProvider flow.

@@ -39,6 +39,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders/tts"
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders/webfetch"
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders/websearch"
+	"github.com/LunaeWaves/Lununda-agent/internal/memoryindex"
 	"github.com/LunaeWaves/Lununda-agent/internal/usage"
 	"github.com/LunaeWaves/Lununda-agent/internal/users"
 	"github.com/LunaeWaves/Lununda-agent/internal/webhook"
@@ -619,6 +620,21 @@ func (g *Gateway) Run() error {
 		plugin.RegisterPluginProviders(ctx, g.pluginMgr, toolProviderRegistry)
 	}
 	slog.Info("gateway started")
+	// Periodic memory backfill: every interval, re-embed conversation
+	// summaries that lack vectors across every agent with embedding
+	// enabled. Picked up at boot + on each tick so a backlog clears
+	// without operator action. Interval comes from system-scope
+	// memory.settings.reindexIntervalMin (default 10 min); per-call
+	// delay paces the embedding API.
+	if dbs, ok := g.store.(*store.DBStore); ok {
+		interval := reindexInterval(g.store)
+		perCallDelay := 200 * time.Millisecond
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			memoryindex.RunLoop(ctx, dbs, interval, perCallDelay)
+		}()
+	}
 	wg.Wait()
 	if g.taskQueue != nil {
 		g.taskQueue.Stop()
@@ -679,6 +695,24 @@ func readObjectStoreCfg(st store.Store) config.ObjectStoreCfg {
 	}
 	config.LoadEnv().ApplyToConfig(cfg)
 	return cfg.ObjectStore
+}
+
+// reindexInterval reads the memory backfill interval from system-scope
+// memory.settings.reindexIntervalMin. Falls back to 10 min when unset
+// or zero.
+func reindexInterval(st store.Store) time.Duration {
+	const def = 10 * time.Minute
+	if st == nil {
+		return def
+	}
+	var mem config.MemoryCfg
+	if err := scope.SettingInto(context.Background(), st, NSMemory, "", "", &mem); err != nil {
+		return def
+	}
+	if mem.Settings.ReindexIntervalMin > 0 {
+		return time.Duration(mem.Settings.ReindexIntervalMin) * time.Minute
+	}
+	return def
 }
 
 func readSystemHooks(st store.Store) config.HooksCfg {

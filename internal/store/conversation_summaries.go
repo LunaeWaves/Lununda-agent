@@ -201,6 +201,53 @@ func scanConversationSummaries(rows *sql.Rows) ([]ConversationSummary, error) {
 	return out, rows.Err()
 }
 
+// SetConversationSummaryEmbeddingModel stamps the model that produced a
+// summary's vector. Called after a successful vec write so the periodic
+// backfill skips the row on the next pass and a future model switch can
+// detect drift.
+func (d *DBStore) SetConversationSummaryEmbeddingModel(ctx context.Context, id int64, model string) error {
+	switch d.dialect {
+	case "postgres":
+		_, err := d.db.ExecContext(ctx,
+			`UPDATE conversation_summaries SET embedding_model = $1 WHERE id = $2`, model, id)
+		return err
+	default:
+		_, err := d.db.ExecContext(ctx,
+			`UPDATE conversation_summaries SET embedding_model = ? WHERE id = ?`, model, id)
+		return err
+	}
+}
+
+// AgentSummaryScope is one distinct (agent, owning user) pair among
+// conversation_summaries rows. The periodic backfill resolves each
+// agent's embedding config keyed on both (the merge is
+// system→owner-user→agent).
+type AgentSummaryScope struct {
+	AgentID string
+	UserID  string
+}
+
+// DistinctConversationSummaryAgents returns every distinct
+// (agent_id, user_id) pair that has at least one summary, so the
+// periodic backfill can resolve each agent's embedder once.
+func (d *DBStore) DistinctConversationSummaryAgents(ctx context.Context) ([]AgentSummaryScope, error) {
+	rows, err := d.db.QueryContext(ctx,
+		`SELECT DISTINCT agent_id, user_id FROM conversation_summaries WHERE agent_id != ''`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []AgentSummaryScope
+	for rows.Next() {
+		var sc AgentSummaryScope
+		if err := rows.Scan(&sc.AgentID, &sc.UserID); err != nil {
+			return nil, err
+		}
+		out = append(out, sc)
+	}
+	return out, rows.Err()
+}
+
 // SetConversationSummaryMeta upserts a metadata key. Used for the
 // "embedding_model_in_use" key that drives model-switch detection
 // (when the configured embedding model differs from the in-use one,
@@ -469,6 +516,67 @@ func (d *DBStore) SearchConversationSummariesVector(ctx context.Context, embeddi
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// ClearConversationSummaryVectors deletes every row from the vector
+// table. Called before a rebuild.
+// ClearConversationSummaryVectorsForAgent deletes the vec0 rows whose
+// summary belongs to agentID — used by force re-vectorize so existing
+// vectors are replaced (vec0 doesn't honor INSERT OR REPLACE, so a
+// full rebuild deletes first). Clears the agent's embedding_model stamp
+// too so the summaries re-queue for the periodic task if the rebuild
+// is interrupted.
+func (d *DBStore) ClearConversationSummaryVectorsForAgent(ctx context.Context, agentID string) error {
+	switch d.dialect {
+	case "postgres":
+		_, err := d.db.ExecContext(ctx,
+			`UPDATE conversation_summaries SET embedding = NULL, embedding_model = NULL
+			 WHERE agent_id = $1`, agentID)
+		return err
+	default:
+		if _, err := d.db.ExecContext(ctx,
+			`DELETE FROM conversation_summaries_vec WHERE summary_id IN
+			 (SELECT id FROM conversation_summaries WHERE agent_id = ?)`, agentID); err != nil {
+			return err
+		}
+		_, err := d.db.ExecContext(ctx,
+			`UPDATE conversation_summaries SET embedding_model = NULL WHERE agent_id = ?`, agentID)
+		return err
+	}
+}
+
+// ListConversationSummariesByAgent returns all summaries for one agent
+// (across sessions/chatters), ascending by creation. Used by force
+// re-vectorize to rebuild every vector regardless of current state.
+func (d *DBStore) ListConversationSummariesByAgent(ctx context.Context, agentID string, limit int) ([]ConversationSummary, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	var rows *sql.Rows
+	var err error
+	switch d.dialect {
+	case "postgres":
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
+			        summary, keywords, seq_start, seq_end, embedding_model, created_at
+			 FROM conversation_summaries
+			 WHERE agent_id = $1
+			 ORDER BY created_at
+			 LIMIT $2`, agentID, limit)
+	default:
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
+			        summary, keywords, seq_start, seq_end, embedding_model, created_at
+			 FROM conversation_summaries
+			 WHERE agent_id = ?
+			 ORDER BY created_at
+			 LIMIT ?`, agentID, limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanConversationSummaries(rows)
 }
 
 // ClearConversationSummaryVectors deletes every row from the vector

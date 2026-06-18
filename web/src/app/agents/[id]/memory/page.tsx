@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { MemoryTestButton } from "@/components/memory-test-button";
-import { Database, Boxes, Settings2, Check, Loader2 } from "lucide-react";
+import { Database, Boxes, Settings2, Check, Loader2, RefreshCw } from "lucide-react";
 import {
   getAgentMemory,
   setAgentMemory,
+  reindexAgentMemory,
   type MemoryConfig,
   type MemoryEmbeddingConfig,
   type MemoryRerankerConfig,
@@ -35,6 +36,8 @@ export default function AgentMemoryPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [hasOverride, setHasOverride] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexMsg, setReindexMsg] = useState<string | null>(null);
 
   const [embedding, setEmbedding] = useState<MemoryEmbeddingConfig>({
     enabled: false,
@@ -122,6 +125,29 @@ export default function AgentMemoryPage() {
     }
   };
 
+  // Force re-vectorize: clears this agent's existing vectors and re-embeds
+  // every summary. Only meaningful when embedding is enabled. Runs server-
+  // side with per-call pacing; the button shows a spinner + result.
+  const handleReindex = async () => {
+    if (!embedding.enabled) return;
+    if (!confirm(t("memory.reindexConfirm"))) return;
+    setReindexing(true);
+    setReindexMsg(null);
+    try {
+      const res = await reindexAgentMemory(agentId);
+      if (res.ok) {
+        const failedPart = res.failed ? ` · ${res.failed} failed` : "";
+        setReindexMsg(t("memory.reindexDone").replace("{processed}", String(res.processed ?? 0)).replace("{failed}", failedPart));
+      } else {
+        setReindexMsg(t("memory.reindexFailed").replace("{error}", res.error || ""));
+      }
+    } catch (e) {
+      setReindexMsg(t("memory.reindexFailed").replace("{error}", e instanceof Error ? e.message : String(e)));
+    } finally {
+      setReindexing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -184,7 +210,26 @@ export default function AgentMemoryPage() {
               {t("memory.clearOverride")}
             </Button>
           )}
+          {embedding.enabled && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={handleReindex}
+              disabled={reindexing || saving}
+            >
+              {reindexing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              {reindexing ? t("memory.reindexing") : t("memory.forceReindex")}
+            </Button>
+          )}
         </div>
+        {reindexMsg && (
+          <p className="text-sm text-muted-foreground -mt-3">{reindexMsg}</p>
+        )}
       </div>
 
       {/* Settings — master switch */}

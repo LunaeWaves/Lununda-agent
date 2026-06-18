@@ -34,6 +34,7 @@ interface MemoryRerankerConfig {
 
 interface MemorySettingsConfig {
   enabled: boolean;
+  reindexIntervalMin?: number;
 }
 
 interface MemoryConfig {
@@ -95,7 +96,10 @@ export default function MemoryPage() {
         });
       }
       if (mem?.settings) {
-        setSettings({ enabled: mem.settings.enabled ?? true });
+        setSettings({
+          enabled: mem.settings.enabled ?? true,
+          reindexIntervalMin: mem.settings.reindexIntervalMin ?? 0,
+        });
       }
     } finally {
       setLoading(false);
@@ -185,9 +189,25 @@ export default function MemoryPage() {
           </div>
           <Switch
             checked={settings.enabled}
-            onCheckedChange={(v: boolean) => setSettings({ enabled: v })}
+            onCheckedChange={(v: boolean) => setSettings({ ...settings, enabled: v })}
             aria-label={t("memory.memorySettings")}
           />
+        </div>
+        <div className="mt-4 pt-4 border-t border-border grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>{t("memory.reindexInterval")}</Label>
+            <Input
+              type="number"
+              min={0}
+              value={settings.reindexIntervalMin ?? 0}
+              onChange={(e) =>
+                setSettings({ ...settings, reindexIntervalMin: parseInt(e.target.value) || 0 })
+              }
+              placeholder="10"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground/70">{t("memory.reindexIntervalDesc")}</p>
+          </div>
         </div>
       </div>
 

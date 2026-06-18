@@ -6,7 +6,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
+	"github.com/LunaeWaves/Lununda-agent/internal/memoryindex"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // --- /api/memory/test-embedding + /api/memory/test-reranker ---
@@ -73,4 +77,59 @@ func (s *Server) handleTestReranker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "results": len(scored)})
+}
+
+// --- /api/agents/{id}/memory/reindex (POST) ---
+//
+// Force re-vectorize every conversation summary for one agent: clears
+// the agent's existing vectors, re-embeds all summaries, returns counts.
+// Owner-only. Runs synchronously but the per-call pacing keeps it from
+// hammering the embedding API; for huge backlogs an operator should
+// rely on the background loop instead.
+func (s *Server) handleReindexAgentMemory(w http.ResponseWriter, r *http.Request) {
+	if !s.requireWritable(w, r) {
+		return
+	}
+	id := r.PathValue("id")
+	rec := s.requireAgentOwner(w, r, id)
+	if rec == nil {
+		return
+	}
+	db, ok := s.dataStore.(*store.DBStore)
+	if !ok || db == nil {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": "vector store not available"})
+		return
+	}
+
+	// Resolve the agent's effective embedding config (system→owner→agent).
+	var mem config.MemoryCfg
+	if err := scope.SettingInto(r.Context(), db, "memory", rec.UserID, id, &mem); err != nil {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if !mem.Embedding.Enabled {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": "embedding not enabled for this agent"})
+		return
+	}
+	ec := mem.Embedding
+	emb := embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim)
+	if !emb.Available() {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": "apiBase and apiKey are required"})
+		return
+	}
+
+	// Generous timeout — a full re-embed of many summaries + per-call
+	// pacing can take a while.
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	defer cancel()
+	res, err := memoryindex.Reindex(ctx, db, emb, id, true, 200*time.Millisecond)
+	if err != nil {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"ok":        true,
+		"processed": res.Processed,
+		"failed":    res.Failed,
+	})
 }

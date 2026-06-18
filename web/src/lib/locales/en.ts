@@ -454,6 +454,13 @@ const en: Record<string, string> = {
   "memory.override": "Override",
   "memory.clearOverride": "Clear override",
   "memory.clearConfirm": "Clear this agent's memory override and inherit system/user defaults?",
+  "memory.forceReindex": "Force re-vectorize",
+  "memory.reindexing": "Re-vectorizing…",
+  "memory.reindexConfirm": "Re-embed every conversation summary for this agent? This clears existing vectors and rebuilds them — can take a while on large backlogs.",
+  "memory.reindexDone": "Re-vectorized {processed} summary(s){failed}",
+  "memory.reindexFailed": "Re-vectorize failed: {error}",
+  "memory.reindexInterval": "Backfill interval (minutes)",
+  "memory.reindexIntervalDesc": "How often the background task re-embeds summaries lacking vectors. 0 = default (10 min). Set at system scope.",
 
   // Regex hooks page
   "regexHooks.subtitle": "Intercept messages matching a pattern and execute a CLI instead of the LLM.",

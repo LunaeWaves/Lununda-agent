@@ -454,6 +454,13 @@ const zhCN: Record<string, string> = {
   "memory.override": "已覆盖",
   "memory.clearOverride": "清除覆盖",
   "memory.clearConfirm": "清除该智能体的记忆覆盖，恢复继承系统/用户默认值？",
+  "memory.forceReindex": "强制重新向量化",
+  "memory.reindexing": "正在重新向量化…",
+  "memory.reindexConfirm": "为该智能体重新向量化所有对话摘要？这会清除现有向量并重建——摘要很多时可能要等一会儿。",
+  "memory.reindexDone": "已向量化 {processed} 条摘要{failed}",
+  "memory.reindexFailed": "重新向量化失败：{error}",
+  "memory.reindexInterval": "回填间隔（分钟）",
+  "memory.reindexIntervalDesc": "后台任务多久为缺少向量的摘要重新生成一次。0 = 默认（10 分钟）。在系统级设置。",
 
   // Regex hooks page
   "regexHooks.subtitle": "拦截匹配特定模式的消息并执行 CLI 命令，而非调用 LLM。",

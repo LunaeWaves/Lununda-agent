@@ -269,6 +269,10 @@ type RerankerCfg struct {
 
 type MemorySettingsCfg struct {
 	Enabled bool `json:"enabled"`
+	// ReindexIntervalMin is how often the background reindex loop wakes
+	// to backfill summaries lacking vectors. 0 = default (10 min). The
+	// loop also runs once shortly after boot so a backlog clears fast.
+	ReindexIntervalMin int `json:"reindexIntervalMin,omitempty"`
 }
 
 type AutoPersistCfg struct {
