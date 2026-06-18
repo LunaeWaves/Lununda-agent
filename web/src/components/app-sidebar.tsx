@@ -20,6 +20,7 @@ import { NavUser } from "@/components/nav-user";
 import { AgentSettingsDialog } from "@/components/agent-settings-dialog";
 import {
   BotIcon,
+  BookOpenIcon,
   BrainIcon,
   DatabaseIcon,
   CoinsIcon,
@@ -53,7 +54,7 @@ import { useT } from "@/lib/i18n";
 // the sidebar showing the platform nav for /agents/<id>/project/...
 function extractAgentId(pathname: string): string | null {
   const match = pathname.match(
-    /^\/agents\/([^/]+)\/(chat|customize|skills|models|sessions|channels|chats|scheduler|project)/,
+    /^\/agents\/([^/]+)\/(chat|customize|skills|models|sessions|channels|chats|scheduler|project|wiki|knowledge|memory|regex-hooks)/,
   );
   return match ? match[1] : null;
 }
@@ -102,6 +103,26 @@ const AGENT_NAV = (
     },
   ];
 };
+
+// AGENT_KNOWLEDGE_NAV renders agent-scoped links to Wiki (generated from
+// KB content) and Knowledge Base (ingest / manage sources). These open
+// as separate pages rather than chat sub-routes, so they use plain URL
+// navigation.
+const AGENT_KNOWLEDGE_NAV = (
+  agentId: string,
+  t: (k: string) => string,
+): NavItem[] => [
+  {
+    title: t("nav.wiki"),
+    url: `/agents/${agentId}/wiki/`,
+    icon: BookOpenIcon,
+  },
+  {
+    title: t("nav.knowledgeBase"),
+    url: `/agents/${agentId}/knowledge/`,
+    icon: DatabaseIcon,
+  },
+];
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
@@ -299,11 +320,18 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {activeAgentId ? (
-          <NavMain
-            label={t("nav.group.agent")}
-            indent
-            items={AGENT_NAV(activeAgentId, pathname, hasOpenSession, t)}
-          />
+          <>
+            <NavMain
+              label={t("nav.group.agent")}
+              indent
+              items={AGENT_NAV(activeAgentId, pathname, hasOpenSession, t)}
+            />
+            <NavMain
+              label={t("nav.group.knowledge")}
+              indent
+              items={AGENT_KNOWLEDGE_NAV(activeAgentId, t)}
+            />
+          </>
         ) : (
           <>
             <NavMain items={[OVERVIEW_ITEM]} />
