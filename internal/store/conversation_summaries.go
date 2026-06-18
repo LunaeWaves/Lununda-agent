@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -86,18 +88,13 @@ func nilIfEmpty(s string) any {
 // for multi-tenant isolation: summaries from one chatter must never
 // surface for another.
 //
-// Despite the name, this does NOT use FTS5 on SQLite — the unicode61
-// tokenizer can't match CJK substrings (each CJK run becomes one
-// opaque token), so a Chinese query like "讨论" returns zero rows
-// against Chinese summaries. We use LIKE on summary + keywords for
-// both dialects until MVP-2 swaps in vector recall, which is language-
-// agnostic. FTS5 trigger still maintains the index for any future
-// English-only fast path.
+// Pipeline: SQL LIKE pre-filter → bigram token overlap scoring
+// (keywords×3, summary×2) × recency decay → top-K.
 //
-// Query terms are AND-ed across summary OR keywords; matching any
-// single term surfaces the row (so multi-keyword queries get recall
-// similar to "OR" semantics, which fits the recall-then-rerank model
-// planned for MVP-3).
+// We fetch fetchMultiplier×limit candidates from SQL, score them in Go,
+// and return the top `limit`. The multiplier trades recall for CPU.
+// unicode61 FTS5 can't match CJK substrings, so LIKE handles both
+// dialects; vector recall (MVP-2) will replace this entirely.
 func (d *DBStore) SearchConversationSummariesFTS(
 	ctx context.Context,
 	chatterUserID, agentID, query string,
@@ -107,18 +104,24 @@ func (d *DBStore) SearchConversationSummariesFTS(
 		limit = 10
 	}
 
-	// Tokenize the query into space-separated terms; build an OR clause
-	// per term so "讨论 集成" matches rows containing either.
+	// Fetch more candidates than the final limit so the scorer has a
+	// pool to re-rank. 3× gives reasonable recall without over-fetching.
+	const fetchMultiplier = 3
+	fetchLimit := limit * fetchMultiplier
+	if fetchLimit < 10 {
+		fetchLimit = 10
+	}
+
+	// Tokenize the query into space-separated terms for LIKE pre-filter.
 	terms := strings.Fields(query)
 	if len(terms) == 0 {
-		// Fall back to whole-query LIKE (handles CJK with no spaces).
 		terms = []string{query}
 	}
 
 	clauses := make([]string, 0, len(terms))
 	args := make([]any, 0, len(terms)+4)
 	args = append(args, chatterUserID, agentID)
-	placeholder := 3 // 1-based for pg, mapped below for sqlite
+	placeholder := 3 // 1-based for pg
 	if d.dialect == "postgres" {
 		for _, t := range terms {
 			clauses = append(clauses,
@@ -126,7 +129,7 @@ func (d *DBStore) SearchConversationSummariesFTS(
 			args = append(args, t)
 			placeholder++
 		}
-		args = append(args, limit)
+		args = append(args, fetchLimit)
 		rows, err := d.db.QueryContext(ctx, `
 			SELECT id, user_id, agent_id, session_key, chatter_user_id,
 			       summary, keywords, seq_start, seq_end, embedding_model, created_at
@@ -139,17 +142,21 @@ func (d *DBStore) SearchConversationSummariesFTS(
 			return nil, err
 		}
 		defer rows.Close()
-		return scanConversationSummaries(rows)
+		candidates, err := scanConversationSummaries(rows)
+		if err != nil {
+			return nil, err
+		}
+		return reRankSummaries(candidates, query, limit), nil
 	}
 
 	// SQLite — ? placeholders
 	for _, t := range terms {
-		_ = placeholder // unused in sqlite path
+		_ = placeholder
 		clauses = append(clauses,
 			"(summary LIKE ? OR keywords LIKE ?)")
 		args = append(args, "%"+t+"%", "%"+t+"%")
 	}
-	args = append(args, limit)
+	args = append(args, fetchLimit)
 	rows, err := d.db.QueryContext(ctx, `
 		SELECT id, user_id, agent_id, session_key, chatter_user_id,
 		       summary, keywords, seq_start, seq_end, embedding_model, created_at
@@ -162,7 +169,11 @@ func (d *DBStore) SearchConversationSummariesFTS(
 		return nil, err
 	}
 	defer rows.Close()
-	return scanConversationSummaries(rows)
+	candidates, err := scanConversationSummaries(rows)
+	if err != nil {
+		return nil, err
+	}
+	return reRankSummaries(candidates, query, limit), nil
 }
 
 func scanConversationSummaries(rows *sql.Rows) ([]ConversationSummary, error) {
@@ -227,4 +238,149 @@ func (d *DBStore) GetConversationSummaryMeta(ctx context.Context, key string) (s
 		return "", err
 	}
 	return v, nil
+}
+
+// ── Bigram tokenization + weighted scoring ──────────────────────────
+// Borrowed from kb/scorer.go — converts query and summary text into
+// English-word + CJK-bigram token sets, then scores by overlap with
+// field weights: keywords×3, summary×2. Recency decay is applied on
+// top so newer summaries outrank older ones at similar overlap.
+
+var (
+	cSummaryWordRE = regexp.MustCompile(`[A-Za-z][A-Za-z0-9_-]+`)
+	cSummaryCJKRE  = regexp.MustCompile(`[\p{Han}\x{3040}-\x{30ff}\x{ac00}-\x{d7af}]+`)
+)
+
+var cSummaryStopwords = map[string]bool{
+	"the": true, "a": true, "an": true, "of": true, "to": true,
+	"in": true, "on": true, "for": true, "and": true, "or": true,
+	"is": true, "are": true, "was": true, "were": true,
+	"with": true, "by": true, "from": true, "this": true, "that": true,
+	"what": true, "why": true, "how": true, "when": true, "which": true, "who": true,
+	"的": true, "了": true, "是": true, "和": true, "或": true,
+	"在": true, "对": true, "为": true, "与": true, "及": true,
+}
+
+func tokenizeSummary(text string) []string {
+	text = strings.ToLower(text)
+	seen := make(map[string]bool)
+	var tokens []string
+
+	for _, m := range cSummaryWordRE.FindAllString(text, -1) {
+		t := strings.ToLower(m)
+		if len(t) < 2 || cSummaryStopwords[t] {
+			continue
+		}
+		if !seen[t] {
+			seen[t] = true
+			tokens = append(tokens, t)
+		}
+	}
+
+	for _, m := range cSummaryCJKRE.FindAllString(text, -1) {
+		runes := []rune(m)
+		if len(runes) == 1 {
+			if cSummaryStopwords[string(runes)] {
+				continue
+			}
+			t := string(runes)
+			if !seen[t] {
+				seen[t] = true
+				tokens = append(tokens, t)
+			}
+			continue
+		}
+		for i := 0; i < len(runes)-1; i++ {
+			bg := string(runes[i]) + string(runes[i+1])
+			if cSummaryStopwords[bg] {
+				continue
+			}
+			if !seen[bg] {
+				seen[bg] = true
+				tokens = append(tokens, bg)
+			}
+		}
+	}
+	return tokens
+}
+
+func tokenizeSummarySet(text string) map[string]bool {
+	tokens := tokenizeSummary(text)
+	s := make(map[string]bool, len(tokens))
+	for _, t := range tokens {
+		s[t] = true
+	}
+	return s
+}
+
+func intersectCountSummary(a, b map[string]bool) int {
+	if len(a) > len(b) {
+		a, b = b, a
+	}
+	n := 0
+	for t := range a {
+		if b[t] {
+			n++
+		}
+	}
+	return n
+}
+
+func recencyWeightSummary(createdAt time.Time) float64 {
+	days := time.Since(createdAt).Hours() / 24
+	if days <= 0 {
+		return 1.0
+	}
+	w := 1.0 / (1.0 + days/7.0)
+	if w < 0.1 {
+		return 0.1
+	}
+	return w
+}
+
+func reRankSummaries(summaries []ConversationSummary, query string, topK int) []ConversationSummary {
+	if topK <= 0 {
+		topK = 10
+	}
+
+	qTokens := tokenizeSummarySet(query)
+	if len(qTokens) == 0 {
+		if len(summaries) > topK {
+			return summaries[:topK]
+		}
+		return summaries
+	}
+
+	type scored struct {
+		idx   int
+		score float64
+	}
+	var ranked []scored
+
+	for i, s := range summaries {
+		summaryToks := tokenizeSummarySet(s.Summary)
+		kwText := strings.Join(s.Keywords, " ")
+		kwToks := tokenizeSummarySet(kwText)
+
+		overlap := 3.0*float64(intersectCountSummary(qTokens, kwToks)) +
+			2.0*float64(intersectCountSummary(qTokens, summaryToks))
+
+		// Every candidate already passed the LIKE pre-filter, so it has
+		// minimum relevance. Token overlap acts as a boost on top.
+		baseScore := 0.5
+		recency := recencyWeightSummary(s.CreatedAt)
+		finalScore := (baseScore + overlap) * recency
+
+		ranked = append(ranked, scored{idx: i, score: finalScore})
+	}
+
+	sort.Slice(ranked, func(i, j int) bool {
+		return ranked[i].score > ranked[j].score
+	})
+
+	out := make([]ConversationSummary, 0, topK)
+	for i := 0; i < len(ranked) && i < topK; i++ {
+		out = append(out, summaries[ranked[i].idx])
+	}
+	return out
 }
