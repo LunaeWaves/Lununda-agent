@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
@@ -127,6 +128,7 @@ func persistConversationSummary(
 	db *store.DBStore,
 	prov provider.Provider,
 	model string,
+	emb embedding.Embedder,
 	userID, agentID, sessionKey, chatterUserID string,
 	messages []provider.Message,
 	seqStart, seqEnd int,
@@ -148,7 +150,15 @@ func persistConversationSummary(
 		return
 	}
 
-	_, err = db.InsertConversationSummary(ctx, store.ConversationSummary{
+	// Stamp the embedding model on the row so a later model-switch can
+	// detect+rebuild (ListConversationSummariesNeedingVector compares
+	// this against the configured model). Only set when we're actually
+	// going to embed below; an empty value means "keyword-only".
+	embModel := ""
+	if emb != nil && emb.Available() {
+		embModel = emb.Model()
+	}
+	id, err := db.InsertConversationSummary(ctx, store.ConversationSummary{
 		UserID:        userID,
 		AgentID:       agentID,
 		SessionKey:    sessionKey,
@@ -157,11 +167,36 @@ func persistConversationSummary(
 		Keywords:      ex.Keywords,
 		SeqStart:      ex.SeqStart,
 		SeqEnd:        ex.SeqEnd,
+		EmbeddingModel: embModel,
 	})
 	if err != nil {
 		slog.Warn("conversation summary persist failed",
 			"agent", agentID, "session", sessionKey, "error", err)
 		return
+	}
+
+	// Vectorize the summary so query-time KNN recall can find it. Embed
+	// the summary + keywords together (keywords carry the high-signal
+	// terms). Best-effort: a failure here leaves the row
+	// keyword-searchable but not vector-searchable — logged, not fatal.
+	if emb != nil && emb.Available() && id > 0 {
+		text := ex.Summary
+		if len(ex.Keywords) > 0 {
+			text += " " + strings.Join(ex.Keywords, " ")
+		}
+		vecs, embErr := emb.Embed(ctx, []string{text})
+		if embErr != nil {
+			slog.Warn("conversation summary embedding failed",
+				"agent", agentID, "session", sessionKey, "error", embErr)
+		} else if len(vecs) == 1 {
+			if err := db.InsertConversationSummaryVector(ctx, id, vecs[0]); err != nil {
+				slog.Warn("conversation summary vector insert failed",
+					"agent", agentID, "session", sessionKey, "error", err)
+			} else {
+				slog.Info("conversation summary vectorized",
+					"agent", agentID, "session", sessionKey, "summary_id", id, "dim", len(vecs[0]))
+			}
+		}
 	}
 
 	slog.Info("conversation summary saved",

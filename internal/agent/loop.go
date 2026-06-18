@@ -21,6 +21,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/mcp"
 	"github.com/LunaeWaves/Lununda-agent/internal/privacy"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
 	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
 	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
 	"github.com/LunaeWaves/Lununda-agent/internal/scope"
@@ -100,6 +101,11 @@ type Agent struct {
 	// survives daemon restarts / UserSpace invalidations / idle
 	// evictions that all reset the in-memory turnCount.
 	dataStore store.Store
+	// embedder vectorizes conversation summaries so they land in the
+	// vec0 table on save (persistConversationSummary). nil when embedding
+	// is unconfigured or the startup probe failed — save-time
+	// vectorization is then skipped, leaving keyword-only recall.
+	embedder embedding.Embedder
 	// workspaceStore is optional; when set, SkillsLoader hydrates per-agent
 	// and global skill dirs from the object store on every turn so skills
 	// uploaded post-boot or on a sibling replica become visible here.
@@ -764,6 +770,7 @@ func (a *Agent) maybeExtractSummary(
 	msgsCopy := append([]provider.Message(nil), msgs...)
 	prov := a.provider
 	model := a.model
+	emb := a.embedder
 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -771,7 +778,7 @@ func (a *Agent) maybeExtractSummary(
 		slog.Debug("summary extraction: background goroutine started",
 			"agent", agentID, "session", sessionKey,
 			"trigger", trigger, "msg_count", len(msgsCopy))
-		persistConversationSummary(ctx, db, prov, model,
+		persistConversationSummary(ctx, db, prov, model, emb,
 			owner, agentID, sessionKey, chatterUID,
 			msgsCopy, seqStart, seqEnd)
 	}()

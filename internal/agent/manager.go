@@ -1,17 +1,19 @@
 package agent
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
-	"github.com/LunaeWaves/Lununda-agent/internal/kb"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
+	"github.com/LunaeWaves/Lununda-agent/internal/kb"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 	"github.com/LunaeWaves/Lununda-agent/internal/session"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
 	"github.com/LunaeWaves/Lununda-agent/internal/usage"
 	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
@@ -325,8 +327,34 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 	// tools.SummarySearcher implicitly via SearchConversationSummariesFTS.
 	if db, ok := m.opts.dataStore.(*store.DBStore); ok {
 		ag.registry.SetSummarySearcher(db)
-			ag.registry.SetVectorSearcher(db)
-			ag.registry.SetMessageFetcher(db)
+		ag.registry.SetVectorSearcher(db)
+		ag.registry.SetMessageFetcher(db)
+	}
+	// Build the embedding + reranker from the agent's resolved memory
+	// config. The merge chain (system→owner-user→agent) is resolved here
+	// via scope.SettingInto — same call gateway/userspace.go makes when
+	// assembling the runtime config, so this matches what the agent
+	// actually sees at query time. The embedder is stored on the Agent so
+	// the summary-persistence path can vectorize new summaries on save;
+	// both are also set on the registry so memory_search's query-time
+	// vector recall + rerank stages can use them. ProbeEmbedder pings the
+	// API once so a misconfigured endpoint degrades to nilEmbedder
+	// (vector recall simply skipped) instead of erroring every search.
+	if db, ok := m.opts.dataStore.(*store.DBStore); ok {
+		var mem config.MemoryCfg
+		if err := scope.SettingInto(context.Background(), db, "memory", m.uid, rc.ID, &mem); err == nil {
+			if mem.Embedding.Enabled {
+				ec := mem.Embedding
+				emb := embedding.ProbeEmbedder(context.Background(),
+					embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim))
+				ag.embedder = emb
+				ag.registry.SetEmbedder(emb)
+			}
+			if mem.Reranker.Enabled {
+				rr := mem.Reranker
+				ag.registry.SetReranker(embedding.NewJinaReranker(rr.APIBase, rr.APIKey, rr.Model))
+			}
+		}
 	}
 		// Date line in the chatter's timezone — needs dataStore for the
 		// scope-prefs lookup, hence wired here and re-applied by
