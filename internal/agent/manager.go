@@ -1,8 +1,8 @@
 package agent
 
 import (
-	"context"
 	"fmt"
+	"context"
 	"log/slog"
 	"strings"
 
@@ -325,6 +325,8 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 	// tools.SummarySearcher implicitly via SearchConversationSummariesFTS.
 	if db, ok := m.opts.dataStore.(*store.DBStore); ok {
 		ag.registry.SetSummarySearcher(db)
+			ag.registry.SetVectorSearcher(db)
+			ag.registry.SetMessageFetcher(db)
 	}
 		// Date line in the chatter's timezone — needs dataStore for the
 		// scope-prefs lookup, hence wired here and re-applied by

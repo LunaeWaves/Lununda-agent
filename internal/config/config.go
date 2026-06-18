@@ -242,9 +242,33 @@ type RateLimitCfg struct {
 }
 
 type MemoryCfg struct {
-	AutoPersist AutoPersistCfg `json:"autoPersist,omitempty"`
-	AutoTitle   AutoTitleCfg   `json:"autoTitle,omitempty"`
-	FTS         FTSCfg         `json:"fts,omitempty"`
+	AutoPersist AutoPersistCfg    `json:"autoPersist,omitempty"`
+	AutoTitle   AutoTitleCfg      `json:"autoTitle,omitempty"`
+	FTS         FTSCfg            `json:"fts,omitempty"`
+	Embedding   EmbeddingCfg      `json:"embedding,omitempty"`
+	Reranker    RerankerCfg       `json:"reranker,omitempty"`
+	Settings    MemorySettingsCfg `json:"settings,omitempty"`
+}
+
+type EmbeddingCfg struct {
+	Enabled  bool   `json:"enabled"`
+	Provider string `json:"provider,omitempty"`
+	Model    string `json:"model,omitempty"`
+	APIKey   string `json:"apiKey,omitempty"`
+	APIBase  string `json:"apiBase,omitempty"`
+	Dim      int    `json:"dim,omitempty"`
+}
+
+type RerankerCfg struct {
+	Enabled  bool   `json:"enabled"`
+	Provider string `json:"provider,omitempty"`
+	Model    string `json:"model,omitempty"`
+	APIKey   string `json:"apiKey,omitempty"`
+	APIBase  string `json:"apiBase,omitempty"`
+}
+
+type MemorySettingsCfg struct {
+	Enabled bool `json:"enabled"`
 }
 
 type AutoPersistCfg struct {
