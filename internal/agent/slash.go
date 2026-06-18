@@ -316,10 +316,17 @@ func (a *Agent) slashCompact(msg bus.InboundMessage) slashResult {
 		return slashResult{handled: true, reply: fmt.Sprintf("Compaction error: %v", err)}
 	}
 	if result != nil && result.Pruned {
+		// ReplaceMessages triggers the compaction hook (Task 1.5).
 		sess.ReplaceMessages(result.Messages)
 		return slashResult{handled: true, reply: fmt.Sprintf("✅ Compacted: %d → %d messages.", len(sessionMsgs), len(result.Messages))}
 	}
-	return slashResult{handled: true, reply: "Session is within limits, no compaction needed."}
+	// Session is under the auto-compaction threshold. But the user
+	// explicitly asked for /compact — treat it as "save a summary of
+	// this conversation so far" even if there's no token pressure.
+	// The compaction hook only fires on real compaction, so trigger
+	// summary extraction explicitly here.
+	a.maybeExtractSummary(sessionMsgs, 1, len(sessionMsgs), sess, "manual_compact")
+	return slashResult{handled: true, reply: fmt.Sprintf("✓ Session is within limits (%d messages, no compaction needed). Saved a conversation summary for cross-session recall.", len(sessionMsgs))}
 }
 
 func (a *Agent) slashStatus(msg bus.InboundMessage) slashResult {
