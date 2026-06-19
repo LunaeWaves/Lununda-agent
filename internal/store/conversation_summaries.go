@@ -237,36 +237,6 @@ func (d *DBStore) SetConversationSummaryEmbeddingModel(ctx context.Context, id i
 	}
 }
 
-// AgentSummaryScope is one distinct (agent, owning user) pair among
-// conversation_summaries rows. The periodic backfill resolves each
-// agent's embedding config keyed on both (the merge is
-// system→owner-user→agent).
-type AgentSummaryScope struct {
-	AgentID string
-	UserID  string
-}
-
-// DistinctConversationSummaryAgents returns every distinct
-// (agent_id, user_id) pair that has at least one summary, so the
-// periodic backfill can resolve each agent's embedder once.
-func (d *DBStore) DistinctConversationSummaryAgents(ctx context.Context) ([]AgentSummaryScope, error) {
-	rows, err := d.db.QueryContext(ctx,
-		`SELECT DISTINCT agent_id, user_id FROM conversation_summaries WHERE agent_id != ''`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []AgentSummaryScope
-	for rows.Next() {
-		var sc AgentSummaryScope
-		if err := rows.Scan(&sc.AgentID, &sc.UserID); err != nil {
-			return nil, err
-		}
-		out = append(out, sc)
-	}
-	return out, rows.Err()
-}
-
 // SetConversationSummaryMeta upserts a metadata key. Used for the
 // "embedding_model_in_use" key that drives model-switch detection
 // (when the configured embedding model differs from the in-use one,

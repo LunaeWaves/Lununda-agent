@@ -1,13 +1,13 @@
-// Package memoryindex backfills + rebuilds conversation-summary vectors.
+// Package memoryindex is the SAFETY-NET vectorizer for conversation
+// summaries.
 //
-// Two entry points:
-//   - Reindex: one-shot, embeds one agent's summaries that lack vectors
-//     (or every summary when force). Called by the force-revectorize HTTP
-//     endpoint and the periodic loop.
-//   - RunLoop: process-wide periodic loop started by the gateway. Every
-//     interval it walks every agent with embedding enabled and reindexes
-//     pending summaries. perCallDelay paces individual embedding API
-//     calls so a large backlog doesn't hammer the provider.
+// The primary vectorization path is save-time: persistConversationSummary
+// embeds a summary the moment it's written. This package only mops up the
+// summaries that path MISSED — e.g. the embedding API was down when the
+// summary was saved, or the embedder was configured after the fact. It is
+// deliberately failure-driven: each tick it asks "which summaries lack a
+// vector?" and processes only those, never scanning agents that have
+// nothing pending and never probing the embedding API just to check.
 package memoryindex
 
 import (
@@ -31,13 +31,13 @@ type Result struct {
 }
 
 // Reindex re-embeds summaries for one agent. When force is true it first
-// clears that agent's existing vectors and re-embeds every summary
-// (model switch / mass re-vectorize); otherwise it only processes
-// summaries lacking a vector or embedded with a stale model.
+// clears that agent's existing vectors and re-embeds every summary (model
+// switch / mass re-vectorize) — this is the manual "Force re-vectorize"
+// button, NOT the periodic loop. The periodic loop uses runOnce instead,
+// which is failure-driven across all agents.
 //
 // perCallDelay sleeps between individual Embed calls to be gentle on the
-// embedding API — a backlog of hundreds of summaries otherwise fires
-// back-to-back requests. Zero disables the delay (used in tests).
+// embedding API. Zero disables the delay.
 func Reindex(ctx context.Context, db *store.DBStore, emb embedding.Embedder, agentID string, force bool, perCallDelay time.Duration) (Result, error) {
 	res := Result{Agent: agentID}
 	if db == nil || emb == nil || !emb.Available() || agentID == "" {
@@ -50,60 +50,22 @@ func Reindex(ctx context.Context, db *store.DBStore, emb embedding.Embedder, age
 		}
 	}
 
-	model := emb.Model()
-	var (
-		summaries []store.ConversationSummary
-		err       error
-	)
-	if force {
-		// Force: rebuild every summary (clear runs above first).
-		summaries, err = db.ListConversationSummariesByAgent(ctx, agentID, 5000)
-	} else {
-		// Periodic: backfill only rows that genuinely have no vector.
-		// Passing "" skips the model-mismatch branch — re-embedding on a
-		// model switch needs a clear-first, which is the force button's
-		// job (vec0 doesn't honor INSERT OR REPLACE, so re-inserting an
-		// existing summary_id would fail).
-		summaries, err = db.ListConversationSummariesNeedingVector(ctx, "", 5000)
-	}
+	// Force rebuilds every summary; there's no non-force path here anymore
+	// (the periodic loop handles backfill via runOnce).
+	summaries, err := db.ListConversationSummariesByAgent(ctx, agentID, 5000)
 	if err != nil {
 		return res, err
-	}
-	if len(summaries) == 0 {
-		return res, nil
 	}
 
 	for _, s := range summaries {
 		if ctx.Err() != nil {
 			return res, ctx.Err()
 		}
-		text := s.Summary
-		if len(s.Keywords) > 0 {
-			text += " " + strings.Join(s.Keywords, " ")
-		}
-		vecs, embErr := emb.Embed(ctx, []string{text})
-		if embErr != nil || len(vecs) != 1 {
+		if vecErr := vectorizeSummary(ctx, db, emb, s); vecErr != nil {
 			res.Failed++
-			slog.Warn("memoryindex: embed failed",
-				"agent", agentID, "summary_id", s.ID, "error", embErr)
-			continue
-		}
-		if err := db.InsertConversationSummaryVector(ctx, s.ID, vecs[0]); err != nil {
-			// A duplicate summary_id (vector already present) isn't a
-			// real failure — vec0 ignores INSERT OR REPLACE. Count as
-			// processed since the row ends up vectorized either way.
-			res.Failed++
-			slog.Warn("memoryindex: vector insert failed",
-				"agent", agentID, "summary_id", s.ID, "error", err)
 			continue
 		}
 		res.Processed++
-
-		// Stamp the model so the periodic task skips this row next pass
-		// (and so a future model switch can detect drift). The vec write
-		// already succeeded, so a stamp failure is best-effort.
-		_ = db.SetConversationSummaryEmbeddingModel(ctx, s.ID, model)
-
 		if perCallDelay > 0 {
 			select {
 			case <-time.After(perCallDelay):
@@ -115,14 +77,37 @@ func Reindex(ctx context.Context, db *store.DBStore, emb embedding.Embedder, age
 	return res, nil
 }
 
-// RunLoop is the gateway's periodic backfill. Every interval it walks
-// every distinct agent_id present in conversation_summaries, resolves
-// that agent's embedding config from the store (system→owner→agent
-// merge), and reindexes pending summaries with perCallDelay pacing.
+// vectorizeSummary embeds one summary's text (+keywords), writes the vec0
+// row, and stamps the embedding_model. Shared by the force rebuild and the
+// periodic loop. Returns an error (already logged) so callers count it as
+// failed and move on — best-effort, never aborts the whole pass.
+func vectorizeSummary(ctx context.Context, db *store.DBStore, emb embedding.Embedder, s store.ConversationSummary) error {
+	text := s.Summary
+	if len(s.Keywords) > 0 {
+		text += " " + strings.Join(s.Keywords, " ")
+	}
+	vecs, err := emb.Embed(ctx, []string{text})
+	if err != nil || len(vecs) != 1 {
+		slog.Warn("memoryindex: embed failed", "summary_id", s.ID, "error", err)
+		return errors.New("embed failed")
+	}
+	if err := db.InsertConversationSummaryVector(ctx, s.ID, vecs[0]); err != nil {
+		slog.Warn("memoryindex: vector insert failed", "summary_id", s.ID, "error", err)
+		return err
+	}
+	// Stamp the model so this row stops re-queueing. Best-effort — the
+	// vector write already succeeded.
+	_ = db.SetConversationSummaryEmbeddingModel(ctx, s.ID, emb.Model())
+	return nil
+}
+
+// RunLoop is the gateway's periodic SAFETY NET. Every interval it asks
+// "which summaries lack a vector?" and processes only those — never
+// scanning agents with nothing pending, never probing the embedding API
+// to check. Empty backlog = a single cheap query, no further work.
 //
-// Agents without embedding enabled are skipped silently. The loop
-// exits when ctx is cancelled. Logs one line per pass with aggregate
-// counts so an operator can watch progress in the gateway log.
+// perCallDelay paces individual embedding calls. The loop exits on ctx
+// cancellation.
 func RunLoop(ctx context.Context, db *store.DBStore, interval, perCallDelay time.Duration) {
 	if db == nil {
 		return
@@ -135,9 +120,7 @@ func RunLoop(ctx context.Context, db *store.DBStore, interval, perCallDelay time
 
 	t := time.NewTicker(interval)
 	defer t.Stop()
-	// Run once shortly after boot so a backlog clears immediately, then
-	// on every tick.
-	runOnce(ctx, db, perCallDelay)
+	runOnce(ctx, db, perCallDelay) // clear any boot-time backlog fast
 	for {
 		select {
 		case <-ctx.Done():
@@ -149,40 +132,73 @@ func RunLoop(ctx context.Context, db *store.DBStore, interval, perCallDelay time
 	}
 }
 
+// runOnce is one failure-driven backfill pass. It pulls every summary
+// lacking a vector (one global query), groups them by agent so each
+// agent's embedder is resolved at most once, and embeds the backlog.
+// No-op when nothing is pending — no agent scan, no embedder probing.
 func runOnce(ctx context.Context, db *store.DBStore, perCallDelay time.Duration) {
-	scopes, err := db.DistinctConversationSummaryAgents(ctx)
+	pending, err := db.ListConversationSummariesNeedingVector(ctx, "", 5000)
 	if err != nil {
-		slog.Warn("memoryindex: list agents failed", "error", err)
+		slog.Warn("memoryindex: list pending failed", "error", err)
 		return
 	}
-	totalProcessed, totalFailed := 0, 0
-	for _, sc := range scopes {
+	if len(pending) == 0 {
+		return // nothing failed vectorization this tick — done
+	}
+
+	// Group by (owner, agent) so each agent's embedder is resolved once.
+	type ownerAgent struct{ owner, agent string }
+	groups := map[ownerAgent][]store.ConversationSummary{}
+	order := []ownerAgent{}
+	for _, s := range pending {
+		k := ownerAgent{owner: s.UserID, agent: s.AgentID}
+		if _, seen := groups[k]; !seen {
+			order = append(order, k)
+		}
+		groups[k] = append(groups[k], s)
+	}
+
+	processed, failed := 0, 0
+	for _, k := range order {
 		if ctx.Err() != nil {
 			return
 		}
-		emb := embedderForAgent(ctx, db, sc.UserID, sc.AgentID)
+		// Embedder resolved ONLY for agents with pending work, and without
+		// a probe — availability is proven by the per-summary Embed calls
+		// below. Saves an API call per agent per tick.
+		emb := embedderForAgent(ctx, db, k.owner, k.agent)
 		if emb == nil || !emb.Available() {
-			continue
+			continue // embedding not configured for this agent — skip
 		}
-		res, err := Reindex(ctx, db, emb, sc.AgentID, false, perCallDelay)
-		if err != nil {
-			slog.Warn("memoryindex: agent pass failed",
-				"agent", sc.AgentID, "error", err)
-			continue
+		for _, s := range groups[k] {
+			if ctx.Err() != nil {
+				return
+			}
+			if vecErr := vectorizeSummary(ctx, db, emb, s); vecErr != nil {
+				failed++
+			} else {
+				processed++
+			}
+			if perCallDelay > 0 {
+				select {
+				case <-time.After(perCallDelay):
+				case <-ctx.Done():
+					return
+				}
+			}
 		}
-		totalProcessed += res.Processed
-		totalFailed += res.Failed
 	}
-	if totalProcessed > 0 || totalFailed > 0 {
+	if processed > 0 || failed > 0 {
 		slog.Info("memoryindex: backfill pass complete",
-			"agents", len(scopes), "processed", totalProcessed, "failed", totalFailed)
+			"agents", len(order), "processed", processed, "failed", failed)
 	}
 }
 
 // embedderForAgent resolves the agent's merged memory config
-// (system→owner-user→agent) and builds (+probes) an embedder. Returns
-// nil when embedding is disabled or the probe fails — the loop then
-// skips that agent.
+// (system→owner-user→agent) and builds an embedder. Returns nil when
+// embedding is disabled. Does NOT probe — the caller (periodic loop)
+// only invokes this when there's real work, and the per-summary Embed
+// calls validate reachability naturally.
 func embedderForAgent(ctx context.Context, db *store.DBStore, ownerUserID, agentID string) embedding.Embedder {
 	var mem config.MemoryCfg
 	if err := scope.SettingInto(ctx, db, "memory", ownerUserID, agentID, &mem); err != nil {
@@ -192,6 +208,5 @@ func embedderForAgent(ctx context.Context, db *store.DBStore, ownerUserID, agent
 		return nil
 	}
 	ec := mem.Embedding
-	return embedding.ProbeEmbedder(ctx,
-		embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim))
+	return embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim)
 }
