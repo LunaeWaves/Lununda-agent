@@ -2310,14 +2310,17 @@ export function ChatScreen() {
                       )}
                       {msg.content && (
                         <div className={CHAT_PROSE_CLASS}>
-                          {renderContentWithDataImages(
-                            msg.content,
-                            surfacedSrcs,
-                            (attachedImages.get(msg.id)?.length ?? 0) > 0,
-                            makeUrlTransform(selectedAgent, sessionId),
-                          ) ?? (
-                            <ChatMarkdown text={msg.content} agentId={selectedAgent} sessionId={sessionId} />
-                          )}
+                          {(() => {
+                            const lc = localizeSlashReply(msg.content, t);
+                            return renderContentWithDataImages(
+                              lc,
+                              surfacedSrcs,
+                              (attachedImages.get(msg.id)?.length ?? 0) > 0,
+                              makeUrlTransform(selectedAgent, sessionId),
+                            ) ?? (
+                              <ChatMarkdown text={lc} agentId={selectedAgent} sessionId={sessionId} />
+                            );
+                          })()}
                         </div>
                       )}
                       {msg.role === "agent" && msg.metadata?.iterationCapReached && (
