@@ -541,15 +541,13 @@ func float32ToPGVector(vec []float32) string {
 func (d *DBStore) ConversationSummaryVectorShape(ctx context.Context, agentID string) (dim int, model string, err error) {
 	switch d.dialect {
 	case "postgres":
-		var v []byte
+		// pgvector's vector_dims() returns the stored dimension directly.
 		err = d.db.QueryRowContext(ctx,
-			`SELECT embedding::text FROM conversation_summaries
-			 WHERE agent_id = $1 AND embedding IS NOT NULL ORDER BY id DESC LIMIT 1`, agentID).Scan(&v)
-		// pgvector text shape "[..,..]" — derive dim by counting commas is
-		// fiddly; instead read the latest embedding_model (the dim is implied
-		// by the model and the migration-fixed column). We surface model for
-		// the mismatch hint; dim drift on pg is rare (column is fixed-width).
-		_ = v
+			`SELECT vector_dims(embedding) FROM conversation_summaries
+			 WHERE agent_id = $1 AND embedding IS NOT NULL ORDER BY id DESC LIMIT 1`, agentID).Scan(&dim)
+		if err != nil && errors.Is(err, sql.ErrNoRows) {
+			err = nil
+		}
 	default:
 		var blob []byte
 		err = d.db.QueryRowContext(ctx,

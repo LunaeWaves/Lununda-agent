@@ -261,6 +261,40 @@ guardrail, not a security boundary.
 - **Thinking/reasoning content** preserved for memory extraction
 - **Heartbeat-driven updates** — the agent periodically revisits and revises its memory
 
+**Cross-session semantic recall** — beyond the per-session context, Lununda
+distills every finished conversation range into a *conversation summary*
+(summary + keywords + a `(session_key, seq_start, seq_end)` pointer to the
+verbatim messages) and indexes it for recall across all of a chatter's
+sessions:
+
+- **Triggers** — summaries are extracted on context compaction, on manual
+  `/compact`, and when a session ends (`/new`, `/reset` — IM **and** web).
+- **Extraction** — an LLM distills the range, writes summary + keywords in
+  the conversation's own language (so a Chinese chat is searchable in
+  Chinese), and assigns an **importance** score (1–5). Nothing is dropped
+  on a low score — marginal memories are kept and sink to the bottom of
+  rankings via decay (see *soft forgetting*).
+- **Vectorization** — when an embedding provider is configured (system →
+  user → agent scope), each summary is embedded at save time into a
+  `vec0` (SQLite) / `vector` (Postgres) index. A periodic safety-net loop
+  backfills any summaries that missed save-time embedding; **Force
+  re-vectorize** rebuilds on demand.
+- **Recall** — `memory_search` runs a three-stage pipeline per query:
+  1. LIKE keyword recall (CJK-aware bigram re-rank) scoped to the current
+     chatter (multi-tenant isolation).
+  2. vec0/pgvector KNN vector recall, also chatter-scoped after fetch.
+  3. Optional cross-encoder reranker (Jina/Cohere-compatible) → top-K.
+  A `fetch_messages` tool then pulls the verbatim original messages by the
+  returned pointer.
+- **Scoring & reinforcement** — the re-rank combines three factors:
+  `importance × recency × access`. Every time a summary is surfaced its
+  `access_count` is bumped and its recency clock refreshes
+  (reinforcement), so frequently-recalled memories stay strong while
+  unrecalled ones softly forget (sink in rank) — no hard purge.
+
+See `docs/superpowers/plans/2026-06-18-conversation-summaries.md` for the
+full design.
+
 ### Goals (Async Autonomous Tasks)
 
 The `goal` system lets an agent pursue a multi-step objective across many
@@ -361,7 +395,7 @@ database and is edited through the dashboard or `lununda agents config`.
 | `LUNUNDA_PORT` | `18953` | Gateway HTTP port. |
 | `LUNUNDA_BIND` | `loopback` | `loopback` (127.0.0.1) or `all` (0.0.0.0). |
 | `LUNUNDA_STORAGE_TYPE` | `sqlite` | `sqlite` or `postgres`. |
-| `LUNUNDA_STORAGE_DSN` | empty | Postgres DSN, e.g. `postgres://u:p@host:5432/db?sslmode=disable`. Empty = sqlite at `$LUNUNDA_HOME/lununda.db`. |
+| `LUNUNDA_STORAGE_DSN` | empty | Postgres DSN, e.g. `postgres://u:p@host:5432/db?sslmode=disable`. Empty = sqlite at `$LUNUNDA_HOME/lununda.db`. **Postgres requires the `pgvector` extension** (`CREATE EXTENSION vector;`) for the cross-session vector recall. |
 | `LUNUNDA_STORAGE_AUTO_MIGRATE` | `true` | Apply schema migrations on boot. |
 | `LUNUNDA_SANDBOX_ENABLED` | dashboard | Override the Settings → Runtime toggle. |
 | `LUNUNDA_SANDBOX_BACKEND` | dashboard | `docker`, `e2b`, or `boxlite`. |

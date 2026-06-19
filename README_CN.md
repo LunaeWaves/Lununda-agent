@@ -243,6 +243,29 @@ tool:       "written"
 - **思考/推理内容** 保留用于记忆提取
 - **心跳驱动更新** — 智能体周期性回顾并修订自己的记忆
 
+**跨会话语义召回** — 除了每会话上下文，Lununda 还把每段结束的对话
+蒸馏成一条*对话摘要*（summary + keywords + 指向逐字原文的
+`(session_key, seq_start, seq_end)` 指针），并建索引供跨所有会话召回：
+
+- **触发** — 在上下文压缩、手动 `/compact`、会话结束（`/new`/`/reset`，
+  IM **和** web 都生效）时提炼摘要。
+- **提炼** — LLM 蒸馏该范围，用**对话原始语言**写摘要+关键词（中文对话
+  用中文搜索可命中），并打 **importance(1–5)** 分。低分不丢弃——靠后续
+  衰减自然沉底（见*软遗忘*）。
+- **向量化** — 配置 embedding 服务后（system→user→agent 三级 scope），
+  每条摘要存入时即时 embedding 到 `vec0`(SQLite)/`vector`(Postgres) 索引。
+  后台安全网 loop 补齐漏向量的摘要；**强制重新向量化** 按需重建。
+- **召回** — `memory_search` 每次查询走三阶段管道：
+  1. LIKE 关键词召回（CJK 感知的 bigram 重排），按当前对话者隔离（多租户）。
+  2. vec0/pgvector KNN 向量召回，fetch 后同样按对话者过滤。
+  3. 可选 cross-encoder reranker（兼容 Jina/Cohere）→ top-K。
+  `fetch_messages` 工具再按指针取逐字原文。
+- **评分与强化** — 重排综合三因子 `importance × recency × access`。
+  每次摘要被召回，`access_count` +1、近因时钟刷新（强化），所以常被
+  想起的记忆更牢固、不被想起的软遗忘（排名下沉）——不做硬清除。
+
+完整设计见 `docs/superpowers/plans/2026-06-18-conversation-summaries.md`。
+
 ### Goals（异步自主任务）
 
 `goal` 系统让智能体在无需重新提示的情况下，跨多轮追逐一个多步目标。
