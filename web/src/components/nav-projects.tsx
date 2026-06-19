@@ -188,7 +188,7 @@ export function NavSessions({
           {sessions.length === 0 && (
             <SidebarMenuItem>
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                No chats yet
+                {t("sidebar.noChats")}
               </div>
             </SidebarMenuItem>
           )}

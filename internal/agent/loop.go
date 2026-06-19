@@ -1943,7 +1943,12 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			if !result.continueToLoop {
 				sess.Append(buildUserMessage(msg))
 			}
-			if result.reply != "" {
+			// __NEW_SESSION__ is a live-stream sentinel the frontend
+			// intercepts to mint a fresh chat — it must NOT be persisted
+			// (it would render literally as an assistant bubble on
+			// history reload). Other replies are persisted as the audit
+			// trail.
+			if result.reply != "" && result.reply != "__NEW_SESSION__" {
 				sess.Append(provider.Message{Role: "assistant", Content: result.reply, Timestamp: time.Now().UnixMilli()})
 			}
 		}
@@ -2915,7 +2920,12 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 			if !result.continueToLoop {
 				sess.Append(buildUserMessage(msg))
 			}
-			if result.reply != "" {
+			// __NEW_SESSION__ is a live-stream sentinel the frontend
+			// intercepts to mint a fresh chat — it must NOT be persisted
+			// (it would render literally as an assistant bubble on
+			// history reload). Other replies are persisted as the audit
+			// trail.
+			if result.reply != "" && result.reply != "__NEW_SESSION__" {
 				sess.Append(provider.Message{Role: "assistant", Content: result.reply, Timestamp: time.Now().UnixMilli()})
 			}
 		}
