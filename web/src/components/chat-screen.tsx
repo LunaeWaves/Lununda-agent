@@ -6,7 +6,7 @@ import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fileUrl, getAgent, getChatHistoryWithCursor, getChatSessions, getChatTodo, getMe, listAgentFiles, listProjects, renameChatSession, revealAgentWorkspace, sendChatStream, steerChat, uploadAgentFiles, getSkills, type ChatHistoryMessage, type ChatStreamEvent, type SkillInfo, type TodoItem, type ToolResultMetadata, type WorkspaceFile } from "@/lib/api";
-import { Bot, Send, Copy, Check, Pencil, Wrench, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal, Zap } from "lucide-react";
+import { Bot, Send, Copy, Check, Pencil, Wrench, Brain, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal, Zap } from "lucide-react";
 import Link from "next/link";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { useT, useLocale } from "@/lib/i18n";
@@ -2879,6 +2879,14 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
   const spinDotColor = isRH ? "border-blue-500/60" : "border-primary/60";
   const checkColor = isRH ? "text-blue-500" : "text-emerald-500";
 
+  // Per-tool accent: memory_search gets the Lunar Violet (#9488D8) memory
+  // treatment (Brain icon) so recall calls read distinctly from generic
+  // tool calls. Other tools fall back to the primary/blue accent above.
+  const isMem = (name: string) => name === "memory_search";
+  const groupIsMem = tools.length > 0 && tools.every((tc) => isMem(tc.name));
+  const MEM_TEXT = "text-lunar-violet"; // #9488D8
+  const MEM_BORDER = "border-[#9488D8]";
+
   const inner = (
     <>
       {/* Content before tools */}
@@ -2909,6 +2917,8 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
               </span>
             ) : isRH ? (
               <Zap className={`h-3.5 w-3.5 ${iconColor} shrink-0`} />
+            ) : groupIsMem ? (
+              <Brain className={`h-3.5 w-3.5 ${MEM_TEXT} shrink-0`} />
             ) : (
               <Wrench className={`h-3.5 w-3.5 ${iconColor} shrink-0`} />
             )}
@@ -2936,11 +2946,14 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/30 transition-colors"
                   >
                     {tc.result === undefined ? (
-                      <div className={`h-3 w-3 shrink-0 rounded-full border-2 ${spinDotColor} border-t-transparent animate-spin`} />
+                      <div className={`h-3 w-3 shrink-0 rounded-full border-2 ${isMem(tc.name) ? MEM_BORDER + "/60" : spinDotColor} border-t-transparent animate-spin`} />
                     ) : (
-                      <Check className={`h-3 w-3 ${checkColor} shrink-0`} />
+                      <Check className={`h-3 w-3 ${isMem(tc.name) ? MEM_TEXT : checkColor} shrink-0`} />
                     )}
-                    <span className="font-medium text-foreground">{isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name}</span>
+                    {isMem(tc.name) && (
+                      <Brain className={`h-3 w-3 ${MEM_TEXT} shrink-0`} />
+                    )}
+                    <span className={`font-medium ${isMem(tc.name) ? MEM_TEXT : "text-foreground"}`}>{isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name}</span>
                     {tc.metadata?.sandbox && (
                       <span
                         className="flex items-center gap-0.5 rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
