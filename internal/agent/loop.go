@@ -1799,7 +1799,7 @@ func (a *Agent) handlePlanMode(ctx context.Context, msg bus.InboundMessage) stri
 	sess.Append(userMsg)
 
 	if a.provider == nil {
-		noProviderMsg := "Agent is not configured with a usable LLM provider. Check that cfg.Providers contains the prefix referenced by model `" + a.model + "`."
+		noProviderMsg := slashReply("no_provider", map[string]any{"model": a.model})
 		emitEvent(ctx, ChatEvent{Type: "error", Data: map[string]any{"message": noProviderMsg}})
 		emitEvent(ctx, ChatEvent{Type: "done"})
 		return noProviderMsg
@@ -2208,7 +2208,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 
 		if a.provider == nil {
 			slog.Error("agent has no provider configured", "agent", a.name, "model", a.model)
-			noProviderMsg := "Agent is not configured with a usable LLM provider. Check that cfg.Providers contains the prefix referenced by model `" + a.model + "`."
+			noProviderMsg := slashReply("no_provider", map[string]any{"model": a.model})
 			emitEvent(ctx, ChatEvent{Type: "error", Data: map[string]any{"message": noProviderMsg}})
 			emitEvent(ctx, ChatEvent{Type: "done"})
 			return noProviderMsg

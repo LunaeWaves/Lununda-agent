@@ -1178,6 +1178,7 @@ Info
   "slash.insights": "🔍 Insights (last {days} days)\n─────────────────────────\nLog files:       {total_files} total, {recent_files} recent\nMemory file:     {memory_file}\nWorkspace:       {workspace}\n\nTip: Use /status for session info, /usage for token stats.",
   "slash.personality_list": "🎭 Personalities\n─────────────────\n{names}\n\nUsage: /personality <name>",
   "slash.personality_list_current": " ← current",
+  "slash.no_provider": "Agent is not configured with a usable LLM provider. Check that cfg.Providers contains the prefix referenced by model `{model}`.",
 };
 
 export default en;
