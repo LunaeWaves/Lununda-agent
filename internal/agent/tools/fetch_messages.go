@@ -12,8 +12,11 @@ import (
 // MessageFetcher is the subset of *store.DBStore fetch_messages needs.
 type MessageFetcher interface {
 	// ListSessionMessagesBySeq returns messages in [seqStart, seqEnd] for
-	// one session, ascending. Empty slice when no rows match.
-	ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey string, seqStart, seqEnd int) ([]store.SessionMessage, error)
+	// one (owner, agent, session, chatter), ascending. The chatter filter
+	// is tolerant of legacy rows with empty chatter_user_id — those are
+	// already scoped by session_key (unique per chatter). Empty slice when
+	// no rows match.
+	ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, seqStart, seqEnd int) ([]store.SessionMessage, error)
 }
 
 // fetchMessagesArgs is the JSON schema for fetch_messages.
@@ -71,10 +74,15 @@ func makeFetchMessages(r *Registry) ToolFunc {
 			args.SeqStart, args.SeqEnd = args.SeqEnd, args.SeqStart
 		}
 
-		// Resolve user context — same pattern as memory_search.
-		userID := r.ChatterUserID()
+		// Scope by owner (user_id = agent owner) + effective chatter. The
+		// pointer came from a chatter-scoped memory_search hit, and
+		// session_key is already per-chatter, but filtering chatter_user_id
+		// explicitly keeps fetch_messages consistent with memory_search's
+		// isolation (defense in depth against a leaked pointer).
+		ownerID := r.userID
+		chatterID := r.ChatterUserID()
 		agentID := r.agentID
-		if userID == "" || agentID == "" {
+		if ownerID == "" || chatterID == "" || agentID == "" {
 			return "", fmt.Errorf("fetch_messages requires a chat context")
 		}
 
@@ -82,7 +90,7 @@ func makeFetchMessages(r *Registry) ToolFunc {
 			return "", fmt.Errorf("fetch_messages not available: store not wired")
 		}
 
-		msgs, err := r.msgFetcher.ListSessionMessagesBySeq(ctx, userID, agentID, args.SessionKey, args.SeqStart, args.SeqEnd)
+		msgs, err := r.msgFetcher.ListSessionMessagesBySeq(ctx, ownerID, agentID, args.SessionKey, chatterID, args.SeqStart, args.SeqEnd)
 		if err != nil {
 			return "", fmt.Errorf("fetch messages: %w", err)
 		}

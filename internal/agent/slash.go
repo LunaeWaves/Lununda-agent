@@ -85,6 +85,18 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 			// driven /new also reaps the goal row.
 			a.clearGoalForSession(oldKey)
 		}
+		// Distill the OLD session into conversation_summaries so its
+		// content survives as searchable memory. Runs for EVERY channel
+		// (web too) — previously only IM did this because the web branch
+		// short-circuited above the extraction, so web users opening a
+		// new chat silently dropped the prior conversation from memory.
+		// Best-effort; maybeExtractSummary gates on message count + store.
+		if oldSess := a.sessions.GetByKey(oldKey); oldSess != nil {
+			oldMsgs := oldSess.GetMessages()
+			if len(oldMsgs) > 0 {
+				a.maybeExtractSummary(oldMsgs, 1, len(oldMsgs), oldSess, "new_session")
+			}
+		}
 		if msg.Channel == "web" {
 			// For web channel, don't delete the session file — frontend handles new session creation
 			return slashResult{handled: true, reply: "__NEW_SESSION__"}
@@ -94,15 +106,6 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 		// thread is preserved as history. Subsequent inbound messages
 		// resolve to the new (max updated_at) row via Manager.Get's
 		// active-session lookup.
-		//
-		// Before minting: distill the OLD session into conversation_summaries
-		// so its content survives as searchable memory. Best-effort.
-		if oldSess := a.sessions.GetByKey(oldKey); oldSess != nil {
-			oldMsgs := oldSess.GetMessages()
-			if len(oldMsgs) > 0 {
-				a.maybeExtractSummary(oldMsgs, 1, len(oldMsgs), oldSess, "new_session")
-			}
-		}
 		a.sessions.OpenNewSession(msg.Channel, msg.AccountID, msg.ChatID)
 		// IM channels reuse the physical chat_id across `/new`s, so the
 		// pre-fix workspace layout (`sessions/<chat_id>/`) let every

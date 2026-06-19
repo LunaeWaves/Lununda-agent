@@ -3706,14 +3706,15 @@ var _ Store = (*DBStore)(nil)
 // ListSessionMessagesBySeq returns messages where seq is between seqStart
 // and seqEnd inclusive. Used by the fetch_messages tool to retrieve the
 // original conversation a summary points to.
-func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey string, seqStart, seqEnd int) ([]SessionMessage, error) {
+func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, seqStart, seqEnd int) ([]SessionMessage, error) {
 	rows, err := d.db.QueryContext(ctx,
 		fmt.Sprintf(`SELECT role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
 			FROM session_messages
 			WHERE user_id = %s AND agent_id = %s AND session_key = %s AND seq >= %s AND seq <= %s
+			  AND (chatter_user_id = %s OR chatter_user_id = '')
 			ORDER BY seq ASC`,
-			d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5)),
-		userID, agentID, sessionKey, seqStart, seqEnd)
+			d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5), d.ph(6)),
+		userID, agentID, sessionKey, seqStart, seqEnd, chatterUserID)
 	if err != nil {
 		return nil, err
 	}
