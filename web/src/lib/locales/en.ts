@@ -1113,6 +1113,27 @@ const en: Record<string, string> = {
   "channels.refreshing": "Refreshing…",
   "channels.sendToTest": "Send it a message to test.",
   "channels.optionalButRecommended": "Optional but strongly recommended — lununda verifies inbound webhook payloads via HMAC-SHA256 against this secret.",
+
+  // Slash command replies (server emits __SLASH:<code>:<args>__; see slash-reply.ts)
+  "slash.compact_within": "✓ Session is within limits ({count} messages, no compaction needed). Saved a conversation summary for cross-session recall.",
+  "slash.compact_done": "✅ Compacted: {from} → {to} messages.",
+  "slash.compact_empty": "No messages to compact.",
+  "slash.compact_error": "Compaction error: {error}",
+  "slash.undo_turn": "↩️ Undid last turn.",
+  "slash.undo_action": "↩️ Undid last action.",
+  "slash.undo_none": "Nothing to undo.",
+  "slash.retry_none": "No previous message to retry.",
+  "slash.retry_running": "🔁 Retrying: *{text}*",
+  "slash.new_session": "🔄 New session started. Previous conversation kept as history.",
+  "slash.model_current": "Current model: `{model}`\n\nUsage: /model <model-name>\nExample: /model gpt-4o-mini",
+  "slash.model_switched": "🤖 Model switched: `{from}` → `{to}`",
+  "slash.personality_none": "No personality presets found.\n\nCreate files named SOUL-<name>.md in your workspace to add presets.\nExample: SOUL-assistant.md, SOUL-dev.md",
+  "slash.personality_set": "🎭 Personality set to: **{name}**\nSOUL.md updated. Takes effect on the next message.",
+  "slash.personality_notfound": "Personality '{name}' not found.\nExpected: {path}",
+  "slash.personality_error": "Error reading personality: {error}",
+  "slash.plan_usage": "Usage: `/plan <task>`",
+  "slash.bus_full": "Bus full, try again.",
+  "slash.intro": "👋 Hi! I'm {name}, your AI assistant.\n\nJust send me a message to chat. Use /help to see available commands.",
 };
 
 export default en;

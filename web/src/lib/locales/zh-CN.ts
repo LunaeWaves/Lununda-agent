@@ -1113,6 +1113,27 @@ const zhCN: Record<string, string> = {
   "channels.refreshing": "刷新中…",
   "channels.sendToTest": "发送消息测试集成。",
   "channels.optionalButRecommended": "可选但强烈推荐——lununda 使用此密钥通过 HMAC-SHA256 验证入站 webhook 负载。",
+
+  // 斜杠命令回复（服务端发 __SLASH:<code>:<args>__；见 slash-reply.ts）
+  "slash.compact_within": "✓ 会话在限制内（{count} 条消息，无需压缩）。已保存对话摘要供跨会话召回。",
+  "slash.compact_done": "✅ 已压缩：{from} → {to} 条消息。",
+  "slash.compact_empty": "没有可压缩的消息。",
+  "slash.compact_error": "压缩出错：{error}",
+  "slash.undo_turn": "↩️ 已撤销上一轮。",
+  "slash.undo_action": "↩️ 已撤销上一个操作。",
+  "slash.undo_none": "没有可撤销的内容。",
+  "slash.retry_none": "没有上一条消息可重试。",
+  "slash.retry_running": "🔁 重试：*{text}*",
+  "slash.new_session": "🔄 已开始新会话。之前的对话已保留为历史。",
+  "slash.model_current": "当前模型：`{model}`\n\n用法：/model <模型名>\n示例：/model gpt-4o-mini",
+  "slash.model_switched": "🤖 模型已切换：`{from}` → `{to}`",
+  "slash.personality_none": "未找到人格预设。\n\n在工作区创建名为 SOUL-<name>.md 的文件来添加预设。\n示例：SOUL-assistant.md、SOUL-dev.md",
+  "slash.personality_set": "🎭 人格已设为：**{name}**\nSOUL.md 已更新，下一条消息生效。",
+  "slash.personality_notfound": "找不到人格“{name}”。\n预期路径：{path}",
+  "slash.personality_error": "读取人格出错：{error}",
+  "slash.plan_usage": "用法：`/plan <任务>`",
+  "slash.bus_full": "消息总线已满，请重试。",
+  "slash.intro": "👋 你好！我是 {name}，你的 AI 助手。\n\n直接发消息就能和我聊天。输入 /help 查看可用命令。",
 };
 
 export default zhCN;

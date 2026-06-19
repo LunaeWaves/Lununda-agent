@@ -10,6 +10,7 @@ import { Bot, Send, Copy, Check, Pencil, Wrench, Brain, BookOpen, ChevronDown, C
 import Link from "next/link";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { useT, useLocale } from "@/lib/i18n";
+import { localizeSlashReply } from "@/lib/slash-reply";
 
 // react-markdown's default urlTransform strips any protocol not in the
 // safe-list (http, https, mailto, ircs, xmpp) — including `data:`. We want
@@ -2896,9 +2897,12 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
       {msg.content && (
         <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5">
           <div className={CHAT_PROSE_CLASS}>
-            {renderContentWithDataImages(msg.content, surfacedSrcs, false, makeUrlTransform(agentId, sessionId)) ?? (
-              <ChatMarkdown text={msg.content} agentId={agentId} sessionId={sessionId} />
-            )}
+            {(() => {
+              const lc = localizeSlashReply(msg.content, t);
+              return renderContentWithDataImages(lc, surfacedSrcs, false, makeUrlTransform(agentId, sessionId)) ?? (
+                <ChatMarkdown text={lc} agentId={agentId} sessionId={sessionId} />
+              );
+            })()}
           </div>
         </div>
       )}
