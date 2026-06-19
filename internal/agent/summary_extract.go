@@ -170,16 +170,13 @@ func persistConversationSummary(
 		return
 	}
 
-	// Store threshold: importance 1 = trivial/forgettable. Dropping it
-	// keeps the index focused on genuinely useful memories and saves the
-	// embedding cost on chit-chat that slipped past the LLM's gate.
-	if ex.Importance <= 1 {
-		slog.Debug("conversation summary: low importance, skipping",
-			"agent", agentID, "session", sessionKey,
-			"seq_range", fmt.Sprintf("%d-%d", seqStart, seqEnd),
-			"importance", ex.Importance)
-		return
-	}
+	// No importance threshold at ingest — keep everything that the LLM
+	// distilled into a non-empty summary. Low-importance (chit-chat that
+	// slipped past the empty-summary gate) is marginalized organically:
+	// it starts at importance 1-2 with access_count 0, never gets
+	// recalled, and the recency×access score decays it to the bottom of
+	// future rankings (soft forgetting). Reversible — nothing is
+	// irreversibly dropped, and storage/embedding cost is acceptable.
 
 	// Stamp the embedding model on the row so a later model-switch can
 	// detect+rebuild (ListConversationSummariesNeedingVector compares
