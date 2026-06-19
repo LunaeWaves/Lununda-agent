@@ -66,7 +66,7 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 	case "/start":
 		return slashResult{
 			handled: true,
-			reply:   fmt.Sprintf("👋 Hi! I'm %s, your AI assistant.\n\nJust send me a message to chat. Use /help to see available commands.", a.name),
+			reply:   slashReply("intro", map[string]any{"name": a.name}),
 		}
 
 	case "/new", "/reset":
@@ -122,7 +122,7 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 					"agent", a.name, "from_chat_id", msg.ChatID, "to_session_key", oldKey, "error", err)
 			}
 		}
-		return slashResult{handled: true, reply: "🔄 New session started. Previous conversation kept as history."}
+		return slashResult{handled: true, reply: slashReply("new_session", nil)}
 
 	case "/retry":
 		return a.slashRetry(msg)
@@ -154,7 +154,7 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 
 	case "/model":
 		if len(args) == 0 {
-			return slashResult{handled: true, reply: fmt.Sprintf("Current model: `%s`\n\nUsage: /model <model-name>\nExample: /model gpt-4o-mini", a.model)}
+			return slashResult{handled: true, reply: slashReply("model_current", map[string]any{"model": a.model})}
 		}
 		return a.slashModel(msg, args[0])
 
@@ -256,7 +256,7 @@ func (a *Agent) slashRetry(msg bus.InboundMessage) slashResult {
 		}
 	}
 	if lastUserIdx < 0 {
-		return slashResult{handled: true, reply: "No previous message to retry."}
+		return slashResult{handled: true, reply: slashReply("retry_none", nil)}
 	}
 
 	// Save snapshot for undo
@@ -274,7 +274,7 @@ func (a *Agent) slashRetry(msg bus.InboundMessage) slashResult {
 	// But we return handled here to avoid double-processing — gateway should re-send
 	return slashResult{
 		handled: true,
-		reply:   fmt.Sprintf("🔁 Retrying: *%s*", truncateSlash(lastUserText, 80)),
+		reply:   slashReply("retry_running", map[string]any{"text": truncateSlash(lastUserText, 80)}),
 	}
 }
 
@@ -286,7 +286,7 @@ func (a *Agent) slashUndo(msg bus.InboundMessage) slashResult {
 		// No snapshot — try to remove last user+assistant turn manually
 		msgs := sess.GetMessages()
 		if len(msgs) < 2 {
-			return slashResult{handled: true, reply: "Nothing to undo."}
+			return slashResult{handled: true, reply: slashReply("undo_none", nil)}
 		}
 		// Trim trailing assistant messages + the user message before them
 		end := len(msgs)
@@ -297,13 +297,13 @@ func (a *Agent) slashUndo(msg bus.InboundMessage) slashResult {
 			end--
 		}
 		sess.ReplaceMessages(msgs[:end])
-		return slashResult{handled: true, reply: "↩️ Undid last turn."}
+		return slashResult{handled: true, reply: slashReply("undo_turn", nil)}
 	}
 
 	if sess.Undo() {
-		return slashResult{handled: true, reply: "↩️ Undid last action."}
+		return slashResult{handled: true, reply: slashReply("undo_action", nil)}
 	}
-	return slashResult{handled: true, reply: "Nothing to undo."}
+	return slashResult{handled: true, reply: slashReply("undo_none", nil)}
 }
 
 func (a *Agent) slashCompact(msg bus.InboundMessage) slashResult {
@@ -311,17 +311,17 @@ func (a *Agent) slashCompact(msg bus.InboundMessage) slashResult {
 	sessionMsgs := sess.GetMessages()
 
 	if len(sessionMsgs) == 0 {
-		return slashResult{handled: true, reply: "No messages to compact."}
+		return slashResult{handled: true, reply: slashReply("compact_empty", nil)}
 	}
 
 	result, err := CompactMessages(sessionMsgs, a.homePath, a.provider, a.model)
 	if err != nil {
-		return slashResult{handled: true, reply: fmt.Sprintf("Compaction error: %v", err)}
+		return slashResult{handled: true, reply: slashReply("compact_error", map[string]any{"error": err.Error()})}
 	}
 	if result != nil && result.Pruned {
 		// ReplaceMessages triggers the compaction hook (Task 1.5).
 		sess.ReplaceMessages(result.Messages)
-		return slashResult{handled: true, reply: fmt.Sprintf("✅ Compacted: %d → %d messages.", len(sessionMsgs), len(result.Messages))}
+		return slashResult{handled: true, reply: slashReply("compact_done", map[string]any{"from": len(sessionMsgs), "to": len(result.Messages)})}
 	}
 	// Session is under the auto-compaction threshold. But the user
 	// explicitly asked for /compact — treat it as "save a summary of
@@ -329,7 +329,7 @@ func (a *Agent) slashCompact(msg bus.InboundMessage) slashResult {
 	// The compaction hook only fires on real compaction, so trigger
 	// summary extraction explicitly here.
 	a.maybeExtractSummary(sessionMsgs, 1, len(sessionMsgs), sess, "manual_compact")
-	return slashResult{handled: true, reply: fmt.Sprintf("✓ Session is within limits (%d messages, no compaction needed). Saved a conversation summary for cross-session recall.", len(sessionMsgs))}
+	return slashResult{handled: true, reply: slashReply("compact_within", map[string]any{"count": len(sessionMsgs)})}
 }
 
 func (a *Agent) slashStatus(msg bus.InboundMessage) slashResult {
@@ -443,7 +443,7 @@ func (a *Agent) slashInsights(msg bus.InboundMessage, days int) slashResult {
 func (a *Agent) slashPersonalityList(msg bus.InboundMessage) slashResult {
 	presets := a.listPersonalities()
 	if len(presets) == 0 {
-		return slashResult{handled: true, reply: "No personality presets found.\n\nCreate files named SOUL-<name>.md in your workspace to add presets.\nExample: SOUL-assistant.md, SOUL-dev.md"}
+		return slashResult{handled: true, reply: slashReply("personality_none", nil)}
 	}
 	current := a.loadSoulName()
 	var sb strings.Builder
@@ -465,27 +465,27 @@ func (a *Agent) slashPersonalitySet(msg bus.InboundMessage, name string) slashRe
 	// Look for SOUL-<name>.md in workspace
 	srcPath := filepath.Join(a.homePath, fmt.Sprintf("SOUL-%s.md", name))
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-		return slashResult{handled: true, reply: fmt.Sprintf("Personality '%s' not found.\nExpected: %s", name, srcPath)}
+		return slashResult{handled: true, reply: slashReply("personality_notfound", map[string]any{"name": name, "path": srcPath})}
 	}
 
 	data, err := os.ReadFile(srcPath)
 	if err != nil {
-		return slashResult{handled: true, reply: fmt.Sprintf("Error reading personality: %v", err)}
+		return slashResult{handled: true, reply: slashReply("personality_error", map[string]any{"error": err.Error()})}
 	}
 
 	destPath := filepath.Join(a.homePath, "SOUL.md")
 	if err := os.WriteFile(destPath, data, 0o644); err != nil {
-		return slashResult{handled: true, reply: fmt.Sprintf("Error applying personality: %v", err)}
+		return slashResult{handled: true, reply: slashReply("personality_error", map[string]any{"error": err.Error()})}
 	}
 
-	return slashResult{handled: true, reply: fmt.Sprintf("🎭 Personality set to: **%s**\nSOUL.md updated. Takes effect on the next message.", name)}
+	return slashResult{handled: true, reply: slashReply("personality_set", map[string]any{"name": name})}
 }
 
 // slashModel switches the active model for this agent session.
 func (a *Agent) slashModel(msg bus.InboundMessage, model string) slashResult {
 	old := a.model
 	a.model = model
-	return slashResult{handled: true, reply: fmt.Sprintf("🤖 Model switched: `%s` → `%s`", old, model)}
+	return slashResult{handled: true, reply: slashReply("model_switched", map[string]any{"from": old, "to": model})}
 }
 
 // listPersonalities finds SOUL-<name>.md files in workspace.
@@ -565,7 +565,7 @@ Info
 func (a *Agent) slashPlan(msg bus.InboundMessage, args []string) slashResult {
 	task := strings.TrimSpace(strings.Join(args, " "))
 	if task == "" {
-		return slashResult{handled: true, reply: "Usage: `/plan <task>`"}
+		return slashResult{handled: true, reply: slashReply("plan_usage", nil)}
 	}
 
 	// Clone the inbound msg so routing fields (channel, account, chat,
@@ -585,7 +585,7 @@ func (a *Agent) slashPlan(msg bus.InboundMessage, args []string) slashResult {
 	case a.messageBus.Inbound <- out:
 		return slashResult{handled: true, reply: "", continuationQueued: true}
 	default:
-		return slashResult{handled: true, reply: "Bus full, try again."}
+		return slashResult{handled: true, reply: slashReply("bus_full", nil)}
 	}
 }
 
