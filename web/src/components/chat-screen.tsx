@@ -1510,6 +1510,10 @@ export function ChatScreen() {
             if (content === "__NEW_SESSION__") {
               handleNewChat();
               loadSessions(selectedAgent);
+              // Surface a confirmation so /new isn't silent (the session
+              // switch + clear otherwise looks like the command vanished).
+              setNewSessionNotice(t("slash.new_session"));
+              window.setTimeout(() => setNewSessionNotice(null), 3500);
               return;
             }
             // If the bubble was already streamed in via content_delta,
@@ -2012,6 +2016,10 @@ export function ChatScreen() {
   // Once any message exists the layout swings back to the standard
   // "scroll above, sticky composer at bottom" shape.
   const isEmpty = messages.length === 0;
+  // Brief confirmation shown after /new switches to a fresh session —
+  // without it the command looks "eaten" (the message + session switch
+  // happen silently). Auto-clears after a few seconds.
+  const [newSessionNotice, setNewSessionNotice] = useState<string | null>(null);
   // Compute the id of the latest agent bubble that's a pending plan
   // (numbered plan + "Reply `go` to execute" footer), only when no
   // user message has followed it. This is the single bubble that gets
@@ -2058,6 +2066,11 @@ export function ChatScreen() {
           }
         >
           <div className="mx-auto max-w-2xl space-y-3">
+            {newSessionNotice && (
+              <div className="mx-auto w-fit rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                {newSessionNotice}
+              </div>
+            )}
             {isEmpty && (
               <div className="py-8 text-center">
                 <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
