@@ -1134,6 +1134,50 @@ const zhCN: Record<string, string> = {
   "slash.plan_usage": "用法：`/plan <任务>`",
   "slash.bus_full": "消息总线已满，请重试。",
   "slash.intro": "👋 你好！我是 {name}，你的 AI 助手。\n\n直接发消息就能和我聊天。输入 /help 查看可用命令。",
+  "slash.version": "⚡ Lununda Agent\nAgent: {name}\nModel: {model}",
+  "slash.whoami": "频道: `{channel}`\n你的用户 ID: `{user_id}`\n发送者名称: `{sender_name}`\n\n(把这个 ID 添加到 agent.json 的 `admins.{channel}` 里即可获得写入斜杠命令的权限。)",
+  "slash.help": `⚡ Lununda Agent 命令
+
+对话
+  /new, /reset    — 清除会话历史
+  /retry          — 重新运行上一条消息
+  /undo           — 撤销上一轮
+
+上下文
+  /compact        — 压缩上下文窗口
+  /status         — 智能体状态和记忆信息
+  /usage          — 会话 Token/轮次统计
+  /insights [N]   — 活动洞察（最近 N 天，默认 7）
+
+人格 & 模型
+  /personality        — 列出可用人格
+  /personality <名称> — 切换人格 (SOUL-<名称>.md)
+  /model <名称>       — 切换 LLM 模型
+
+目标（持久化多轮自主任务）
+  /goal <目标>   — 创建目标；智能体会自主持续执行直到完成
+  /goal          — 显示当前目标状态
+  /goal pause    — 暂停继续
+  /goal resume   — 恢复暂停的目标
+  /goal clear    — 删除目标
+
+计划
+  /plan <任务>   — 以计划模式运行：输出编号的计划，不调用工具
+
+信息
+  /help           — 显示本帮助
+  /version        — 显示版本
+  /whoami         — 显示你的平台用户 ID
+
+🔒 写入命令 (/new /reset /undo /retry /compact /model /personality)
+   在 IM 频道中限于智能体 owner 及 agent.json 中 "admins" 字段列出的管理员。
+   使用 /whoami 查看你的 ID。`,
+  "slash.status": "⚡ Lununda Agent 状态\n─────────────────\nAgent:       {name}\nModel:       {model}\nPersonality: {soul}\nMax Tokens:  {max_tokens}\nTemperature: {temperature}\nMax Iter:    {max_iter}\nSession Msgs:{session_msgs}\nMemory:      {mem_lines} lines\nWorkspace:   {workspace}",
+  "slash.usage": "📊 会话用量\n用户轮次:      {user_turns}\n助手轮次:    {asst_turns}\n工具调用:    {tool_turns}\n总消息数:    {total_msgs}{cost}",
+  "slash.cost_line": "\n─────────────────\n费用:            {cost}\n输入 Token:    {input_tokens}\n输出 Token:   {output_tokens}\nAPI 耗时:     {api_duration}\n工具耗时:     {tool_duration}",
+  "slash.insights": "🔍 活动洞察（最近 {days} 天）\n─────────────────────────\n日志文件:     {total_files} 个总计, {recent_files} 个近期\n记忆文件:     {memory_file}\n工作区:       {workspace}\n\n提示: 使用 /status 查看会话信息, /usage 查看 Token 统计。",
+  "slash.personality_list": "🎭 人格列表\n─────────────────\n{names}\n\n用法: /personality <名称>",
+  "slash.personality_list_current": " ← 当前",
 };
 
 export default zhCN;

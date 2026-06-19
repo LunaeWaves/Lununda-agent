@@ -99,4 +99,48 @@ var slashEnglish = map[string]string{
 	"plan_usage":          "Usage: `/plan <task>`",
 	"bus_full":            "Bus full, try again.",
 	"intro":               "👋 Hi! I'm {name}, your AI assistant.\n\nJust send me a message to chat. Use /help to see available commands.",
+	"version":             "⚡ Lununda Agent\nAgent: {name}\nModel: {model}",
+	"whoami":              "Channel: `{channel}`\nYour user ID: `{user_id}`\nSender name: `{sender_name}`\n\n(Add this ID to `admins.{channel}` in the agent config to grant write-slash access.)",
+	"help":                `⚡ Lununda Agent Commands
+
+Conversation
+  /new, /reset    — Clear session history
+  /retry          — Re-run last message
+  /undo           — Undo last turn
+
+Context
+  /compact        — Compress context window
+  /status         — Agent status & memory info
+  /usage          — Session token/turn stats
+  /insights [N]   — Activity insights (last N days, default 7)
+
+Personality & Model
+  /personality        — List available personalities
+  /personality <name> — Switch personality (SOUL-<name>.md)
+  /model <name>       — Switch LLM model
+
+Goal (persistent multi-turn objective)
+  /goal <objective> — Create a goal; agent self-continues until done
+  /goal             — Show current goal status
+  /goal pause       — Pause continuation
+  /goal resume      — Resume a paused goal
+  /goal clear       — Delete the goal
+
+Plan
+  /plan <task>      — Run <task> in plan mode: emit a numbered plan, no tool calls
+
+Info
+  /help           — Show this help
+  /version        — Show version
+  /whoami         — Show your platform user ID
+
+🔒 Write commands (/new /reset /undo /retry /compact /model /personality)
+   in IM channels are restricted to the agent owner + admins listed in
+   agent.json's "admins" field. Use /whoami to find your ID.`,
+	"status":    "⚡ Lununda Agent Status\n─────────────────\nAgent:       {name}\nModel:       {model}\nPersonality: {soul}\nMax Tokens:  {max_tokens}\nTemperature: {temperature}\nMax Iter:    {max_iter}\nSession Msgs:{session_msgs}\nMemory:      {mem_lines} lines\nWorkspace:   {workspace}",
+	"usage":     "📊 Session Usage\nUser turns:      {user_turns}\nAssistant turns: {asst_turns}\nTool calls:      {tool_turns}\nTotal messages:  {total_msgs}{cost}",
+	"cost_line": "\n─────────────────\nCost:            {cost}\nInput tokens:    {input_tokens}\nOutput tokens:   {output_tokens}\nAPI duration:    {api_duration}\nTool duration:   {tool_duration}",
+	"insights":  "🔍 Insights (last {days} days)\n─────────────────────────\nLog files:       {total_files} total, {recent_files} recent\nMemory file:     {memory_file}\nWorkspace:       {workspace}\n\nTip: Use /status for session info, /usage for token stats.",
+	"personality_list":        "🎭 Personalities\n─────────────────\n{names}\n\nUsage: /personality <name>",
+	"personality_list_current": " ← current",
 }

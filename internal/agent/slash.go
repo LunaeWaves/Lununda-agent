@@ -165,16 +165,19 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 		return a.slashPlan(msg, args)
 
 	case "/help":
-		return slashResult{handled: true, reply: a.slashHelp()}
+		return slashResult{handled: true, reply: slashReply("help", nil)}
 
 	case "/version":
-		return slashResult{handled: true, reply: fmt.Sprintf("⚡ Lununda Agent\nAgent: %s\nModel: %s", a.name, a.model)}
+		return slashResult{handled: true, reply: slashReply("version", map[string]any{"name": a.name, "model": a.model})}
 
 	case "/whoami":
 		return slashResult{
 			handled: true,
-			reply: fmt.Sprintf("Channel: `%s`\nYour user ID: `%s`\nSender name: `%s`\n\n(Add this ID to `admins.%s` in the agent config to grant write-slash access.)",
-				msg.Channel, msg.UserID, msg.SenderName, msg.Channel),
+			reply: slashReply("whoami", map[string]any{
+				"channel":     msg.Channel,
+				"user_id":     msg.UserID,
+				"sender_name": msg.SenderName,
+			}),
 		}
 
 	case "/yes":
@@ -344,21 +347,17 @@ func (a *Agent) slashStatus(msg bus.InboundMessage) slashResult {
 
 	soul := a.loadSoulName()
 
-	status := fmt.Sprintf("⚡ Lununda Agent Status\n"+
-		"─────────────────\n"+
-		"Agent:       %s\n"+
-		"Model:       %s\n"+
-		"Personality: %s\n"+
-		"Max Tokens:  %d\n"+
-		"Temperature: %.1f\n"+
-		"Max Iter:    %d\n"+
-		"Session Msgs:%d\n"+
-		"Memory:      %d lines\n"+
-		"Workspace:   %s",
-		a.name, a.model, soul,
-		a.maxTokens, a.temperature, a.maxToolIterations,
-		len(sessionMsgs), memLines, a.homePath,
-	)
+	status := slashReply("status", map[string]any{
+		"name":        a.name,
+		"model":       a.model,
+		"soul":        soul,
+		"max_tokens":  a.maxTokens,
+		"temperature": fmt.Sprintf("%.1f", a.temperature),
+		"max_iter":    a.maxToolIterations,
+		"session_msgs": len(sessionMsgs),
+		"mem_lines":   memLines,
+		"workspace":   a.homePath,
+	})
 	return slashResult{handled: true, reply: status}
 }
 
@@ -378,32 +377,24 @@ func (a *Agent) slashUsage(msg bus.InboundMessage) slashResult {
 		}
 	}
 
-	reply := fmt.Sprintf("📊 Session Usage\n"+
-		"User turns:      %d\n"+
-		"Assistant turns: %d\n"+
-		"Tool calls:      %d\n"+
-		"Total messages:  %d",
-		userTurns, asstTurns, toolTurns, len(msgs),
-	)
-
-	// Append cost tracking info from SDK engine
+	args := map[string]any{
+		"user_turns": userTurns,
+		"asst_turns": asstTurns,
+		"tool_turns": toolTurns,
+		"total_msgs": len(msgs),
+		"cost":       "",
+	}
 	if a.costTracker != nil {
 		stats := a.costTracker.Stats()
-		reply += fmt.Sprintf("\n─────────────────\n"+
-			"Cost:            %s\n"+
-			"Input tokens:    %v\n"+
-			"Output tokens:   %v\n"+
-			"API duration:    %vms\n"+
-			"Tool duration:   %vms",
-			a.costTracker.FormatCost(),
-			stats["totalInputTokens"],
-			stats["totalOutputTokens"],
-			stats["totalAPIDurationMs"],
-			stats["totalToolDurationMs"],
-		)
+		args["cost"] = renderSlashTemplate(slashEnglish["cost_line"], map[string]any{
+			"cost":          a.costTracker.FormatCost(),
+			"input_tokens":  stats["totalInputTokens"],
+			"output_tokens": stats["totalOutputTokens"],
+			"api_duration":  fmt.Sprintf("%vms", stats["totalAPIDurationMs"]),
+			"tool_duration": fmt.Sprintf("%vms", stats["totalToolDurationMs"]),
+		})
 	}
-
-	return slashResult{handled: true, reply: reply}
+	return slashResult{handled: true, reply: slashReply("usage", args)}
 }
 
 func (a *Agent) slashInsights(msg bus.InboundMessage, days int) slashResult {
@@ -420,22 +411,19 @@ func (a *Agent) slashInsights(msg bus.InboundMessage, days int) slashResult {
 		}
 	}
 
-	reply := fmt.Sprintf("🔍 Insights (last %d days)\n"+
-		"─────────────────────────\n"+
-		"Log files:       %d total, %d recent\n"+
-		"Memory file:     %s\n"+
-		"Workspace:       %s\n\n"+
-		"Tip: Use /status for session info, /usage for token stats.",
-		days, totalFiles, recentFiles,
-		func() string {
+	reply := slashReply("insights", map[string]any{
+		"days":         days,
+		"total_files":  totalFiles,
+		"recent_files": recentFiles,
+		"memory_file": func() string {
 			info, err := os.Stat(filepath.Join(a.homePath, "MEMORY.md"))
 			if err != nil {
 				return "not found"
 			}
 			return fmt.Sprintf("%.1f KB, updated %s", float64(info.Size())/1024, info.ModTime().Format("2006-01-02 15:04"))
 		}(),
-		a.homePath,
-	)
+		"workspace": a.homePath,
+	})
 	return slashResult{handled: true, reply: reply}
 }
 
@@ -446,18 +434,17 @@ func (a *Agent) slashPersonalityList(msg bus.InboundMessage) slashResult {
 		return slashResult{handled: true, reply: slashReply("personality_none", nil)}
 	}
 	current := a.loadSoulName()
-	var sb strings.Builder
-	sb.WriteString("🎭 Personalities\n")
-	sb.WriteString("─────────────────\n")
+	var names []string
 	for _, p := range presets {
 		if p == current {
-			sb.WriteString(fmt.Sprintf("• %s ← current\n", p))
+			names = append(names, "• "+p+" ← current")
 		} else {
-			sb.WriteString(fmt.Sprintf("• %s\n", p))
+			names = append(names, "• "+p)
 		}
 	}
-	sb.WriteString("\nUsage: /personality <name>")
-	return slashResult{handled: true, reply: sb.String()}
+	return slashResult{handled: true, reply: slashReply("personality_list", map[string]any{
+		"names": strings.Join(names, "\n"),
+	})}
 }
 
 // slashPersonalitySet switches the active SOUL.md.
