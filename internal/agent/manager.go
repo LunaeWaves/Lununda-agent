@@ -343,6 +343,7 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 	if db, ok := m.opts.dataStore.(*store.DBStore); ok {
 		var mem config.MemoryCfg
 		if err := scope.SettingInto(context.Background(), db, "memory", m.uid, rc.ID, &mem); err == nil {
+			ag.summaryModel = mem.SummaryModel
 			if mem.Embedding.Enabled {
 				ec := mem.Embedding
 				emb := embedding.ProbeEmbedder(context.Background(),

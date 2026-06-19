@@ -15,10 +15,11 @@ import (
 
 // ExtractedSummary is what the LLM returns from the extraction prompt.
 type ExtractedSummary struct {
-	Summary  string   `json:"summary"`
-	Keywords []string `json:"keywords"`
-	SeqStart int      `json:"seq_start"`
-	SeqEnd   int      `json:"seq_end"`
+	Summary    string   `json:"summary"`
+	Keywords   []string `json:"keywords"`
+	SeqStart   int      `json:"seq_start"`
+	SeqEnd     int      `json:"seq_end"`
+	Importance int      `json:"importance"` // 1-5 LLM-assigned value; 0 = unset
 }
 
 // extractConversationSummary calls the LLM to distill a range of messages
@@ -71,16 +72,26 @@ The summary and keywords MUST be in the same language as the conversation.
 - Mixed → use the language the user typed in
 This is load-bearing: a Chinese-speaking user can only search in Chinese. A summary in the wrong language will NEVER be found by later queries.
 
+Judge whether this excerpt is worth remembering at all. Only facts, decisions,
+preferences, outcomes, or notable context belong — NOT greetings, small talk,
+chit-chat, or errors with no resolution. If it's forgettable, emit the empty
+shape below.
+
 Output STRICT JSON only — no markdown fences, no commentary:
 {
-  "summary": "1-2 sentence summary in the conversation's primary language",
-  "keywords": ["3-7 keywords in the conversation's primary language"],
+  "summary": "1-2 sentence summary in the conversation's language",
+  "keywords": ["3-7 keywords in the conversation's language"],
+  "importance": <1-5>,
   "seq_start": %d,
   "seq_end": %d
 }
 
-If the conversation has nothing worth remembering (greetings, small talk, errors with no resolution), output:
-{"summary": "", "keywords": [], "seq_start": %d, "seq_end": %d}
+importance is how useful this will be to a FUTURE conversation with the same
+user: 1 = trivial/forgettable, 3 = moderately useful, 5 = a key fact,
+decision, or preference the user will likely reference again.
+
+If the conversation has nothing worth remembering, output:
+{"summary": "", "keywords": [], "importance": 0, "seq_start": %d, "seq_end": %d}
 
 Conversation:
 %s`,
@@ -110,6 +121,15 @@ Conversation:
 
 	if strings.TrimSpace(ex.Summary) == "" {
 		return nil, nil // nothing worth saving
+	}
+	// Clamp importance to [1,5]; default to a neutral 3 if the model
+	// omitted or gave garbage. importance feeds the recall score + the
+	// store threshold.
+	if ex.Importance < 1 {
+		ex.Importance = 3
+	}
+	if ex.Importance > 5 {
+		ex.Importance = 5
 	}
 	if ex.Keywords == nil {
 		ex.Keywords = []string{}
@@ -150,6 +170,17 @@ func persistConversationSummary(
 		return
 	}
 
+	// Store threshold: importance 1 = trivial/forgettable. Dropping it
+	// keeps the index focused on genuinely useful memories and saves the
+	// embedding cost on chit-chat that slipped past the LLM's gate.
+	if ex.Importance <= 1 {
+		slog.Debug("conversation summary: low importance, skipping",
+			"agent", agentID, "session", sessionKey,
+			"seq_range", fmt.Sprintf("%d-%d", seqStart, seqEnd),
+			"importance", ex.Importance)
+		return
+	}
+
 	// Stamp the embedding model on the row so a later model-switch can
 	// detect+rebuild (ListConversationSummariesNeedingVector compares
 	// this against the configured model). Only set when we're actually
@@ -159,15 +190,16 @@ func persistConversationSummary(
 		embModel = emb.Model()
 	}
 	id, err := db.InsertConversationSummary(ctx, store.ConversationSummary{
-		UserID:        userID,
-		AgentID:       agentID,
-		SessionKey:    sessionKey,
-		ChatterUserID: chatterUserID,
-		Summary:       ex.Summary,
-		Keywords:      ex.Keywords,
-		SeqStart:      ex.SeqStart,
-		SeqEnd:        ex.SeqEnd,
+		UserID:         userID,
+		AgentID:        agentID,
+		SessionKey:     sessionKey,
+		ChatterUserID:  chatterUserID,
+		Summary:        ex.Summary,
+		Keywords:       ex.Keywords,
+		SeqStart:       ex.SeqStart,
+		SeqEnd:         ex.SeqEnd,
 		EmbeddingModel: embModel,
+		Importance:     ex.Importance,
 	})
 	if err != nil {
 		slog.Warn("conversation summary persist failed",

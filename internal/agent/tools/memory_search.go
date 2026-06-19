@@ -53,6 +53,10 @@ type SummarySearcher interface {
 		chatterUserID, agentID, query string,
 		limit int,
 	) ([]store.ConversationSummary, error)
+	// IncrementConversationSummaryAccess is the reinforcement signal —
+	// bump access_count + last_accessed for surfaced summaries so
+	// frequently-recalled ones score higher on future queries.
+	IncrementConversationSummaryAccess(ctx context.Context, ids []int64) error
 }
 
 // RegisterMemorySearch registers the memory_search tool.
@@ -166,6 +170,18 @@ func makeMemorySearch(r *Registry, workspace string, fts FTSSearcher) ToolFunc {
 					if rerankErr == nil {
 						hits = reorderByRerank(hits, scored)
 					}
+				}
+
+				// Reinforcement: bump access_count for the surfaced
+				// summaries so frequently-recalled ones score higher
+				// (and refresh recency) on future queries. Best-effort —
+				// a bump failure must not break the search result.
+				if len(hits) > 0 {
+					ids := make([]int64, len(hits))
+					for i, h := range hits {
+						ids[i] = h.ID
+					}
+					_ = r.summaryDB.IncrementConversationSummaryAccess(ctx, ids)
 				}
 
 				return formatSummaryResults(hits, args.Query), nil

@@ -158,6 +158,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateConversationSummariesUniqueIndex(ctx); err != nil {
 		return fmt.Errorf("migrate conversation_summaries unique index: %w", err)
 	}
+	if err := d.migrateConversationSummariesScoring(ctx); err != nil {
+		return fmt.Errorf("migrate conversation_summaries scoring columns: %w", err)
+	}
 	return nil
 }
 
@@ -334,6 +337,44 @@ func (d *DBStore) migrateConversationSummariesUniqueIndex(ctx context.Context) e
 	}
 	if err != nil {
 		return fmt.Errorf("create unique index: %w", err)
+	}
+	return nil
+}
+
+// migrateConversationSummariesScoring adds the importance / access_count /
+// last_accessed_at columns to an existing conversation_summaries table.
+// These back the three-factor recall score (importance×recency×access)
+// and reinforcement. Idempotent — skips columns that already exist.
+// Legacy rows get importance=0 / access_count=0, treated as neutral by
+// the scorer.
+func (d *DBStore) migrateConversationSummariesScoring(ctx context.Context) error {
+	hasTable, err := d.tableExists(ctx, "conversation_summaries")
+	if err != nil {
+		return err
+	}
+	if !hasTable {
+		return nil
+	}
+	type col struct {
+		name, decl string
+	}
+	columns := []col{
+		{"importance", "INTEGER NOT NULL DEFAULT 0"},
+		{"access_count", "INTEGER NOT NULL DEFAULT 0"},
+		{"last_accessed_at", "TIMESTAMP"},
+	}
+	for _, c := range columns {
+		has, err := d.tableHasColumn(ctx, "conversation_summaries", c.name)
+		if err != nil {
+			return err
+		}
+		if has {
+			continue
+		}
+		if _, err := d.db.ExecContext(ctx, fmt.Sprintf(
+			`ALTER TABLE conversation_summaries ADD COLUMN %s %s`, c.name, c.decl)); err != nil {
+			return fmt.Errorf("add column %s: %w", c.name, err)
+		}
 	}
 	return nil
 }

@@ -28,6 +28,9 @@ type ConversationSummary struct {
 	SeqStart       int
 	SeqEnd         int
 	EmbeddingModel string // empty if no embedding generated
+	Importance     int    // 1-5 LLM-assigned value; 0 = legacy/unset
+	AccessCount    int    // times surfaced by memory_search (reinforcement)
+	LastAccessedAt time.Time
 	CreatedAt      time.Time
 }
 
@@ -58,22 +61,25 @@ func (d *DBStore) InsertConversationSummary(
 	switch d.dialect {
 	case "postgres":
 		// On conflict over the unique composite key, replace the mutable
-		// content (summary/keywords/embedding_model). embedding_model
-		// resets to the caller's value so a re-summarize without an
-		// embeder clears the stamp and the next vectorize re-stamps it.
+		// content (summary/keywords/embedding_model/importance).
+		// embedding_model resets to the caller's value so a re-summarize
+		// without an embedder clears the stamp and the next vectorize
+		// re-stamps it. access_count/last_accessed_at are NOT overwritten
+		// (reinforcement state survives re-summarize).
 		err = d.db.QueryRowContext(ctx, `
 			INSERT INTO conversation_summaries
 				(user_id, agent_id, session_key, chatter_user_id,
-				 summary, keywords, seq_start, seq_end, embedding_model)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				 summary, keywords, seq_start, seq_end, embedding_model, importance)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			ON CONFLICT (chatter_user_id, agent_id, session_key, seq_start, seq_end)
 			DO UPDATE SET summary = EXCLUDED.summary,
 			              keywords = EXCLUDED.keywords,
-			              embedding_model = EXCLUDED.embedding_model
+			              embedding_model = EXCLUDED.embedding_model,
+			              importance = EXCLUDED.importance
 			RETURNING id`,
 			s.UserID, s.AgentID, s.SessionKey, s.ChatterUserID,
 			s.Summary, string(keywordsJSON), s.SeqStart, s.SeqEnd,
-			nilIfEmpty(s.EmbeddingModel),
+			nilIfEmpty(s.EmbeddingModel), s.Importance,
 		).Scan(&id)
 	default:
 		// SQLite upsert. RETURNING id (modernc supports it) gives the
@@ -82,16 +88,17 @@ func (d *DBStore) InsertConversationSummary(
 		err = d.db.QueryRowContext(ctx, `
 			INSERT INTO conversation_summaries
 				(user_id, agent_id, session_key, chatter_user_id,
-				 summary, keywords, seq_start, seq_end, embedding_model)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 summary, keywords, seq_start, seq_end, embedding_model, importance)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(chatter_user_id, agent_id, session_key, seq_start, seq_end)
 			DO UPDATE SET summary = excluded.summary,
 			              keywords = excluded.keywords,
-			              embedding_model = excluded.embedding_model
+			              embedding_model = excluded.embedding_model,
+			              importance = excluded.importance
 			RETURNING id`,
 			s.UserID, s.AgentID, s.SessionKey, s.ChatterUserID,
 			s.Summary, string(keywordsJSON), s.SeqStart, s.SeqEnd,
-			nilIfEmpty(s.EmbeddingModel),
+			nilIfEmpty(s.EmbeddingModel), s.Importance,
 		).Scan(&id)
 	}
 	return id, err
@@ -153,7 +160,7 @@ func (d *DBStore) SearchConversationSummariesFTS(
 		args = append(args, fetchLimit)
 		rows, err := d.db.QueryContext(ctx, `
 			SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			       summary, keywords, seq_start, seq_end, embedding_model, created_at
+			       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
 			FROM conversation_summaries
 			WHERE chatter_user_id = $1 AND agent_id = $2
 			  AND (`+strings.Join(clauses, " OR ")+`)
@@ -180,7 +187,7 @@ func (d *DBStore) SearchConversationSummariesFTS(
 	args = append(args, fetchLimit)
 	rows, err := d.db.QueryContext(ctx, `
 		SELECT id, user_id, agent_id, session_key, chatter_user_id,
-		       summary, keywords, seq_start, seq_end, embedding_model, created_at
+		       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
 		FROM conversation_summaries
 		WHERE chatter_user_id = ? AND agent_id = ?
 		  AND (`+strings.Join(clauses, " OR ")+`)
@@ -203,14 +210,19 @@ func scanConversationSummaries(rows *sql.Rows) ([]ConversationSummary, error) {
 		var s ConversationSummary
 		var keywordsJSON string
 		var embModel sql.NullString
+		var lastAccessed sql.NullTime
 		err := rows.Scan(
 			&s.ID, &s.UserID, &s.AgentID, &s.SessionKey, &s.ChatterUserID,
-			&s.Summary, &keywordsJSON, &s.SeqStart, &s.SeqEnd, &embModel, &s.CreatedAt,
+			&s.Summary, &keywordsJSON, &s.SeqStart, &s.SeqEnd, &embModel,
+			&s.Importance, &s.AccessCount, &lastAccessed, &s.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
 		s.EmbeddingModel = embModel.String
+		if lastAccessed.Valid {
+			s.LastAccessedAt = lastAccessed.Time
+		}
 		_ = json.Unmarshal([]byte(keywordsJSON), &s.Keywords)
 		if s.Keywords == nil {
 			s.Keywords = []string{}
@@ -235,6 +247,32 @@ func (d *DBStore) SetConversationSummaryEmbeddingModel(ctx context.Context, id i
 			`UPDATE conversation_summaries SET embedding_model = ? WHERE id = ?`, model, id)
 		return err
 	}
+}
+
+// IncrementConversationSummaryAccess is the reinforcement signal: bumps
+// access_count and refreshes last_accessed_at for every recalled summary
+// id. Called by memory_search after deciding what to surface, so
+// frequently-recalled summaries score higher (and reset recency decay)
+// on future queries. Empty/nil ids is a no-op.
+func (d *DBStore) IncrementConversationSummaryAccess(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids))
+	for i, id := range ids {
+		if d.dialect == "postgres" {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+		} else {
+			placeholders[i] = "?"
+		}
+		args = append(args, id)
+	}
+	q := fmt.Sprintf(`UPDATE conversation_summaries
+		SET access_count = access_count + 1, last_accessed_at = CURRENT_TIMESTAMP
+		WHERE id IN (%s)`, strings.Join(placeholders, ","))
+	_, err := d.db.ExecContext(ctx, q, args...)
+	return err
 }
 
 // SetConversationSummaryMeta upserts a metadata key. Used for the
@@ -364,8 +402,11 @@ func intersectCountSummary(a, b map[string]bool) int {
 	return n
 }
 
-func recencyWeightSummary(createdAt time.Time) float64 {
-	days := time.Since(createdAt).Hours() / 24
+func recencyWeightSummary(reference time.Time) float64 {
+	if reference.IsZero() {
+		return 0.5
+	}
+	days := time.Since(reference).Hours() / 24
 	if days <= 0 {
 		return 1.0
 	}
@@ -375,6 +416,15 @@ func recencyWeightSummary(createdAt time.Time) float64 {
 	}
 	return w
 }
+
+// Three-factor recall weights. importance carries the LLM-assigned value;
+// access rewards frequently-recalled summaries (reinforcement). recency
+// decays from the last relevant moment (last access if any, else creation
+// — being recalled "refreshes" a memory).
+const (
+	importanceWeight = 1.0 // importance is 1-5, comparable to a keyword hit (×3)
+	accessWeight     = 0.2 // each recall adds ~20% to the recency multiplier
+)
 
 func reRankSummaries(summaries []ConversationSummary, query string, topK int) []ConversationSummary {
 	if topK <= 0 {
@@ -403,11 +453,26 @@ func reRankSummaries(summaries []ConversationSummary, query string, topK int) []
 		overlap := 3.0*float64(intersectCountSummary(qTokens, kwToks)) +
 			2.0*float64(intersectCountSummary(qTokens, summaryToks))
 
-		// Every candidate already passed the LIKE pre-filter, so it has
-		// minimum relevance. Token overlap acts as a boost on top.
-		baseScore := 0.5
-		recency := recencyWeightSummary(s.CreatedAt)
-		finalScore := (baseScore + overlap) * recency
+		// Legacy rows have importance 0 (column added after the fact) —
+		// treat them as a neutral 3 so they aren't silently buried.
+		imp := s.Importance
+		if imp == 0 {
+			imp = 3
+		}
+
+		// Recency keyed on the last access when present — recalling a
+		// summary refreshes it (slower decay), mirroring reinforcement.
+		ref := s.LastAccessedAt
+		if ref.IsZero() {
+			ref = s.CreatedAt
+		}
+		recency := recencyWeightSummary(ref)
+
+		// baseScore + token overlap + importance, scaled by recency and a
+		// reinforcement multiplier from access_count.
+		base := 0.5 + overlap + float64(imp)*importanceWeight
+		reinforcement := 1.0 + float64(s.AccessCount)*accessWeight
+		finalScore := base * recency * reinforcement
 
 		ranked = append(ranked, scored{idx: i, score: finalScore})
 	}
@@ -553,7 +618,7 @@ func (d *DBStore) ListConversationSummariesByAgent(ctx context.Context, agentID 
 	case "postgres":
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			        summary, keywords, seq_start, seq_end, embedding_model, created_at
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
 			 FROM conversation_summaries
 			 WHERE agent_id = $1
 			 ORDER BY created_at
@@ -561,7 +626,7 @@ func (d *DBStore) ListConversationSummariesByAgent(ctx context.Context, agentID 
 	default:
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			        summary, keywords, seq_start, seq_end, embedding_model, created_at
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
 			 FROM conversation_summaries
 			 WHERE agent_id = ?
 			 ORDER BY created_at
@@ -602,7 +667,7 @@ func (d *DBStore) ListConversationSummariesNeedingVector(ctx context.Context, mo
 	case "postgres":
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			        summary, keywords, seq_start, seq_end, embedding_model, created_at
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
 			 FROM conversation_summaries
 			 WHERE embedding IS NULL OR ($1 != '' AND (embedding_model IS NULL OR embedding_model != $1))
 			 ORDER BY created_at
@@ -610,7 +675,7 @@ func (d *DBStore) ListConversationSummariesNeedingVector(ctx context.Context, mo
 	default:
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT s.id, s.user_id, s.agent_id, s.session_key, s.chatter_user_id,
-			        s.summary, s.keywords, s.seq_start, s.seq_end, s.embedding_model, s.created_at
+			        s.summary, s.keywords, s.seq_start, s.seq_end, s.embedding_model, s.importance, s.access_count, s.last_accessed_at, s.created_at
 			 FROM conversation_summaries s
 			 LEFT JOIN conversation_summaries_vec v ON v.summary_id = s.id
 			 WHERE v.summary_id IS NULL OR (? != '' AND (s.embedding_model IS NULL OR s.embedding_model != ?))
@@ -641,7 +706,7 @@ func (d *DBStore) GetConversationSummariesByIDs(ctx context.Context, ids []int64
 	}
 
 	q := fmt.Sprintf(`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-	       summary, keywords, seq_start, seq_end, embedding_model, created_at
+	       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
 	FROM conversation_summaries
 	WHERE id IN (%s)
 	ORDER BY created_at DESC`, strings.Join(placeholders, ","))

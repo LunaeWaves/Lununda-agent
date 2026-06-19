@@ -106,6 +106,10 @@ type Agent struct {
 	// is unconfigured or the startup probe failed — save-time
 	// vectorization is then skipped, leaving keyword-only recall.
 	embedder embedding.Embedder
+	// summaryModel overrides the model used to distill conversation
+	// summaries (cheaper/faster than the primary model). Empty = use the
+	// primary model. Resolved from memory.summaryModel at agent build.
+	summaryModel string
 	// workspaceStore is optional; when set, SkillsLoader hydrates per-agent
 	// and global skill dirs from the object store on every turn so skills
 	// uploaded post-boot or on a sibling replica become visible here.
@@ -752,7 +756,12 @@ func (a *Agent) maybeExtractSummary(
 	sess *session.Session,
 	trigger string,
 ) {
-	if a.dataStore == nil || len(msgs) < 4 {
+	if a.dataStore == nil || len(msgs) < 2 {
+		// Gate is a cost guard, not a memory gate: ≥2 messages = at least
+		// one real user↔assistant exchange worth offering to the LLM. The
+		// LLM itself decides whether the content is worth remembering
+		// (empty summary) + assigns importance; this just avoids spending
+		// an extraction call on a bare greeting.
 		return
 	}
 	db, ok := a.dataStore.(*store.DBStore)
@@ -769,7 +778,13 @@ func (a *Agent) maybeExtractSummary(
 	chatterUID := sess.ChatterUserID()
 	msgsCopy := append([]provider.Message(nil), msgs...)
 	prov := a.provider
-	model := a.model
+	// Prefer a dedicated (cheaper) summary model when configured; fall
+	// back to the agent's primary model. Same provider as the primary —
+	// the extraction call reuses the agent's resolved provider.
+	model := a.summaryModel
+	if model == "" {
+		model = a.model
+	}
 	emb := a.embedder
 
 	go func() {

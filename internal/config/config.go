@@ -248,6 +248,12 @@ type MemoryCfg struct {
 	Embedding   EmbeddingCfg      `json:"embedding,omitempty"`
 	Reranker    RerankerCfg       `json:"reranker,omitempty"`
 	Settings    MemorySettingsCfg `json:"settings,omitempty"`
+	// SummaryModel overrides the model used to distill conversation
+	// summaries (defaults to the agent's primary model when empty). Pick
+	// a cheaper/faster model id from the SAME provider as the primary
+	// model — the extraction call reuses the agent's resolved provider,
+	// so a model id on a different provider won't resolve.
+	SummaryModel string `json:"summaryModel,omitempty"`
 }
 
 type EmbeddingCfg struct {
