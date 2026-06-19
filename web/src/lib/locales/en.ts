@@ -461,6 +461,10 @@ const en: Record<string, string> = {
   "memory.reindexFailed": "Re-vectorize failed: {error}",
   "memory.reindexInterval": "Backfill interval (minutes)",
   "memory.reindexIntervalDesc": "How often the background task re-embeds summaries lacking vectors. 0 = default (10 min). Set at system scope.",
+  "memory.summaryModel": "Summary model (optional)",
+  "memory.summaryModelDesc": "Cheaper/faster model id (same provider as the primary) used to distill conversation summaries. Blank = use the primary model.",
+  "memory.dimMismatch": "Dimension mismatch: existing vectors are {existing}d but you configured {configured}d. Vectors will fail to write — set dim to {existing}, or click Force re-vectorize after changing it.",
+  "memory.modelChanged": "Embedding model changed (existing: {existing}, configured: {configured}). Old vectors are now stale — click Force re-vectorize to rebuild them.",
 
   // Regex hooks page
   "regexHooks.subtitle": "Intercept messages matching a pattern and execute a CLI instead of the LLM.",

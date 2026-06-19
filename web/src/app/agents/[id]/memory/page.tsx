@@ -38,6 +38,9 @@ export default function AgentMemoryPage() {
   const [hasOverride, setHasOverride] = useState(false);
   const [reindexing, setReindexing] = useState(false);
   const [reindexMsg, setReindexMsg] = useState<string | null>(null);
+  const [summaryModel, setSummaryModel] = useState("");
+  const [existingVectorDim, setExistingVectorDim] = useState(0);
+  const [existingEmbeddingModel, setExistingEmbeddingModel] = useState("");
 
   const [embedding, setEmbedding] = useState<MemoryEmbeddingConfig>({
     enabled: false,
@@ -62,6 +65,8 @@ export default function AgentMemoryPage() {
     try {
       const res = await getAgentMemory(agentId);
       setHasOverride(res.hasOverride);
+      setExistingVectorDim(res.existingVectorDim ?? 0);
+      setExistingEmbeddingModel(res.existingEmbeddingModel ?? "");
       const mem: MemoryConfig = res.memory || {};
       if (mem.embedding) {
         setEmbedding({
@@ -85,6 +90,7 @@ export default function AgentMemoryPage() {
       if (mem.settings) {
         setSettings({ enabled: mem.settings.enabled ?? true });
       }
+      setSummaryModel(mem.summaryModel || "");
     } finally {
       setLoading(false);
     }
@@ -102,7 +108,7 @@ export default function AgentMemoryPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await setAgentMemory(agentId, { embedding, reranker, settings });
+      await setAgentMemory(agentId, { embedding, reranker, settings, summaryModel });
       flashSaved();
       await refresh();
     } finally {
@@ -249,7 +255,34 @@ export default function AgentMemoryPage() {
             aria-label={t("memory.memorySettings")}
           />
         </div>
+        <div className="mt-4 pt-4 border-t border-border space-y-1.5">
+          <Label>{t("memory.summaryModel")}</Label>
+          <Input
+            value={summaryModel}
+            onChange={(e) => setSummaryModel(e.target.value)}
+            placeholder="e.g. openai/gpt-4o-mini"
+            className="font-mono text-sm"
+          />
+          <p className="text-xs text-muted-foreground/70">{t("memory.summaryModelDesc")}</p>
+        </div>
       </div>
+
+      {/* Vector divergence warnings — only when this agent already has
+          vectors and the configured embedding differs. */}
+      {embedding.enabled && existingVectorDim > 0 && (embedding.dim ?? 1024) !== existingVectorDim && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+          {t("memory.dimMismatch")
+            .replace("{existing}", String(existingVectorDim))
+            .replace("{configured}", String(embedding.dim ?? 1024))}
+        </div>
+      )}
+      {embedding.enabled && existingEmbeddingModel && embedding.model && existingEmbeddingModel !== embedding.model && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+          {t("memory.modelChanged")
+            .replace("{existing}", existingEmbeddingModel)
+            .replace("{configured}", embedding.model)}
+        </div>
+      )}
 
       {/* Embedding */}
       <div className="rounded-lg border border-border bg-card p-5">

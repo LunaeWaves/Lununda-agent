@@ -1463,12 +1463,17 @@ export interface MemoryRerankerConfig {
 export interface MemoryConfig {
   embedding?: MemoryEmbeddingConfig;
   reranker?: MemoryRerankerConfig;
-  settings?: { enabled?: boolean };
+  settings?: { enabled?: boolean; reindexIntervalMin?: number };
+  summaryModel?: string;
 }
 
 export interface AgentMemoryResponse {
   memory: MemoryConfig;
   hasOverride: boolean;
+  // Dim + model of the agent's EXISTING vectors (0/"" when none yet), so
+  // the UI can warn when the configured embedding diverges.
+  existingVectorDim?: number;
+  existingEmbeddingModel?: string;
 }
 
 export async function getAgentMemory(id: string): Promise<AgentMemoryResponse> {

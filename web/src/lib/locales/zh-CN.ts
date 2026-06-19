@@ -461,6 +461,10 @@ const zhCN: Record<string, string> = {
   "memory.reindexFailed": "重新向量化失败：{error}",
   "memory.reindexInterval": "回填间隔（分钟）",
   "memory.reindexIntervalDesc": "后台任务多久为缺少向量的摘要重新生成一次。0 = 默认（10 分钟）。在系统级设置。",
+  "memory.summaryModel": "摘要模型（可选）",
+  "memory.summaryModelDesc": "用更便宜/更快的模型 id（与主模型同一服务商）来提炼对话摘要。留空 = 用主模型。",
+  "memory.dimMismatch": "维度不匹配：现存向量为 {existing} 维，但你填了 {configured} 维。向量将写入失败——把维度改成 {existing}，或改完后点“强制重新向量化”。",
+  "memory.modelChanged": "Embedding 模型变了（现存：{existing}，当前：{configured}）。旧向量已失效——点“强制重新向量化”重建。",
 
   // Regex hooks page
   "regexHooks.subtitle": "拦截匹配特定模式的消息并执行 CLI 命令，而非调用 LLM。",

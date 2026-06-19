@@ -41,6 +41,7 @@ interface MemoryConfig {
   embedding?: MemoryEmbeddingConfig;
   reranker?: MemoryRerankerConfig;
   settings?: MemorySettingsConfig;
+  summaryModel?: string;
 }
 
 export default function MemoryPage() {
@@ -69,6 +70,7 @@ export default function MemoryPage() {
   const [settings, setSettings] = useState<MemorySettingsConfig>({
     enabled: true,
   });
+  const [summaryModel, setSummaryModel] = useState("");
 
   const refresh = useCallback(async () => {
     try {
@@ -101,6 +103,7 @@ export default function MemoryPage() {
           reindexIntervalMin: mem.settings.reindexIntervalMin ?? 0,
         });
       }
+      setSummaryModel(mem?.summaryModel || "");
     } finally {
       setLoading(false);
     }
@@ -126,6 +129,7 @@ export default function MemoryPage() {
           embedding,
           reranker,
           settings,
+          summaryModel,
         },
       });
       flashSaved();
@@ -207,6 +211,16 @@ export default function MemoryPage() {
               className="font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground/70">{t("memory.reindexIntervalDesc")}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("memory.summaryModel")}</Label>
+            <Input
+              value={summaryModel}
+              onChange={(e) => setSummaryModel(e.target.value)}
+              placeholder="e.g. openai/gpt-4o-mini"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground/70">{t("memory.summaryModelDesc")}</p>
           </div>
         </div>
       </div>

@@ -794,14 +794,24 @@ func (s *Server) handleGetAgentMemory(w http.ResponseWriter, r *http.Request) {
 		_ = scope.SettingInto(r.Context(), s.dataStore, "memory", rec.UserID, id, &mem)
 	}
 	hasOverride := false
+	existingVectorDim := 0
+	existingEmbeddingModel := ""
 	if s.dataStore != nil {
 		if row, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", id, "memory"); err == nil && row != nil {
 			hasOverride = true
 		}
+		// Surface the dim + model of any EXISTING vectors so the UI can
+		// warn when the configured values diverge (vectors would fail to
+		// write on dim mismatch, or go stale on a model change).
+		if db, ok := s.dataStore.(*store.DBStore); ok {
+			existingVectorDim, existingEmbeddingModel, _ = db.ConversationSummaryVectorShape(r.Context(), id)
+		}
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{
-		"memory":       mem,
-		"hasOverride":  hasOverride,
+		"memory":                 mem,
+		"hasOverride":            hasOverride,
+		"existingVectorDim":      existingVectorDim,
+		"existingEmbeddingModel": existingEmbeddingModel,
 	})
 }
 
