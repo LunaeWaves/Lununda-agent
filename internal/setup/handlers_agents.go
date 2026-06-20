@@ -976,7 +976,7 @@ func (s *Server) handlePutAgentSystemFile(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	if err := s.dataStore.SaveAgentFile(r.Context(), id, target, name, []byte(body.Content)); err != nil {
+	if err := s.dataStore.SaveAgentFile(r.Context(), id, target, name, store.OriginForeground, []byte(body.Content)); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}

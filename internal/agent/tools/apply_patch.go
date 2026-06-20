@@ -536,7 +536,7 @@ func (r *Registry) writeForPatch(ctx context.Context, path, content string) erro
 	}
 	if r.systemFileStore != nil && r.agentID != "" && isSingleSegmentSystemFile(path) {
 		name := filepath.Clean(path)
-		if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, []byte(content)); err != nil {
+		if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, r.WriteOrigin(), []byte(content)); err != nil {
 			return err
 		}
 		// Mirror to disk so this pod's in-process readers (context builder,
@@ -614,7 +614,7 @@ func (r *Registry) readForPatchSandbox(ctx context.Context, ex sandbox.Executor,
 func (r *Registry) writeForPatchSandbox(ctx context.Context, ex sandbox.Executor, path, content string) error {
 	if r.systemFileStore != nil && r.agentID != "" && isSingleSegmentSystemFile(path) {
 		name := filepath.Clean(path)
-		return r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, []byte(content))
+		return r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, r.WriteOrigin(), []byte(content))
 	}
 	if r.workspaceStore != nil && r.agentID != "" && r.isWorkspacePath(path) {
 		return r.workspaceStore.Put(ctx, r.agentID, r.projectID, r.sessionID, path,

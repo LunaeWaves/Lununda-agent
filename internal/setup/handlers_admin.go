@@ -823,7 +823,7 @@ func (s *Server) forkAgentContent(r *http.Request, src, dst *store.AgentRecord) 
 		if len(data) == 0 {
 			continue
 		}
-		if err := s.dataStore.SaveAgentFile(r.Context(), dst.ID, dst.UserID, name, data); err != nil {
+		if err := s.dataStore.SaveAgentFile(r.Context(), dst.ID, dst.UserID, name, store.OriginForeground, data); err != nil {
 			return err
 		}
 	}

@@ -15,6 +15,14 @@ import (
 // errors.Is(err, store.ErrNotFound) at call sites.
 var ErrNotFound = errors.New("store: not found")
 
+// Origin* are provenance values for agent_files writes — they distinguish
+// foreground tool calls (write_file / edit_file / apply_patch) from the
+// background review loop.
+const (
+	OriginForeground       = "foreground"
+	OriginBackgroundReview = "background_review"
+)
+
 // Store is the unified interface for all persistent data.
 //
 // Tables fall into three buckets:
@@ -174,7 +182,7 @@ type Store interface {
 	// user, filename) lookup that bypasses the overlay.
 	GetAgentFile(ctx context.Context, agentID, userID, filename string) ([]byte, error)
 	GetAgentFileExact(ctx context.Context, agentID, userID, filename string) ([]byte, error)
-	SaveAgentFile(ctx context.Context, agentID, userID, filename string, data []byte) error
+	SaveAgentFile(ctx context.Context, agentID, userID, filename, origin string, data []byte) error
 	DeleteAgentFile(ctx context.Context, agentID, userID, filename string) error
 	ListAgentFiles(ctx context.Context, agentID, userID string) ([]string, error)
 

@@ -33,7 +33,7 @@ func (a *MemoryStoreAdapter) GetMemory(ctx context.Context, agentID, userID stri
 }
 
 func (a *MemoryStoreAdapter) SaveMemory(ctx context.Context, agentID, userID, content string) error {
-	return a.st.SaveAgentFile(ctx, agentID, userID, memoryFilename, []byte(content))
+	return a.st.SaveAgentFile(ctx, agentID, userID, memoryFilename, store.OriginForeground, []byte(content))
 }
 
 // GetWorkspaceFile keeps the owner-fallback overlay because the
@@ -51,6 +51,6 @@ func (a *MemoryStoreAdapter) GetWorkspaceFileExact(ctx context.Context, agentID,
 	return a.st.GetAgentFileExact(ctx, agentID, userID, filename)
 }
 
-func (a *MemoryStoreAdapter) SaveWorkspaceFile(ctx context.Context, agentID, userID, filename string, data []byte) error {
-	return a.st.SaveAgentFile(ctx, agentID, userID, filename, data)
+func (a *MemoryStoreAdapter) SaveWorkspaceFile(ctx context.Context, agentID, userID, filename, origin string, data []byte) error {
+	return a.st.SaveAgentFile(ctx, agentID, userID, filename, origin, data)
 }

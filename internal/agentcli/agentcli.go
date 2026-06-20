@@ -463,7 +463,7 @@ func PutFile(ctx context.Context, st store.Store, agentID, userID, filename stri
 	if err := validateSystemFilename(filename); err != nil {
 		return err
 	}
-	return st.SaveAgentFile(ctx, agentID, userID, filename, data)
+	return st.SaveAgentFile(ctx, agentID, userID, filename, store.OriginForeground, data)
 }
 
 // GetFile reads a system file.

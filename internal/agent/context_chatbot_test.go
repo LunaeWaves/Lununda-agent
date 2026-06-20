@@ -56,7 +56,7 @@ func (f *fakeMemoryStore) GetWorkspaceFileExact(ctx context.Context, agentID, us
 	return nil, nil
 }
 
-func (f *fakeMemoryStore) SaveWorkspaceFile(ctx context.Context, agentID, userID, filename string, data []byte) error {
+func (f *fakeMemoryStore) SaveWorkspaceFile(ctx context.Context, agentID, userID, filename, origin string, data []byte) error {
 	f.put(agentID, userID, filename, string(data))
 	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
 )
 
@@ -266,7 +267,7 @@ type turnFailKey struct {
 type SystemFileStore interface {
 	GetWorkspaceFile(ctx context.Context, agentID, userID, filename string) ([]byte, error)
 	GetWorkspaceFileExact(ctx context.Context, agentID, userID, filename string) ([]byte, error)
-	SaveWorkspaceFile(ctx context.Context, agentID, userID, filename string, data []byte) error
+	SaveWorkspaceFile(ctx context.Context, agentID, userID, filename, origin string, data []byte) error
 }
 
 // SetWorkspaceStore installs a workspace store on the registry. File tools
@@ -371,6 +372,16 @@ func (r *Registry) AgentOwnerUserID() string {
 // same dir on the next turn and the new skill becomes visible.
 func (r *Registry) SetUserSkillsRoot(dir string) {
 	r.userSkillsRoot = dir
+}
+
+// WriteOrigin reports the provenance to stamp on agent_files writes from
+// this registry: a review-mode fork (NewReviewRegistry) tags its writes
+// OriginBackgroundReview; every other registry tags OriginForeground.
+func (r *Registry) WriteOrigin() string {
+	if r.reviewMode {
+		return store.OriginBackgroundReview
+	}
+	return store.OriginForeground
 }
 
 // systemFileUserID picks the user_id to scope a systemFileStore call

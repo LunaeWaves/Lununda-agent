@@ -31,7 +31,7 @@ func (s *memoryStoreSpy) GetWorkspaceFileExact(context.Context, string, string, 
 	return []byte("user-profile"), nil
 }
 
-func (s *memoryStoreSpy) SaveWorkspaceFile(context.Context, string, string, string, []byte) error {
+func (s *memoryStoreSpy) SaveWorkspaceFile(context.Context, string, string, string, string, []byte) error {
 	s.saveWorkspaceFileCalls++
 	return nil
 }

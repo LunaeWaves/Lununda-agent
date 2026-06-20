@@ -101,6 +101,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateAgentFilesDropTemplate(ctx); err != nil {
 		return fmt.Errorf("migrate agent_files drop template: %w", err)
 	}
+	if err := d.migrateAgentFilesOrigin(ctx); err != nil {
+		return fmt.Errorf("migrate agent_files.origin: %w", err)
+	}
 	if err := d.migrateUsersAppUserCols(ctx); err != nil {
 		return fmt.Errorf("migrate users app_user cols: %w", err)
 	}
@@ -1110,6 +1113,25 @@ func (d *DBStore) migrateAgentFilesDropTemplate(ctx context.Context) error {
 	return nil
 }
 
+// migrateAgentFilesOrigin adds the origin provenance column to agent_files
+// so foreground tool writes can be distinguished from background-review
+// writes. Existing rows (all written by foreground tools) backfill to
+// 'foreground' via the column default. Idempotent: no-op once present.
+func (d *DBStore) migrateAgentFilesOrigin(ctx context.Context) error {
+	has, err := d.tableHasColumn(ctx, "agent_files", "origin")
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	stmt := `ALTER TABLE agent_files ADD COLUMN origin TEXT NOT NULL DEFAULT 'foreground'`
+	if _, err := d.db.ExecContext(ctx, stmt); err != nil {
+		return fmt.Errorf("add agent_files.origin: %w", err)
+	}
+	return nil
+}
+
 // migrateSkillsAgentEntriesSplit relocates per-agent skill env overrides
 // off the single user/system-scope skills.agentEntries row (a JSON blob
 // keyed by agent_id, which grew unboundedly with each agent × skill)
@@ -1576,6 +1598,7 @@ func (d *DBStore) migrationSQL() []string {
 			user_id TEXT NOT NULL DEFAULT '',
 			filename TEXT NOT NULL,
 			content TEXT NOT NULL DEFAULT '',
+			origin TEXT NOT NULL DEFAULT 'foreground',
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (agent_id, user_id, filename)
 		)`,
@@ -2795,28 +2818,31 @@ func (d *DBStore) GetAgentFileExact(ctx context.Context, agentID, userID, filena
 // SaveAgentFile writes to the (agent_id, user_id, filename) row exactly.
 // userID is required — every write is per-user. Use a local FS file
 // at <agent_home>/<name> if you want one shared default for the agent.
-func (d *DBStore) SaveAgentFile(ctx context.Context, agentID, userID, filename string, data []byte) error {
+func (d *DBStore) SaveAgentFile(ctx context.Context, agentID, userID, filename, origin string, data []byte) error {
 	if agentID == "" {
 		return errors.New("store: SaveAgentFile requires agent_id")
 	}
 	if userID == "" {
 		return errors.New("store: SaveAgentFile requires user_id")
 	}
+	if origin == "" {
+		origin = OriginForeground
+	}
 	now := time.Now().UTC()
 	if d.dialect == "postgres" {
 		_, err := d.db.ExecContext(ctx,
-			`INSERT INTO agent_files (agent_id, user_id, filename, content, updated_at)
-				VALUES ($1, $2, $3, $4, $5)
-				ON CONFLICT (agent_id, user_id, filename) DO UPDATE SET content=$4, updated_at=$5`,
-			agentID, userID, filename, string(data), now)
+			`INSERT INTO agent_files (agent_id, user_id, filename, content, origin, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6)
+				ON CONFLICT (agent_id, user_id, filename) DO UPDATE SET content=$4, origin=$5, updated_at=$6`,
+			agentID, userID, filename, string(data), origin, now)
 		return err
 	}
 	_, err := d.db.ExecContext(ctx,
-		`INSERT INTO agent_files (agent_id, user_id, filename, content, updated_at)
-			VALUES (?, ?, ?, ?, ?)
+		`INSERT INTO agent_files (agent_id, user_id, filename, content, origin, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT (agent_id, user_id, filename) DO UPDATE SET
-			  content=excluded.content, updated_at=excluded.updated_at`,
-		agentID, userID, filename, string(data), now)
+			  content=excluded.content, origin=excluded.origin, updated_at=excluded.updated_at`,
+		agentID, userID, filename, string(data), origin, now)
 	return err
 }
 

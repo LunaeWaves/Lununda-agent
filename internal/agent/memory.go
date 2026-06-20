@@ -13,6 +13,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/privacy"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 // MemoryStore is an optional interface for DB-backed memory persistence.
@@ -34,7 +35,7 @@ type MemoryStore interface {
 	SaveMemory(ctx context.Context, agentID, userID, content string) error
 	GetWorkspaceFile(ctx context.Context, agentID, userID, filename string) ([]byte, error)
 	GetWorkspaceFileExact(ctx context.Context, agentID, userID, filename string) ([]byte, error)
-	SaveWorkspaceFile(ctx context.Context, agentID, userID, filename string, data []byte) error
+	SaveWorkspaceFile(ctx context.Context, agentID, userID, filename, origin string, data []byte) error
 }
 
 type Memory struct {
@@ -258,7 +259,7 @@ func (m *Memory) SaveUserFile(content string) error {
 		if m.userID == "" {
 			return fmt.Errorf("agent.Memory.SaveUserFile: userID required")
 		}
-		return m.store.SaveWorkspaceFile(m.ctx(), m.agentID, m.userID, "USER.md", []byte(content))
+		return m.store.SaveWorkspaceFile(m.ctx(), m.agentID, m.userID, "USER.md", store.OriginForeground, []byte(content))
 	}
 	os.MkdirAll(m.workspace, 0o755)
 	return os.WriteFile(filepath.Join(m.workspace, "USER.md"), []byte(content), 0o644)

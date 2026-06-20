@@ -617,7 +617,7 @@ func makeWriteFile(r *Registry) ToolFunc {
 		// systemFileStore when available.
 		if r.systemFileStore != nil && r.agentID != "" && isSingleSegmentSystemFile(args.Path) {
 			name := filepath.Clean(args.Path)
-			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, []byte(args.Content)); err != nil {
+			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, r.WriteOrigin(), []byte(args.Content)); err != nil {
 				return "", fmt.Errorf("system file save: %w", err)
 			}
 			// Keep a filesystem mirror so the agent runtime (context
@@ -726,7 +726,7 @@ func makeEditFile(r *Registry) ToolFunc {
 			if err != nil {
 				return "", err
 			}
-			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, uid, name, []byte(updated)); err != nil {
+			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, uid, name, r.WriteOrigin(), []byte(updated)); err != nil {
 				return "", fmt.Errorf("system file save: %w", err)
 			}
 			// Same disk-mirror invariant as makeWriteFile so this pod's
@@ -998,7 +998,7 @@ func registerSandboxedFile(r *Registry, ex sandbox.Executor) {
 		switch r.routeFor(args.Path, OpWrite) {
 		case RouteSystemStore:
 			name := filepath.Clean(args.Path)
-			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, []byte(args.Content)); err != nil {
+			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, r.systemFileUserID(name), name, r.WriteOrigin(), []byte(args.Content)); err != nil {
 				return "", fmt.Errorf("system file save: %w", err)
 			}
 			return fmt.Sprintf("Written %d bytes to %s", len(args.Content), name), nil
@@ -1166,7 +1166,7 @@ func registerSandboxedFile(r *Registry, ex sandbox.Executor) {
 			if err != nil {
 				return "", err
 			}
-			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, uid, name, []byte(updated)); err != nil {
+			if err := r.systemFileStore.SaveWorkspaceFile(ctx, r.agentID, uid, name, r.WriteOrigin(), []byte(updated)); err != nil {
 				return "", fmt.Errorf("system file save: %w", err)
 			}
 			return fmt.Sprintf("Edited %s (%d replacement(s))", name, count), nil
