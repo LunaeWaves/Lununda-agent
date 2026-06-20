@@ -1846,6 +1846,22 @@ func (d *DBStore) migrationSQL() []string {
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_regex_hooks_agent ON agent_regex_hooks (agent_id, sort_order)`,
+		// im_claims holds pending one-time verification codes for the IM
+		// owner-identity claim flow (docs/superpowers/specs/
+		// 2026-06-20-im-channel-admin-gate.md §6).
+		`CREATE TABLE IF NOT EXISTS im_claims (
+			id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			channel TEXT NOT NULL,
+			owner_uuid TEXT NOT NULL,
+			code TEXT NOT NULL,
+			intent TEXT NOT NULL DEFAULT 'add',
+			expires_at TIMESTAMP NOT NULL,
+			used BOOLEAN NOT NULL DEFAULT FALSE,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_im_claims_agent_channel ON im_claims (agent_id, channel)`,
 	}
 }
 

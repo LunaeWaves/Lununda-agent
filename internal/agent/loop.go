@@ -63,11 +63,18 @@ type Agent struct {
 	// (ask/auto/yolo + allowlist). Built once per agent from agentRoot +
 	// workspace; the session mode is read live at check time.
 	authGate *authGate
-	// admins is the per-channel allowlist of chatters who can run write-
-	// mode slash commands (/new /undo /retry /compact /model /personality).
-	// Keyed by channel name (e.g. "discord" → ["123...", "456..."]). Empty
-	// or absent → no gate, anyone can run the command (legacy default).
+	// admins is the per-channel DELEGATE allowlist — platform IDs the
+	// owner authorized to run write-mode slash commands (/new /undo
+	// /retry /compact /model /personality) beyond the owner themselves.
+	// Keyed by channel name (e.g. "discord" → ["123...", "456..."]).
+	// Distinct from ownerImIds: admins = trusted delegates, ownerImIds
+	// = who the owner is. See isAdminChatter for the owner-or-delegate
+	// check (fail-closed when both are empty for a channel).
 	admins          map[string][]string
+	// ownerImIds is the agent owner's claimed IM platform IDs per
+	// channel, established via the web verification-code claim flow
+	// (/claim <code>). See config.AgentFileConfig.OwnerImIds.
+	ownerImIds      map[string][]string
 	skillsCfg       config.SkillsConfig
 	globalSkillsCfg config.SkillsCfg
 	messageBus      *bus.MessageBus
@@ -381,6 +388,7 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 		workspacePath:   workspace,
 		homeDir:         homeDir,
 		admins:          rc.Admins,
+		ownerImIds:      rc.OwnerImIds,
 		skillsCfg:       rc.Skills,
 		globalSkillsCfg: globalSkillsCfg,
 		messageBus:      mb,

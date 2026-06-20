@@ -267,6 +267,14 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("POST /api/agents", auth(s.handleCreateAgent))
 	mux.HandleFunc("GET /api/agents/{id}", auth(s.handleGetAgent))
 	mux.HandleFunc("PUT /api/agents/{id}", auth(s.handleUpdateAgent))
+	// IM owner-identity claim flow (docs/superpowers/specs/
+	// 2026-06-20-im-channel-admin-gate.md §6): owner mints a code in the
+	// web UI, sends `/claim <code>` from IM, the bot records the platform
+	// ID into ownerImIds. Rebind voids old IDs first; unbind removes one.
+	mux.HandleFunc("POST /api/agents/{id}/im-claim", auth(s.handleCreateIMClaim))
+	mux.HandleFunc("GET /api/agents/{id}/im-claim/{channel}", auth(s.handleGetIMClaim))
+	mux.HandleFunc("POST /api/agents/{id}/im-unbind", auth(s.handleUnbindIM))
+	mux.HandleFunc("POST /api/agents/{id}/im-rebind", auth(s.handleRebindIM))
 	mux.HandleFunc("GET /api/agents/{id}/config", auth(s.handleGetAgentConfig))
 	mux.HandleFunc("GET /api/agents/{id}/memory", auth(s.handleGetAgentMemory))
 	mux.HandleFunc("PUT /api/agents/{id}/memory", auth(s.handleUpdateAgentMemory))

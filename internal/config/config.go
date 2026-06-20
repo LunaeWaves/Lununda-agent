@@ -636,6 +636,15 @@ type AgentFileConfig struct {
 	// regardless of this field, since those channels carry the Lununda Agent
 	// identity directly and don't need a per-platform allowlist.
 	Admins map[string][]string `json:"admins,omitempty"`
+	// OwnerImIds is the agent owner's claimed IM platform user IDs, per
+	// channel. Established by the web verification-code claim flow (see
+	// docs/superpowers/specs/2026-06-20-im-channel-admin-gate.md §6):
+	// owner generates a one-time code in the web UI, sends `/claim <code>`
+	// from their IM account, and the bot records that platform ID here.
+	// Distinct from Admins (a delegate allowlist) — OwnerImIds is who the
+	// OWNER is on each IM channel. Empty/absent = no owner claimed for
+	// that channel → isAdminChatter fail-closed.
+	OwnerImIds map[string][]string `json:"ownerImIds,omitempty"`
 	// KB auto-query config. Stored as a sub-object in the agent's config
 	// blob and mapped to kb.AutoQueryCfg at hook wiring time.
 	KB *AgentKBCfg `json:"kb,omitempty"`
@@ -707,6 +716,9 @@ type ResolvedAgent struct {
 	// Admins is the per-channel admin allowlist for write-mode slash
 	// commands. See AgentFileConfig.Admins for semantics + default.
 	Admins map[string][]string
+	// OwnerImIds mirrors AgentFileConfig.OwnerImIds (the owner's claimed
+	// IM identities per channel). See AgentFileConfig.OwnerImIds.
+	OwnerImIds map[string][]string
 	// PromptMode selects the system-prompt assembly profile AND the
 	// built-in tool set the LLM sees. See AgentEntry.PromptMode for
 	// semantics. Empty = PromptModeAgent.
@@ -1052,6 +1064,14 @@ func (cfg *Config) MergedAgentConfig(entry AgentEntry) ResolvedAgent {
 				cp := make([]string, len(ids))
 				copy(cp, ids)
 				resolved.Admins[ch] = cp
+			}
+		}
+		if len(fileCfg.OwnerImIds) > 0 {
+			resolved.OwnerImIds = make(map[string][]string, len(fileCfg.OwnerImIds))
+			for ch, ids := range fileCfg.OwnerImIds {
+				cp := make([]string, len(ids))
+				copy(cp, ids)
+				resolved.OwnerImIds[ch] = cp
 			}
 		}
 		for k, v := range fileCfg.MCPServers {

@@ -245,6 +245,18 @@ type Store interface {
 	// next job is due instead of polling.
 	GetNextDueTime(ctx context.Context) (time.Time, error)
 
+	// --- IM owner-identity claim (verification code) ---
+	//
+	// Web-side owner (authenticated) mints a one-time code via
+	// CreateIMClaim; they send `/claim <code>` from their IM account,
+	// RedeemIMClaim verifies + retires it (the caller then records the
+	// platform ID into the agent's ownerImIds config). See
+	// docs/superpowers/specs/2026-06-20-im-channel-admin-gate.md §6.
+	CreateIMClaim(ctx context.Context, agentID, channel, ownerUUID, intent string) (string, error)
+	RedeemIMClaim(ctx context.Context, agentID, channel, code string) (bool, error)
+	GetActiveIMClaim(ctx context.Context, agentID, channel string) (*IMClaimRecord, error)
+	CleanupExpiredIMClaims(ctx context.Context) (int, error)
+
 	// --- Channel leases (singleton gate for polling channels) ---
 	//
 	// Cross-process leader election for one (channel, account_id) pair.
@@ -652,6 +664,22 @@ type CronJobRecord struct {
 	// deletes the row once it crosses an internal threshold.
 	FailureCount int       `json:"failureCount,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// IMClaimRecord holds a pending IM owner-identity verification code. See
+// the Store.CreateIMClaim docs + docs/superpowers/specs/
+// 2026-06-20-im-channel-admin-gate.md §6.
+type IMClaimRecord struct {
+	ID        string    `json:"id"`
+	AgentID   string    `json:"agentId"`
+	Channel   string    `json:"channel"`
+	OwnerUUID string    `json:"ownerUuid"` // web-side authenticated owner UUID
+	Code      string    `json:"-"`         // 6-digit one-time code (never serialized)
+	Intent    string    `json:"intent"`    // "first" | "add" | "replace"
+	ExpiresAt time.Time `json:"expiresAt"`
+	Used      bool      `json:"used"`
+	Attempts  int       `json:"attempts"` // >= IMClaimMaxAttempts → voided
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type RegexHookRecord struct {

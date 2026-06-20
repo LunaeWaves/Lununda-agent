@@ -1433,6 +1433,7 @@ export interface AgentFileConfig {
     indicatorNotFound?: string;
     wikiSearchMode?: string;
   };
+  ownerImIds?: Record<string, string[]>;
 }
 
 // Fetch the raw agent.json for one agent (per-agent overrides only — not
@@ -2059,6 +2060,55 @@ export async function connectAgentSlack(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ botToken, appToken }),
+  });
+  return res.json();
+}
+
+// --- IM owner-identity claim (docs/superpowers/specs/
+// 2026-06-20-im-channel-admin-gate.md). getAgentConfig (above) already
+// returns the AgentFileConfig incl. ownerImIds; the helpers below drive
+// the claim/unbind/rebind endpoints. ---
+export async function createAgentIMClaim(
+  agentId: string,
+  channel: string,
+): Promise<{ ok?: boolean; code?: string; channel?: string; expiresAt?: string; error?: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/im-claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel }),
+  });
+  return res.json();
+}
+
+export async function getAgentIMClaim(
+  agentId: string,
+  channel: string,
+): Promise<{ active?: boolean; code?: string; expiresAt?: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/im-claim/${channel}`);
+  return res.json();
+}
+
+export async function unbindAgentIM(
+  agentId: string,
+  channel: string,
+  platformId: string,
+): Promise<{ remaining?: number; lastUnbind?: boolean; error?: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/im-unbind`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel, platformId }),
+  });
+  return res.json();
+}
+
+export async function rebindAgentIM(
+  agentId: string,
+  channel: string,
+): Promise<{ ok?: boolean; code?: string; channel?: string; expiresAt?: string; error?: string }> {
+  const res = await apiFetch(`/api/agents/${agentId}/im-rebind`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel }),
   });
   return res.json();
 }

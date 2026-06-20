@@ -2,14 +2,17 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
@@ -68,6 +71,9 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 			handled: true,
 			reply:   slashReply("intro", map[string]any{"name": a.name}),
 		}
+
+	case "/claim":
+		return a.slashClaim(msg)
 
 	case "/new", "/reset":
 		// Resolve the OLD session_key before minting the new one — used
@@ -210,39 +216,107 @@ var writeSlashCommands = map[string]bool{
 	"/yolo":        true,
 }
 
-// isAdminChatter decides whether the chatter is allowed to run a write-mode
-// slash command on this channel.
+// isAdminChatter decides whether the chatter may run a write-mode slash
+// command on this channel AND — via registry.SetCallerIsAdmin — access the
+// agent's identity files (SOUL.md / agent.json / …).
 //
-// Web / api: the chatter's UserID is the Lununda Agent user UUID — owner is
-// identified by direct equality with the agent's ownerUserID. No
-// per-platform allowlist needed.
+// Web / api: msg.UserID is the Lununda Agent user UUID; owner is identified
+// by direct equality with a.ownerUserID. No per-platform allowlist needed.
 //
-// IM channels (discord, telegram, slack, ...): UserID is the platform's
-// own user ID (Discord snowflake, Telegram numeric ID, ...), which has
-// no inherent link to the agent's Lununda Agent owner. The owner registers
-// platform IDs in agent.json's `admins[channel]` to grant access — and,
-// to keep single-user dev installs from being locked out of their own
-// agent, an empty/absent allowlist for the channel falls through to
-// "anyone can run it" (the legacy behavior). Operators who care about
-// group-chat protection populate the list to lock it down.
+// IM channels (discord, telegram, slack, ...): msg.UserID is the platform's
+// own user ID (Discord snowflake, …), which has no inherent link to the
+// agent's Lununda Agent owner. The owner establishes that link via the web
+// verification-code claim flow (`/claim <code>`), which records their
+// platform ID in ownerImIds[channel]. admins[channel] is a separate
+// DELEGATE allowlist (other trusted IDs the owner authorized).
+//
+// Fail-closed: if neither ownerImIds nor admins matches, returns false. The
+// legacy "empty allowlist → anyone is admin" behavior was removed — it let
+// any group chatter read/write the agent's persona + config. The owner
+// recovers access via /whoami (always open) + the web claim flow.
 func (a *Agent) isAdminChatter(msg bus.InboundMessage) bool {
-	// Web / api carry Lununda Agent UUIDs directly; owner check is sufficient.
 	if msg.Channel == "web" || msg.Channel == "api" {
 		return msg.UserID != "" && msg.UserID == a.ownerUserID
 	}
-	list, ok := a.admins[msg.Channel]
-	if !ok || len(list) == 0 {
-		// No allowlist configured for this channel → preserve legacy
-		// unrestricted behavior. Operators opt in to group-chat
-		// protection by populating admins[channel].
-		return true
+	return slices.Contains(a.ownerImIds[msg.Channel], msg.UserID) ||
+		slices.Contains(a.admins[msg.Channel], msg.UserID)
+}
+
+// slashClaim redeems a web-generated verification code to bind the
+// chatter's IM platform ID as the agent owner for this channel. See
+// docs/superpowers/specs/2026-06-20-im-channel-admin-gate.md §6.
+//
+// Always allowed — /claim is NOT in writeSlashCommands. The owner must be
+// able to claim BEFORE being recognized as admin (chicken-and-egg): the
+// code itself is the abuse gate, not the chatter's identity.
+func (a *Agent) slashClaim(msg bus.InboundMessage) slashResult {
+	if msg.Channel == "web" || msg.Channel == "api" {
+		return slashResult{handled: true, reply: slashReply("claim_wrong_channel", nil)}
 	}
-	for _, id := range list {
-		if id == msg.UserID {
-			return true
-		}
+	parts := strings.Fields(msg.Text)
+	if len(parts) < 2 || parts[1] == "" {
+		return slashResult{handled: true, reply: slashReply("claim_usage", nil)}
 	}
-	return false
+	if a.dataStore == nil {
+		return slashResult{handled: true, reply: slashReply("claim_invalid", nil)}
+	}
+	ctx := context.Background()
+	ok, err := a.dataStore.RedeemIMClaim(ctx, a.agentID, msg.Channel, parts[1])
+	if err != nil {
+		slog.Warn("im claim redeem failed", "agent", a.agentID, "channel", msg.Channel, "err", err)
+		return slashResult{handled: true, reply: slashReply("claim_invalid", nil)}
+	}
+	if !ok {
+		return slashResult{handled: true, reply: slashReply("claim_invalid", nil)}
+	}
+	if err := a.persistOwnerImID(ctx, msg.Channel, msg.UserID); err != nil {
+		slog.Warn("im claim persist failed", "agent", a.agentID, "channel", msg.Channel, "err", err)
+		return slashResult{handled: true, reply: slashReply("claim_invalid", nil)}
+	}
+	return slashResult{handled: true, reply: slashReply("claim_success", map[string]any{"channel": msg.Channel})}
+}
+
+// persistOwnerImID appends platformID to the agent's ownerImIds[channel]
+// both in agents.config AND the in-memory cache, so subsequent turns
+// (this process + after reload) recognize the chatter as owner. Deduped.
+func (a *Agent) persistOwnerImID(ctx context.Context, channel, platformID string) error {
+	if a.dataStore == nil {
+		return fmt.Errorf("persistOwnerImID: no dataStore")
+	}
+	cfg, ok := config.AgentFileConfigLoader(a.agentID, a.homeDir)
+	if !ok {
+		cfg = config.AgentFileConfig{}
+	}
+	if cfg.OwnerImIds == nil {
+		cfg.OwnerImIds = map[string][]string{}
+	}
+	if !slices.Contains(cfg.OwnerImIds[channel], platformID) {
+		cfg.OwnerImIds[channel] = append(cfg.OwnerImIds[channel], platformID)
+	}
+	rec, err := a.dataStore.GetAgent(ctx, a.agentID)
+	if err != nil {
+		return err
+	}
+	blob, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	var asMap map[string]interface{}
+	if err := json.Unmarshal(blob, &asMap); err != nil {
+		return err
+	}
+	rec.Config = asMap
+	rec.UpdatedAt = time.Now().UTC()
+	if err := a.dataStore.SaveAgent(ctx, rec); err != nil {
+		return err
+	}
+	if a.ownerImIds == nil {
+		a.ownerImIds = map[string][]string{}
+	}
+	if !slices.Contains(a.ownerImIds[channel], platformID) {
+		a.ownerImIds[channel] = append(a.ownerImIds[channel], platformID)
+	}
+	return nil
 }
 
 // slashRetry re-runs the last user message, discarding the last assistant response.
