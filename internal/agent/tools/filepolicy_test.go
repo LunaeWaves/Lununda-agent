@@ -97,3 +97,34 @@ func TestIsChatterScoped(t *testing.T) {
 		}
 	}
 }
+
+func TestSystemFileUserIDRouting(t *testing.T) {
+	cases := []struct {
+		name          string
+		filename      string
+		ownerUserID   string
+		chatterUserID string
+		userID        string
+		want          string
+	}{
+		{"identity→owner", "SOUL.md", "owner-1", "chatter-1", "ws-1", "owner-1"},
+		{"scaffold→owner", "TOOLS.md", "owner-1", "chatter-1", "ws-1", "owner-1"},
+		{"agent.json→owner", "agent.json", "owner-1", "chatter-1", "ws-1", "owner-1"},
+		{"per-user→chatter", "USER.md", "owner-1", "chatter-1", "ws-1", "chatter-1"},
+		{"per-user→chatter", "MEMORY.md", "owner-1", "chatter-1", "ws-1", "chatter-1"},
+		{"owner空→chatter", "SOUL.md", "", "chatter-1", "ws-1", "chatter-1"},
+		{"owner空且chatter空→userID", "SOUL.md", "", "", "ws-1", "ws-1"},
+		{"未知文件→chatter", "report.md", "owner-1", "chatter-1", "ws-1", "chatter-1"},
+	}
+	for _, c := range cases {
+		r := &Registry{
+			agentOwnerUserID: c.ownerUserID,
+			chatterUserID:    c.chatterUserID,
+			userID:           c.userID,
+		}
+		if got := r.systemFileUserID(c.filename); got != c.want {
+			t.Errorf("%s: systemFileUserID(%q) = %q, want %q",
+				c.name, c.filename, got, c.want)
+		}
+	}
+}

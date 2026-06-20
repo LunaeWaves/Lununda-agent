@@ -419,7 +419,8 @@ func (r *Registry) SetUserSkillsRoot(dir string) {
 // isn't set — that's the single-user / legacy case where they coincide
 // anyway.
 func (r *Registry) systemFileUserID(filename string) string {
-	if r.agentOwnerUserID != "" && identityFiles[filepath.Base(filepath.Clean(filename))] {
+	base := filepath.Base(filepath.Clean(filename))
+	if p, ok := PolicyFor(base); ok && p.ReadScope == ScopeOwner && r.agentOwnerUserID != "" {
 		return r.agentOwnerUserID
 	}
 	if r.chatterUserID != "" {
