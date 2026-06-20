@@ -208,6 +208,16 @@ func (cb *ContextBuilder) ctx() context.Context {
 	return config.WithUserID(context.Background(), cb.userID)
 }
 
+// cloneForReview 返回绑到 chatterUID 的浅拷贝，供后台审查的
+// runSubagentLoopWith 用 —— BuildSystemPrompt 会读该 chatter 的 USER/MEMORY
+// （经 cb.userID → loadFileForUser）。指针字段（memory/store/tzResolver 等）
+// 共享 parent；值字段独立。type ContextBuilder 无 mutex，浅拷贝安全。
+func (cb *ContextBuilder) cloneForReview(chatterUID string) *ContextBuilder {
+	out := *cb
+	out.userID = chatterUID
+	return &out
+}
+
 // NewContextBuilder creates a new context builder.
 func NewContextBuilder(home string, memory *Memory, skillsSummary string) *ContextBuilder {
 	return &ContextBuilder{
