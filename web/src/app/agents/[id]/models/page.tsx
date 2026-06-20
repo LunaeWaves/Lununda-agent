@@ -43,6 +43,7 @@ import {
   testStoredProvider,
   listProviderModels,
   listStoredProviderModels,
+  getAgentConfig,
   updateAgent,
   type ModelEntry,
   type ProviderRow,
@@ -144,6 +145,7 @@ export default function AgentModelsPage() {
   // window before fetchAll resolves. Backend treats absent key as on
   // (agentShareModelConfig in handlers_agents.go) — keep these aligned.
   const [shareModelConfig, setShareModelConfig] = useState(true);
+  const [locale, setLocale] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -261,13 +263,14 @@ export default function AgentModelsPage() {
       // user-scope call gets bound to the owner only after agentRec
       // resolves; doing the user list lazily here keeps things flat
       // without an awkward two-stage fetch.
-      const [agentRec, agentScopeRes, sysScopeRes, cfg] = await Promise.all([
+      const [agentRec, agentScopeRes, sysScopeRes, cfg, fileCfg] = await Promise.all([
         getAgent(agentId).catch(() => null),
         listProviders("agent", agentId).catch(() => null),
         listProviders("system", "").catch(() => null),
         // /api/config may 403 for non-admins; if it does, we just lose
         // the "inheriting system default: X" hint, which is fine.
         getConfig().catch(() => null),
+        getAgentConfig(agentId).catch(() => null),
       ]);
       const ownerId = agentRec?.userId || "";
       // user-scope inheritance only applies if we know the owner;
@@ -309,6 +312,7 @@ export default function AgentModelsPage() {
       // the ?? guards against a stale shape if the page is hit before
       // the binary upgrade lands.
       setShareModelConfig(agentRec?.shareModelConfig ?? true);
+      setLocale(fileCfg?.locale || "");
     } finally {
       setLoading(false);
     }
@@ -570,6 +574,20 @@ export default function AgentModelsPage() {
     }
   };
 
+  const handleLocaleChange = async (next: string) => {
+    const prev = locale;
+    setLocale(next);
+    setSaving(true);
+    try {
+      await updateAgent(agentId, { locale: next });
+      flashSaved();
+    } catch {
+      setLocale(prev);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -630,6 +648,34 @@ export default function AgentModelsPage() {
             disabled={saving}
             aria-label={t("models.shareConfig")}
           />
+        </div>
+      </div>
+
+      {/* IM slash reply language (agent-level; web uses the viewer's browser locale) */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="font-medium">{t("models.locale")}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{t("models.localeDesc")}</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant={locale === "" || locale === "en" ? "default" : "outline"}
+              onClick={() => handleLocaleChange("")}
+              disabled={saving}
+            >
+              English
+            </Button>
+            <Button
+              size="sm"
+              variant={locale === "zh-CN" ? "default" : "outline"}
+              onClick={() => handleLocaleChange("zh-CN")}
+              disabled={saving}
+            >
+              中文
+            </Button>
+          </div>
         </div>
       </div>
 

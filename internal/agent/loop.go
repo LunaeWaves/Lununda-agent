@@ -75,6 +75,10 @@ type Agent struct {
 	// channel, established via the web verification-code claim flow
 	// (/claim <code>). See config.AgentFileConfig.OwnerImIds.
 	ownerImIds      map[string][]string
+	// locale is the IM slash-reply language for this agent ("" | "en" |
+	// "zh-CN"). Drives expandSlashSentinel on IM channels; web uses the
+	// viewer's browser locale instead. See config.AgentFileConfig.Locale.
+	locale          string
 	skillsCfg       config.SkillsConfig
 	globalSkillsCfg config.SkillsCfg
 	messageBus      *bus.MessageBus
@@ -389,6 +393,7 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 		homeDir:         homeDir,
 		admins:          rc.Admins,
 		ownerImIds:      rc.OwnerImIds,
+		locale:          rc.Locale,
 		skillsCfg:       rc.Skills,
 		globalSkillsCfg: globalSkillsCfg,
 		messageBus:      mb,
@@ -1941,7 +1946,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		// sentinel back to English text before persist/emit.
 		replyText := result.reply
 		if msg.Channel != "web" {
-			replyText = expandSlashSentinel(replyText)
+			replyText = expandSlashSentinel(replyText, a.locale)
 		}
 		if sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID); sess != nil {
 			if !result.continueToLoop {
@@ -2900,7 +2905,7 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		// sentinel back to English text before persist/emit.
 		replyText := result.reply
 		if msg.Channel != "web" {
-			replyText = expandSlashSentinel(replyText)
+			replyText = expandSlashSentinel(replyText, a.locale)
 		}
 		if sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID); sess != nil {
 			if !result.continueToLoop {

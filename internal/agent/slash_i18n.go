@@ -31,10 +31,11 @@ func slashReply(code string, args map[string]any) string {
 	return "__SLASH:" + code + ":" + string(b) + "__"
 }
 
-// expandSlashSentinel converts a sentinel back to English text for IM
-// channels. Non-sentinel content is returned unchanged. Unknown codes
-// fall back to the raw sentinel (shouldn't happen — codes are internal).
-func expandSlashSentinel(s string) string {
+// expandSlashSentinel converts a sentinel back to localized text for IM
+// channels (web translates via its frontend). locale selects the template
+// set ("en"/"zh-CN"); unknown/empty locale falls back to "en"; unknown
+// codes fall back to the raw sentinel.
+func expandSlashSentinel(s, locale string) string {
 	m := slashSentinelRE.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
 		return s
@@ -42,6 +43,11 @@ func expandSlashSentinel(s string) string {
 	code, rawArgs := m[1], m[2]
 	args := map[string]any{}
 	_ = json.Unmarshal([]byte(rawArgs), &args)
+	if tpls, ok := slashTemplates[locale]; ok {
+		if tpl, ok := tpls[code]; ok {
+			return renderSlashTemplate(tpl, args)
+		}
+	}
 	if tpl, ok := slashEnglish[code]; ok {
 		return renderSlashTemplate(tpl, args)
 	}
@@ -146,4 +152,82 @@ Info
 	"cost_line": "\n─────────────────\nCost:            {cost}\nInput tokens:    {input_tokens}\nOutput tokens:   {output_tokens}\nAPI duration:    {api_duration}\nTool duration:   {tool_duration}",
 	"insights":  "🔍 Insights (last {days} days)\n─────────────────────────\nLog files:       {total_files} total, {recent_files} recent\nMemory file:     {memory_file}\nWorkspace:       {workspace}\n\nTip: Use /status for session info, /usage for token stats.",
 	"personality_list":        "🎭 Personalities\n─────────────────\n{names}\n\nUsage: /personality <name>",
+}
+
+// slashChinese is the zh-CN translation of slashEnglish (same keys).
+var slashChinese = map[string]string{
+	"compact_within":       "✓ 会话在限制内（{count} 条消息，无需压缩）。已保存对话摘要以便跨会话回顾。",
+	"compact_done":         "✅ 已压缩：{from} → {to} 条消息。",
+	"compact_empty":        "没有可压缩的消息。",
+	"compact_error":        "压缩出错：{error}",
+	"undo_turn":            "↩️ 已撤销上一轮。",
+	"undo_action":          "↩️ 已撤销上一个操作。",
+	"undo_none":            "没有可撤销的内容。",
+	"retry_none":           "没有可重试的上一条消息。",
+	"retry_running":        "🔁 重试：*{text}*",
+	"new_session":          "🔄 已开启新会话。之前的对话保留为历史。",
+	"model_current":        "当前模型：`{model}`\n\n用法：/model <模型名>\n示例：/model gpt-4o-mini",
+	"model_switched":       "🤖 已切换模型：`{from}` → `{to}`",
+	"personality_none":     "未找到人设预设。\n\n在工作区创建名为 SOUL-<名字>.md 的文件即可添加。\n示例：SOUL-assistant.md、SOUL-dev.md",
+	"personality_set":      "🎭 已设置人设：**{name}**\nSOUL.md 已更新。下一条消息生效。",
+	"personality_notfound": "未找到人设 '{name}'。\n期望路径：{path}",
+	"personality_error":    "读取人设出错：{error}",
+	"plan_usage":           "用法：`/plan <任务>`",
+	"bus_full":             "消息总线已满，请重试。",
+	"claim_usage":          "用法：`/claim <验证码>` —— 6 位验证码从 agent owner 的 web 控制台获取（IM 身份认领）。",
+	"claim_invalid":        "❌ 验证码无效、已过期或已使用。请让 agent owner 在 web 控制台重新生成。",
+	"claim_success":        "✅ 认领成功！你已被识别为该 agent 在 `{channel}` 的 owner。",
+	"claim_wrong_channel":  "`/claim` 用于 IM 渠道（Discord/Telegram 等）。Web/API 无需认领。",
+	"intro":                "👋 你好！我是 {name}，你的 AI 助手。\n\n直接发消息就能聊天。输入 /help 查看可用命令。",
+	"version":              "⚡ Lununda Agent\nAgent：{name}\n模型：{model}",
+	"whoami":               "渠道：`{channel}`\n你的用户 ID：`{user_id}`\n发送者名称：`{sender_name}`\n\n（把这个 ID 加进 agent 配置的 `admins.{channel}` 即可获得写斜杠命令的权限。）",
+	"help": `⚡ Lununda Agent 命令
+
+对话
+  /new, /reset    — 清空会话历史
+  /retry          — 重跑上一条消息
+  /undo           — 撤销上一轮
+
+上下文
+  /compact        — 压缩上下文窗口
+  /status         — Agent 状态与记忆信息
+  /usage          — 会话 token / 轮次统计
+  /insights [N]   — 活动洞察（最近 N 天，默认 7）
+
+人设与模型
+  /personality        — 列出可用人设
+  /personality <名字> — 切换人设（SOUL-<名字>.md）
+  /model <名字>       — 切换 LLM 模型
+
+目标（持续多轮目标）
+  /goal <目标> — 创建目标；agent 自动续跑直到完成
+  /goal        — 查看当前目标状态
+  /goal pause  — 暂停续跑
+  /goal resume — 恢复已暂停的目标
+  /goal clear  — 删除目标
+
+计划
+  /plan <任务> — 以计划模式运行 <任务>：输出编号计划，不调用工具
+
+信息
+  /help        — 显示此帮助
+  /version     — 显示版本
+  /whoami      — 显示你的平台用户 ID
+
+🔒 写命令（/new /reset /undo /retry /compact /model /personality）
+   在 IM 渠道仅限 agent owner + agent.json "admins" 字段列出的管理员使用。
+   用 /whoami 查你的 ID。`,
+	"status":           "⚡ Lununda Agent 状态\n─────────────────\nAgent：      {name}\n模型：       {model}\n人设：       {soul}\n最大 Token： {max_tokens}\n温度：       {temperature}\n最大迭代：   {max_iter}\n会话消息：   {session_msgs}\n记忆：       {mem_lines} 行\n工作区：     {workspace}",
+	"usage":            "📊 会话用量\n用户轮次：    {user_turns}\n助手轮次：    {asst_turns}\n工具调用：    {tool_turns}\n总消息数：    {total_msgs}{cost}",
+	"cost_line":        "\n─────────────────\n费用：        {cost}\n输入 Token：  {input_tokens}\n输出 Token：  {output_tokens}\nAPI 耗时：    {api_duration}\n工具耗时：    {tool_duration}",
+	"insights":         "🔍 洞察（最近 {days} 天）\n─────────────────────────\n日志文件：    共 {total_files}，最近 {recent_files}\n记忆文件：    {memory_file}\n工作区：      {workspace}\n\n提示：/status 看会话信息，/usage 看 token 统计。",
+	"personality_list": "🎭 人设\n─────────────────\n{names}\n\n用法：/personality <名字>",
+}
+
+// slashTemplates groups per-locale slash template maps. "en" is canonical
+// (slashEnglish); expandSlashSentinel falls back to "en" for unknown/empty
+// locale, then to the raw sentinel for unknown codes.
+var slashTemplates = map[string]map[string]string{
+	"en":    slashEnglish,
+	"zh-CN": slashChinese,
 }

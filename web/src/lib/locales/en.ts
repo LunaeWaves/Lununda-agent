@@ -582,6 +582,8 @@ const en: Record<string, string> = {
   "models.ownerShared": "Configured on this agent by its owner — shared with chatters.",
   "models.adminShared": "Configured by an admin and shared with all users.",
   "models.shareConfig": "Share model config with chatters",
+  "models.locale": "IM Reply Language",
+  "models.localeDesc": "Language for slash-command replies on IM channels (web uses your browser language).",
 
   // Tools
   "tools.title": "Tools",

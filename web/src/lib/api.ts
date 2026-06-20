@@ -1346,6 +1346,8 @@ export interface AgentUpdatePayload {
   // Toggle whether chatters using this agent inherit the owner's
   // model + provider configuration. Omit to leave unchanged.
   shareModelConfig?: boolean;
+  // IM slash-reply language for this agent. "" = en (default); "en"/"zh-CN".
+  locale?: string;
   // PromptMode selects how heavily the framework system prompt
   // participates: "agent" (full, default), "chatbot" (slim — drops
   // task-delegation / tool-use discipline / workspace-update so
@@ -1434,6 +1436,7 @@ export interface AgentFileConfig {
     wikiSearchMode?: string;
   };
   ownerImIds?: Record<string, string[]>;
+  locale?: string;
 }
 
 // Fetch the raw agent.json for one agent (per-agent overrides only — not

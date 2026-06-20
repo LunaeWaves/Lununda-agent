@@ -582,6 +582,8 @@ const zhCN: Record<string, string> = {
   "models.ownerShared": "由智能体所有者配置 — 与对话者共享。",
   "models.adminShared": "由管理员配置并与所有用户共享。",
   "models.shareConfig": "与对话者共享模型配置",
+  "models.locale": "IM 回复语言",
+  "models.localeDesc": "IM 渠道斜杠命令回复的语言（Web 端用你的浏览器语言）。",
 
   // Tools
   "tools.title": "工具",

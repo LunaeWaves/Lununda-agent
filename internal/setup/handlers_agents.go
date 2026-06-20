@@ -570,6 +570,9 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		// caller must read-modify-write — partial maps clobber siblings.
 		MCPServers map[string]config.MCPServerConfig `json:"mcpServers,omitempty"`
 		KB *config.AgentKBCfg `json:"kb,omitempty"`
+		// Locale: IM slash-reply language for this agent. nil = leave
+		// unchanged; empty string = clear (→ en default); "en"/"zh-CN" = set.
+		Locale *string `json:"locale,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonResponse(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
@@ -617,6 +620,16 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 			}
 			rec.Config["kb"] = req.KB
 		}
+	if req.Locale != nil {
+		if rec.Config == nil {
+			rec.Config = map[string]interface{}{}
+		}
+		if *req.Locale == "" {
+			delete(rec.Config, "locale")
+		} else {
+			rec.Config["locale"] = *req.Locale
+		}
+	}
 	if err := s.dataStore.SaveAgent(r.Context(), rec); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return

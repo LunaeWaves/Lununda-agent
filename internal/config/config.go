@@ -645,6 +645,10 @@ type AgentFileConfig struct {
 	// OWNER is on each IM channel. Empty/absent = no owner claimed for
 	// that channel → isAdminChatter fail-closed.
 	OwnerImIds map[string][]string `json:"ownerImIds,omitempty"`
+	// Locale is the language used to expand slash-command sentinels on IM
+	// channels for this agent (web uses the viewer's browser locale). IM-only.
+	// "" | "en" | "zh-CN"; "" = en (current behavior).
+	Locale string `json:"locale,omitempty"`
 	// KB auto-query config. Stored as a sub-object in the agent's config
 	// blob and mapped to kb.AutoQueryCfg at hook wiring time.
 	KB *AgentKBCfg `json:"kb,omitempty"`
@@ -719,6 +723,8 @@ type ResolvedAgent struct {
 	// OwnerImIds mirrors AgentFileConfig.OwnerImIds (the owner's claimed
 	// IM identities per channel). See AgentFileConfig.OwnerImIds.
 	OwnerImIds map[string][]string
+	// Locale mirrors AgentFileConfig.Locale (IM slash reply language).
+	Locale string
 	// PromptMode selects the system-prompt assembly profile AND the
 	// built-in tool set the LLM sees. See AgentEntry.PromptMode for
 	// semantics. Empty = PromptModeAgent.
@@ -1073,6 +1079,9 @@ func (cfg *Config) MergedAgentConfig(entry AgentEntry) ResolvedAgent {
 				copy(cp, ids)
 				resolved.OwnerImIds[ch] = cp
 			}
+		}
+		if fileCfg.Locale != "" {
+			resolved.Locale = fileCfg.Locale
 		}
 		for k, v := range fileCfg.MCPServers {
 			if resolved.MCPServers == nil {
