@@ -269,8 +269,8 @@ func NewAgentWithFullCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bu
 	}
 
 	// Set memory auto-persist defaults
-	if ag.memoryCfg.AutoPersist.EveryNTurns == 0 {
-		ag.memoryCfg.AutoPersist.EveryNTurns = 5
+	if ag.memoryCfg.Review.EveryNTurns == 0 {
+		ag.memoryCfg.Review.EveryNTurns = 5
 	}
 
 	// Auto-title: default-on at the third user turn. ResolvedAgent
@@ -412,11 +412,11 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 	// agents.defaults.autoPersist is the only working path. Set
 	// EveryNTurns default here too so the modulo check at the
 	// runPostTurn site doesn't panic when an operator enables
-	// AutoPersist without specifying a cadence.
-	if rc.AutoPersist != nil {
-		ag.memoryCfg.AutoPersist.Enabled = *rc.AutoPersist
+	// Review without specifying a cadence.
+	if rc.Review != nil {
+		ag.memoryCfg.Review.Enabled = *rc.Review
 	}
-	// Auto-title per-agent override (same shape as AutoPersist). When
+	// Auto-title per-agent override (same shape as Review). When
 	// explicit, it wins over the resolver-supplied default.
 	if rc.AutoTitleEnabled != nil {
 		ag.memoryCfg.AutoTitle.Enabled = *rc.AutoTitleEnabled
@@ -448,8 +448,8 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 			ag.autoTitleCfg.Enabled = true
 		}
 	}
-	if ag.memoryCfg.AutoPersist.EveryNTurns == 0 {
-		ag.memoryCfg.AutoPersist.EveryNTurns = 5
+	if ag.memoryCfg.Review.EveryNTurns == 0 {
+		ag.memoryCfg.Review.EveryNTurns = 5
 	}
 
 	// message tool — registered HERE (post-Agent) so the closure can read
@@ -2775,25 +2775,7 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 			"chatter", chatterUID,
 			"dataStore_wired", a.dataStore != nil)
 	}
-	willFire := false
-	if a.dataStore != nil && a.memoryCfg.AutoPersist.Enabled && a.memoryCfg.AutoPersist.EveryNTurns > 0 && chatterUID != "" {
-		willFire = chatterTurns > 0 && chatterTurns%a.memoryCfg.AutoPersist.EveryNTurns == 0
-	}
-	slog.Info("auto-persist gate",
-		"agent", a.name,
-		"chatter", chatterUID,
-		"enabled", a.memoryCfg.AutoPersist.Enabled,
-		"chatter_turns", chatterTurns,
-		"every_n_turns", a.memoryCfg.AutoPersist.EveryNTurns,
-		"will_fire", willFire)
-	if willFire {
-		model := a.memoryCfg.AutoPersist.Model
-		if model == "" {
-			model = a.model
-		}
-		slog.Info("auto-persist firing", "agent", a.name, "chatter", chatterUID, "model", model, "chatter_turns", chatterTurns, "messages", len(messages))
-		go AutoPersistMemory(ctx, chatterMem, a.provider, model, messages)
-	}
+	// 阶段2: 旧 persist 钩子已删，background review 钩子在 Task 7 接入
 
 	// Auto-title: ask the LLM to summarise the conversation into a
 	// short title and write it to sessions.title. The window is
@@ -3307,7 +3289,7 @@ func (a *Agent) streamFinalDeliveryAfterCap(ctx context.Context, inboundMsg bus.
 			"content":  "",
 			"metadata": capMeta,
 		}})
-		// Fire PostTurn so AutoPersist (and any future PostTurn hook)
+		// Fire PostTurn so Review (and any future PostTurn hook)
 		// runs on the streaming path too — see the no-tool-calls
 		// branch in HandleMessageStream for the rationale.
 		a.runPostTurn(ctx, inboundMsg, append(messages, finalMsg), toolCallCount, chatterMem)

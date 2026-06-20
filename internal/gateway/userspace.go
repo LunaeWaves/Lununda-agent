@@ -497,9 +497,9 @@ func (sp *UserSpace) EnsureAgent(ctx context.Context, st store.Store, mb *bus.Me
 				v := *ovr.SplitReplies
 				rc.SplitReplies = &v
 			}
-			if ovr.AutoPersist != nil {
-				v := *ovr.AutoPersist
-				rc.AutoPersist = &v
+			if ovr.Review != nil {
+				v := *ovr.Review
+				rc.Review = &v
 			}
 			// Auto-title per-agent on/off override — same shape.
 			if ovr.AutoTitle != nil {
@@ -733,9 +733,9 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 			// for this agent specifically. Used most by chatbot-mode
 			// personas where the LLM can't write_file directly so the
 			// background distill pass is the only persistence path.
-			if agentOverride.AutoPersist != nil {
-				v := *agentOverride.AutoPersist
-				rc.AutoPersist = &v
+			if agentOverride.Review != nil {
+				v := *agentOverride.Review
+				rc.Review = &v
 			}
 			// Auto-title per-agent on/off override — same shape.
 			if agentOverride.AutoTitle != nil {

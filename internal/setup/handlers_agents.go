@@ -212,12 +212,12 @@ func (s *Server) agentScopeMCPServers(r *http.Request, agentID string) map[strin
 	return out
 }
 
-// agentScopeAutoPersist reads the per-agent autoPersist override.
+// agentScopeReview reads the per-agent autoPersist override.
 // Returns nil when absent — same convention as agentScopeSplitReplies.
-// Drives the runPostTurn AutoPersistMemory pass (LLM-distilled writes to
+// Drives the runPostTurn ReviewMemory pass (LLM-distilled writes to
 // USER.md / MEMORY.md) which is the only chatter-memory persistence
 // path in chatbot mode.
-func (s *Server) agentScopeAutoPersist(r *http.Request, agentID string) *bool {
+func (s *Server) agentScopeReview(r *http.Request, agentID string) *bool {
 	rec, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", agentID, "agents.defaults")
 	if err != nil || rec == nil {
 		return nil
@@ -232,7 +232,7 @@ func (s *Server) agentScopeAutoPersist(r *http.Request, agentID string) *bool {
 // agentScopeAutoTitle reads the per-agent autoTitle override. Returns
 // nil when absent (treated as "inherit default-on" by the agent loop).
 // Drives the auto-title PostTurn hook (LLM-generated chat title after
-// N user turns). Mirrors agentScopeAutoPersist's shape.
+// N user turns). Mirrors agentScopeReview's shape.
 func (s *Server) agentScopeAutoTitle(r *http.Request, agentID string) *bool {
 	rec, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", agentID, "agents.defaults")
 	if err != nil || rec == nil {
@@ -539,12 +539,12 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		// the override and fall back to system default.
 		SplitReplies      *bool `json:"splitReplies,omitempty"`
 		SplitRepliesReset bool  `json:"splitRepliesReset,omitempty"`
-		// AutoPersist per-agent override — same semantics as SplitReplies.
+		// Review per-agent override — same semantics as SplitReplies.
 		// `autoPersistReset:true` clears the override and falls back to
 		// system default (currently effectively disabled).
-		AutoPersist      *bool `json:"autoPersist,omitempty"`
-		AutoPersistReset bool  `json:"autoPersistReset,omitempty"`
-		// AutoTitle per-agent on/off override — same shape as AutoPersist.
+		Review      *bool `json:"autoPersist,omitempty"`
+		ReviewReset bool  `json:"autoPersistReset,omitempty"`
+		// AutoTitle per-agent on/off override — same shape as Review.
 		// Controls the auto-title PostTurn hook (LLM-generated chat title
 		// after N user turns). The model used is always the agent's
 		// primary model; afterRounds/maxChars come from memory.autoTitle
@@ -657,10 +657,10 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 	} else if req.SplitReplies != nil {
 		defaultsPatch["splitReplies"] = *req.SplitReplies
 	}
-	if req.AutoPersistReset {
+	if req.ReviewReset {
 		defaultsPatch["autoPersist"] = nil
-	} else if req.AutoPersist != nil {
-		defaultsPatch["autoPersist"] = *req.AutoPersist
+	} else if req.Review != nil {
+		defaultsPatch["autoPersist"] = *req.Review
 	}
 	if req.AutoTitleReset {
 		defaultsPatch["autoTitle"] = nil
@@ -707,7 +707,7 @@ func (s *Server) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
 			"model":            s.agentScopeModel(r, rec.ID),
 			"promptMode":       s.agentScopePromptMode(r, rec.ID),
 			"splitReplies":     s.agentScopeSplitReplies(r, rec.ID),
-			"autoPersist":      s.agentScopeAutoPersist(r, rec.ID),
+			"autoPersist":      s.agentScopeReview(r, rec.ID),
 			"autoTitle":        s.agentScopeAutoTitle(r, rec.ID),
 			"autoTitleModel":   s.agentScopeAutoTitleModel(r, rec.ID),
 			"plugins":          s.agentScopePlugins(r, rec.ID),
@@ -750,7 +750,7 @@ func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 			"model":            s.agentScopeModel(r, rec.ID),
 			"promptMode":       s.agentScopePromptMode(r, rec.ID),
 			"splitReplies":     s.agentScopeSplitReplies(r, rec.ID),
-			"autoPersist":      s.agentScopeAutoPersist(r, rec.ID),
+			"autoPersist":      s.agentScopeReview(r, rec.ID),
 			"autoTitle":        s.agentScopeAutoTitle(r, rec.ID),
 			"autoTitleModel":   s.agentScopeAutoTitleModel(r, rec.ID),
 			"plugins":          s.agentScopePlugins(r, rec.ID),

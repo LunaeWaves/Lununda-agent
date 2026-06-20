@@ -242,7 +242,7 @@ type RateLimitCfg struct {
 }
 
 type MemoryCfg struct {
-	AutoPersist AutoPersistCfg    `json:"autoPersist,omitempty"`
+	Review ReviewCfg    `json:"autoPersist,omitempty"`
 	AutoTitle   AutoTitleCfg      `json:"autoTitle,omitempty"`
 	FTS         FTSCfg            `json:"fts,omitempty"`
 	Embedding   EmbeddingCfg      `json:"embedding,omitempty"`
@@ -281,7 +281,7 @@ type MemorySettingsCfg struct {
 	ReindexIntervalMin int `json:"reindexIntervalMin,omitempty"`
 }
 
-type AutoPersistCfg struct {
+type ReviewCfg struct {
 	Enabled     bool   `json:"enabled"`
 	EveryNTurns int    `json:"everyNTurns,omitempty"`
 	Model       string `json:"model,omitempty"`
@@ -427,16 +427,16 @@ type AgentDefaults struct {
 	// Nil at this layer means the agent-scope row has no opinion; the
 	// effective value falls back to system-level WeChatCfg.SplitReplies.
 	SplitReplies *bool `json:"splitReplies,omitempty"`
-	// AutoPersist — per-agent override of MemoryCfg.AutoPersist.Enabled.
+	// Review — per-agent override of MemoryCfg.Review.Enabled.
 	// Pointer-typed for the same reason as SplitReplies: distinguishing
 	// "operator hasn't touched it" from "explicitly false". When non-nil,
-	// flips ag.memoryCfg.AutoPersist.Enabled at agent build time so the
+	// flips ag.memoryCfg.Review.Enabled at agent build time so the
 	// runPostTurn check at loop.go:2286 either fires the background
 	// distill-into-USER.md/MEMORY.md pass or skips it. Mainly useful in
 	// chatbot mode — that mode's curated tool allowlist has no write_file,
 	// so this is the only way for the agent to remember a chatter across
 	// sessions.
-	AutoPersist *bool `json:"autoPersist,omitempty"`
+	Review *bool `json:"autoPersist,omitempty"`
 	// AutoTitle is the per-agent on/off override for the auto-title
 	// PostTurn hook. nil = inherit system default (on), true/false =
 	// authoritative for this agent.
@@ -495,13 +495,13 @@ type AgentEntry struct {
 	// system-prompt hint, and (2) stamp OutboundMessage.AllowSplit so
 	// the WeChat adapter knows whether to honor the marker.
 	SplitReplies *bool `json:"splitReplies,omitempty"`
-	// AutoPersist overrides MemoryCfg.AutoPersist.Enabled for this agent.
+	// Review overrides MemoryCfg.Review.Enabled for this agent.
 	// Same pointer semantics as SplitReplies. When true, the agent's
 	// runPostTurn fires a background LLM call every N turns to distill
 	// recent messages into USER.md (chatter profile) and MEMORY.md
 	// (long-term facts) — the chatbot-mode persistence path since that
 	// mode's curated tool allowlist excludes write_file.
-	AutoPersist *bool `json:"autoPersist,omitempty"`
+	Review *bool `json:"autoPersist,omitempty"`
 }
 
 // PromptMode controls which framework sections BuildSystemPromptAs emits.
@@ -622,9 +622,9 @@ type AgentFileConfig struct {
 	// SplitReplies mirrors AgentEntry.SplitReplies. Nil =
 	// inherit; non-nil = authoritative for this agent.
 	SplitReplies *bool `json:"splitReplies,omitempty"`
-	// AutoPersist mirrors AgentEntry.AutoPersist. Nil = inherit;
+	// Review mirrors AgentEntry.Review. Nil = inherit;
 	// non-nil = authoritative for this agent.
-	AutoPersist *bool `json:"autoPersist,omitempty"`
+	Review *bool `json:"autoPersist,omitempty"`
 	// Admins gates write-mode slash commands (/new /reset /undo /retry /compact
 	// /model /personality) in IM channels. Keyed by channel name ("discord",
 	// "telegram", "slack", ...), each value is the platform-side user IDs
@@ -715,18 +715,18 @@ type ResolvedAgent struct {
 	// EFFECTIVE value (override OR system default) on every
 	// OutboundMessage.AllowSplit at send time.
 	SplitReplies *bool
-	// AutoPersist — nil = inherit system MemoryCfg.AutoPersist.Enabled,
+	// Review — nil = inherit system MemoryCfg.Review.Enabled,
 	// non-nil = authoritative for this agent. Drives whether the
-	// runPostTurn hook fires AutoPersistMemory (the LLM-driven distill-
+	// runPostTurn hook fires ReviewMemory (the LLM-driven distill-
 	// to-USER.md/MEMORY.md pass) every N turns.
-	AutoPersist *bool
+	Review *bool
 	// KB auto-query config forwarded from AgentFileConfig.KB.
 	KB *AgentKBCfg
 	// AutoTitle forwarded from MemoryCfg.AutoTitle. The PostTurn hook
 	// reads this to decide whether to fire the summariser.
 	AutoTitle AutoTitleCfg
 	// AutoTitleEnabled is the per-agent on/off override (same shape as
-	// AutoPersist). nil = inherit MemoryCfg.AutoTitle.Enabled; explicit
+	// Review). nil = inherit MemoryCfg.AutoTitle.Enabled; explicit
 	// true/false wins. The other AutoTitle fields (afterRounds, model,
 	// maxChars) come from MemoryCfg.AutoTitle via the scope merge —
 	// only the on/off switch has a per-agent shortcut.
@@ -998,9 +998,9 @@ func (cfg *Config) MergedAgentConfig(entry AgentEntry) ResolvedAgent {
 		v := *entry.SplitReplies
 		resolved.SplitReplies = &v
 	}
-	if entry.AutoPersist != nil {
-		v := *entry.AutoPersist
-		resolved.AutoPersist = &v
+	if entry.Review != nil {
+		v := *entry.Review
+		resolved.Review = &v
 	}
 
 	if len(cfg.MCPServers) > 0 {
@@ -1084,9 +1084,9 @@ func (cfg *Config) MergedAgentConfig(entry AgentEntry) ResolvedAgent {
 			v := *fileCfg.SplitReplies
 			resolved.SplitReplies = &v
 		}
-		if fileCfg.AutoPersist != nil {
-			v := *fileCfg.AutoPersist
-			resolved.AutoPersist = &v
+		if fileCfg.Review != nil {
+			v := *fileCfg.Review
+			resolved.Review = &v
 		}
 		if fileCfg.KB != nil {
 			resolved.KB = fileCfg.KB

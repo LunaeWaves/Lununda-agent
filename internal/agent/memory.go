@@ -288,9 +288,9 @@ func (m *Memory) LoadUserFile() string {
 	return string(data)
 }
 
-// AutoPersistMemory uses an LLM to extract facts from recent messages and
+// ReviewMemory uses an LLM to extract facts from recent messages and
 // append them to MEMORY.md and USER.md. Called every N turns.
-func AutoPersistMemory(ctx context.Context, mem *Memory, prov provider.Provider, model string, messages []provider.Message) {
+func ReviewMemory(ctx context.Context, mem *Memory, prov provider.Provider, model string, messages []provider.Message) {
 	// Build a summary of recent messages for the LLM
 	var sb strings.Builder
 	// Only look at last 20 messages to keep prompt small
