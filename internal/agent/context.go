@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 )
@@ -995,7 +996,7 @@ func (cb *ContextBuilder) loadFileForUser(name, userID string) string {
 		}
 		var data []byte
 		var err error
-		if name == "USER.md" {
+		if tools.IsChatterScoped(name) {
 			data, err = cb.store.GetWorkspaceFileExact(ctx, cb.agentID, userID, name)
 		} else {
 			data, err = cb.store.GetWorkspaceFile(ctx, cb.agentID, userID, name)

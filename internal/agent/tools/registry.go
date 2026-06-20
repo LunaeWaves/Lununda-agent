@@ -385,8 +385,7 @@ func (r *Registry) systemFileUserID(filename string) string {
 // row when the chatter has none would leak their accumulated context
 // to a public-link visitor.
 func isPerUserSystemFile(filename string) bool {
-	base := filepath.Base(filepath.Clean(filename))
-	return base == "USER.md" || base == "MEMORY.md"
+	return IsChatterScoped(filepath.Base(filepath.Clean(filename)))
 }
 
 // readSystemFileForUser dispatches to GetWorkspaceFileExact for the
