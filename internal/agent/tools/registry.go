@@ -630,7 +630,8 @@ func NewRegistry(systemRoot, userRoot string) *Registry {
 // 句柄，但 chatterUserID/agentOwnerUserID/callerIsAdmin 独立设置 —— 不共享
 // parent 的可变 per-turn 状态，多 chatter 并发安全。只注册 read_file/write_file
 // /edit_file/list_dir（registerFile）+ memory_search；exec/web_fetch/delegate_task
-// 等一律不装，审查物理上不能跑命令/联网/递归。
+// 等一律不装，审查物理上不能跑命令/联网/递归。envProvider/skillDirs
+// 故意不复制（审查白名单无 exec，不需 skill env 注入）。
 func NewReviewRegistry(parent *Registry, chatterUID, ownerUserID, agentID string) *Registry {
 	r := &Registry{
 		tools:            make(map[string]registeredTool),
