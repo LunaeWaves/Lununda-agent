@@ -69,6 +69,13 @@ func TestWriteAllowed(t *testing.T) {
 		{"USER.md", ActorChatter, true},
 		{"USER.md", ActorOwner, true},
 		{"MEMORY.md", ActorOwner, true},
+		// review actor (阶段2后台审查): 只能写 per-user，不能写身份/脚手架
+		{"SOUL.md", ActorReview, false},
+		{"IDENTITY.md", ActorReview, false},
+		{"agent.json", ActorReview, false},
+		{"AGENTS.md", ActorReview, false},
+		{"USER.md", ActorReview, true},
+		{"MEMORY.md", ActorReview, true},
 		{"/var/x/SOUL.md", ActorChatter, false},  // absolute still managed
 		{"notes/SOUL.md", ActorChatter, true},    // nested → not managed → allowed
 		{"report.md", ActorChatter, true},        // unknown → allowed

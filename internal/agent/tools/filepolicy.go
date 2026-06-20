@@ -47,8 +47,8 @@ var filePolicies = []FilePolicy{
 	{"BOOTSTRAP.md", CategoryScaffold, ScopeOwner, []WriteActor{ActorOwner}},
 	{"HEARTBEAT.md", CategoryScaffold, ScopeOwner, []WriteActor{ActorOwner}},
 	{"TOOLS.md", CategoryScaffold, ScopeOwner, []WriteActor{ActorOwner}},
-	{"USER.md", CategoryPerUser, ScopeChatter, []WriteActor{ActorOwner, ActorChatter}},
-	{"MEMORY.md", CategoryPerUser, ScopeChatter, []WriteActor{ActorOwner, ActorChatter}},
+	{"USER.md", CategoryPerUser, ScopeChatter, []WriteActor{ActorOwner, ActorChatter, ActorReview}},
+	{"MEMORY.md", CategoryPerUser, ScopeChatter, []WriteActor{ActorOwner, ActorChatter, ActorReview}},
 }
 
 // PolicyFor 按文件名查策略。未命中返回 (_, false)。
