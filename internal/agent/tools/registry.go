@@ -62,7 +62,10 @@ func isIdentityFilePath(path string) bool {
 	if !identityFiles[base] {
 		return false
 	}
-	if filepath.IsAbs(path) {
+	// Absolute on either platform: Windows drive/UNC, or Unix-style /
+	// (production runs on Linux; the LLM may paste a Unix absolute path
+	// from the Working Directory hint even when developing on Windows).
+	if filepath.IsAbs(path) || strings.HasPrefix(filepath.ToSlash(path), "/") {
 		return true
 	}
 	return !strings.ContainsRune(clean, filepath.Separator)
