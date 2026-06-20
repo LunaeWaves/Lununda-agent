@@ -142,6 +142,4 @@ Info
 	"cost_line": "\n─────────────────\nCost:            {cost}\nInput tokens:    {input_tokens}\nOutput tokens:   {output_tokens}\nAPI duration:    {api_duration}\nTool duration:   {tool_duration}",
 	"insights":  "🔍 Insights (last {days} days)\n─────────────────────────\nLog files:       {total_files} total, {recent_files} recent\nMemory file:     {memory_file}\nWorkspace:       {workspace}\n\nTip: Use /status for session info, /usage for token stats.",
 	"personality_list":        "🎭 Personalities\n─────────────────\n{names}\n\nUsage: /personality <name>",
-	"personality_list_current": " ← current",
-	"no_provider":              "Agent is not configured with a usable LLM provider. Check that cfg.Providers contains the prefix referenced by model `{model}`.",
 }

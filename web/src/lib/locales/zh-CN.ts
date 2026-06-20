@@ -1177,8 +1177,6 @@ const zhCN: Record<string, string> = {
   "slash.cost_line": "\n─────────────────\n费用:            {cost}\n输入 Token:    {input_tokens}\n输出 Token:   {output_tokens}\nAPI 耗时:     {api_duration}\n工具耗时:     {tool_duration}",
   "slash.insights": "🔍 活动洞察（最近 {days} 天）\n─────────────────────────\n日志文件:     {total_files} 个总计, {recent_files} 个近期\n记忆文件:     {memory_file}\n工作区:       {workspace}\n\n提示: 使用 /status 查看会话信息, /usage 查看 Token 统计。",
   "slash.personality_list": "🎭 人格列表\n─────────────────\n{names}\n\n用法: /personality <名称>",
-  "slash.personality_list_current": " ← 当前",
-  "slash.no_provider": "该智能体未配置可用的 LLM 服务商。请检查 cfg.Providers 中是否包含模型 `{model}` 所引用的前缀。",
 };
 
 export default zhCN;
