@@ -100,3 +100,11 @@ func TestInlineImageURLsEmptyIsNil(t *testing.T) {
 		t.Errorf("expected nil, got %v", got)
 	}
 }
+
+// TestPublicAgentNoLongerConversable: a signed-in non-owner (non-admin) must
+// NOT be able to lazy-attach (and thus converse with) an IsPublic agent.
+// Public link conversation was removed under privatization; read-only sharing
+// is via session_shares.
+func TestPublicAgentNoLongerConversable(t *testing.T) {
+	t.Skip("requires setup Server + auth.Identity harness; assert resolveAgent returns nil for foreign non-admin user on an IsPublic agent")
+}

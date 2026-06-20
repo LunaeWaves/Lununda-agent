@@ -306,14 +306,14 @@ func (s *Server) resolveAgent(r *http.Request, agentID string) AgentHandle {
 	//      to a fresh app_user whose UserSpace has no agents at all.
 	//      Sessions/files written under that UserSpace then partition
 	//      per end-user, which is the desired isolation.
-	//   3. session user accessing a public agent owned by someone else
-	//      (link-based sharing — gated on agents.is_public).
 	//
-	// For the public-agent path we DO need a DB hit to confirm
-	// is_public; everything else (super_admin, apikey ACL) is already
-	// answered by Identity. EnsureAgent is idempotent so the lookup
-	// only fires before the agent lands in the user's Manager — once
-	// attached, AgentByID succeeds on subsequent requests.
+	// Public link conversation was removed under agent privatization
+	// (agents are owner-private now). Read-only session sharing lives
+	// in session_shares, surfaced via GET /share/{token}. The
+	// IsPublic field is retained on AgentRecord for data compat only.
+	// EnsureAgent is idempotent so attach only fires before the agent
+	// lands in the user's Manager — once attached, AgentByID succeeds
+	// on subsequent requests.
 	if ag == nil {
 		injector, hasInjector := s.userResolver.(api.AgentInjector)
 		// super_admin can lazy-attach foreign agents regardless of actAs
@@ -325,11 +325,6 @@ func (s *Server) resolveAgent(r *http.Request, agentID string) AgentHandle {
 		// though the session_messages rows existed in the DB.
 		canAttach := hasInjector &&
 			(ident.AuthMethod == "apikey" || ident.Role == users.RoleSuperAdmin)
-		if !canAttach && hasInjector && uid != "" && s.dataStore != nil {
-			if rec, err := s.dataStore.GetAgent(r.Context(), agentID); err == nil && rec != nil && rec.IsPublic {
-				canAttach = true
-			}
-		}
 		if canAttach {
 			if err := injector.EnsureAgent(r.Context(), uid, agentID); err == nil {
 				ag = space.Agents.AgentByID(agentID)
