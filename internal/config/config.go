@@ -321,12 +321,6 @@ type PIIScrubCfg struct {
 	Enabled bool `json:"enabled"`
 }
 
-type SkillsLearnerCfg struct {
-	Enabled      bool   `json:"enabled"`
-	MinToolCalls int    `json:"minToolCalls,omitempty"`
-	Model        string `json:"model,omitempty"`
-}
-
 // Config is the in-memory runtime snapshot. The gateway assembles this at
 // boot by reading LUNUNDA_* env vars + database (system_settings, providers,
 // channels, agents). Callers never serialize it back out — DB tables are
@@ -352,7 +346,6 @@ type Config struct {
 	Skills        SkillsCfg                  `json:"skills,omitempty"`
 	Memory        MemoryCfg                  `json:"memory,omitempty"`
 	Privacy       PrivacyCfg                 `json:"privacy,omitempty"`
-	SkillsLearner SkillsLearnerCfg           `json:"skillsLearner,omitempty"`
 	KB            KBCfg                      `json:"kb,omitempty"`
 }
 

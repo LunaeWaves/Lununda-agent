@@ -114,7 +114,6 @@ type Agent struct {
 	// and global skill dirs from the object store on every turn so skills
 	// uploaded post-boot or on a sibling replica become visible here.
 	workspaceStore workspace.Store
-	skillsLearner  *SkillsLearner
 	turnCount      int
 	engine         *sdkEngine
 	costTracker    *costtracker.Tracker
@@ -266,20 +265,6 @@ func NewAgentWithFullCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bu
 			}
 		} else {
 			slog.Warn("FTS5 store open failed, falling back to file scan", "error", err)
-		}
-	}
-
-	// Set up skills learner if configured
-	if fullCfg.SkillsLearner.Enabled {
-		model := fullCfg.SkillsLearner.Model
-		if model == "" {
-			model = rc.Model
-		}
-		learnerLoader := NewSkillsLoaderWithGlobal(homeDir, rc.Home, "", rc.Skills, fullCfg.Skills)
-		learnerLoader.agentID = rc.ID
-		ag.skillsLearner = NewSkillsLearner(rc.Home, prov, model, learnerLoader.AllSkillDirs()...)
-		if fullCfg.SkillsLearner.MinToolCalls > 0 {
-			ag.skillsLearner.minToolCalls = fullCfg.SkillsLearner.MinToolCalls
 		}
 	}
 
@@ -2872,14 +2857,6 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 		}
 	}
 
-	// Skills learner
-	if a.skillsLearner != nil {
-		go func() {
-			if err := a.skillsLearner.MaybeExtract(ctx, messages, toolCallCount); err != nil {
-				slog.Debug("skills learner error", "error", err)
-			}
-		}()
-	}
 }
 
 // HandleMessageStream processes a message through the ReAct loop and returns

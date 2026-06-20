@@ -264,9 +264,6 @@ func assembleConfig(ctx context.Context, st store.Store, userID, agentID string)
 	if err := scope.SettingInto(ctx, st, NSPrivacy, userID, agentID, &cfg.Privacy); err != nil {
 		return nil, err
 	}
-	if err := scope.SettingInto(ctx, st, NSSkillsLearner, userID, agentID, &cfg.SkillsLearner); err != nil {
-		return nil, err
-	}
 	if err := scope.SettingInto(ctx, st, NSHeartbeat, userID, agentID, &cfg.Heartbeat); err != nil {
 		return nil, err
 	}

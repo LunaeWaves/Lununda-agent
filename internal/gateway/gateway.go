@@ -767,7 +767,6 @@ const (
 	NSSkillsEntries  = "skills.entries"
 	NSMemory         = "memory"
 	NSPrivacy        = "privacy"
-	NSSkillsLearner  = "skillsLearner"
 	NSHeartbeat      = "heartbeat"
 	NSTeams          = "teams"
 	NSBindings       = "bindings"

@@ -81,3 +81,5 @@ onboard-welcome.png
 /lununda.*.log
 
 .worktrees/
+
+wt-test.log

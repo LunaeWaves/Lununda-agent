@@ -694,7 +694,6 @@ var systemSettingNamespaces = []string{
 	"skills.entries",
 	"tools.providers",
 	"tools.categories",
-	"skillsLearner",
 	"objectstore",
 	"taskqueue",
 	"heartbeat",
