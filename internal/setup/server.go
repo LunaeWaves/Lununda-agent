@@ -258,6 +258,10 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("PUT /api/chat/sessions/{key}", auth(s.handleRenameSession))
 	mux.HandleFunc("DELETE /api/chat/sessions/{key}", auth(s.handleDeleteSession))
 	mux.HandleFunc("PATCH /api/chat/sessions/{key}/project", auth(s.handleMoveSessionProject))
+	// Owner-only read-only session share links (Plan B Task 3): POST mints
+	// a token for /share/{token}; DELETE revokes the active share.
+	mux.HandleFunc("POST /api/agents/{id}/sessions/{key}/share", auth(s.handleCreateSessionShare))
+	mux.HandleFunc("DELETE /api/agents/{id}/sessions/{key}/share", auth(s.handleRevokeSessionShare))
 	// Long-lived SSE subscription so cron-fired (and other async)
 	// messages reach the open chat panel without a manual refresh.
 	mux.HandleFunc("GET /api/chat/subscribe", auth(s.handleChatSubscribe))

@@ -1661,6 +1661,60 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleCreateSessionShare mints a read-only share link for one session.
+// Owner-only. Returns the share URL the owner can copy. ag.Name() is the
+// agent id used as the store key (same as handleChatHistory which feeds
+// LatestSessionEventSeq with ag.Name()).
+func (s *Server) handleCreateSessionShare(w http.ResponseWriter, r *http.Request) {
+	agentID := r.PathValue("id")
+	sessionKey := r.PathValue("key")
+	// Owner-only — only the agent owner may mint a share link for its
+	// sessions. requireAgentOwner writes 403/404 itself on failure and is
+	// the canonical owner gate used across this package.
+	if rec := s.requireAgentOwner(w, r, agentID); rec == nil {
+		return
+	}
+	ag := s.resolveAgent(r, agentID)
+	if ag == nil {
+		jsonResponse(w, http.StatusNotFound, map[string]any{"error": "agent not found"})
+		return
+	}
+	if s.dataStore == nil {
+		jsonResponse(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "error": "store unavailable"})
+		return
+	}
+	tok, err := s.dataStore.CreateSessionShare(r.Context(), ag.Name(), sessionKey, s.effectiveUserID(r))
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	jsonResponse(w, http.StatusCreated, map[string]any{"token": tok, "url": "/share/" + tok})
+}
+
+// handleRevokeSessionShare revokes the active share for a session
+// (owner-only).
+func (s *Server) handleRevokeSessionShare(w http.ResponseWriter, r *http.Request) {
+	agentID := r.PathValue("id")
+	sessionKey := r.PathValue("key")
+	if rec := s.requireAgentOwner(w, r, agentID); rec == nil {
+		return
+	}
+	ag := s.resolveAgent(r, agentID)
+	if ag == nil {
+		jsonResponse(w, http.StatusNotFound, map[string]any{"error": "agent not found"})
+		return
+	}
+	if s.dataStore == nil {
+		jsonResponse(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "error": "store unavailable"})
+		return
+	}
+	if err := s.dataStore.RevokeSessionShareBySession(r.Context(), ag.Name(), sessionKey); err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 // handleMoveSessionProject reassigns one chat to a different project
 // (or detaches it back to the loose-chat list when projectId is "").
 // Backs the sidebar drag-and-drop affordance: dragging a chat row
