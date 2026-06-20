@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"net/http"
@@ -1713,6 +1714,51 @@ func (s *Server) handleRevokeSessionShare(w http.ResponseWriter, r *http.Request
 		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// handleViewSharedSession renders a read-only HTML view of the session the
+// share token points to. Public (no auth). A revoked or unknown token 404s.
+// Real-time: reads session_messages at request time, so the owner's continued
+// conversation shows on refresh. Only message role + text content are shown;
+// tool calls / metadata are omitted for the public view.
+func (s *Server) handleViewSharedSession(w http.ResponseWriter, r *http.Request) {
+	tok := r.PathValue("token")
+	if tok == "" || s.dataStore == nil {
+		http.NotFound(w, r)
+		return
+	}
+	rec, err := s.dataStore.GetSessionShare(r.Context(), tok)
+	if err != nil || rec == nil || !rec.RevokedAt.IsZero() {
+		http.NotFound(w, r)
+		return
+	}
+	msgs, err := s.dataStore.ListSessionMessages(r.Context(), rec.OwnerID, rec.AgentID, rec.SessionKey)
+	if err != nil {
+		http.Error(w, "failed to load session", http.StatusInternalServerError)
+		return
+	}
+	renderSharedSessionHTML(w, rec, msgs)
+}
+
+// renderSharedSessionHTML writes a minimal, HTML-escaped read-only chat
+// transcript. All user/assistant content is escaped to prevent XSS from
+// model/user output on the public page.
+func renderSharedSessionHTML(w http.ResponseWriter, rec *store.SessionShareRecord, msgs []store.SessionMessage) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var b strings.Builder
+	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shared session</title><style>body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}.msg{padding:.6rem .8rem;border-radius:8px;margin:.4rem 0;white-space:pre-wrap;word-wrap:break-word}.user{background:#eef}.assistant{background:#f6f6f6}.role{font-weight:600;font-size:.8rem;text-transform:uppercase;opacity:.6;margin-bottom:.2rem}</style></head><body>`)
+	for _, m := range msgs {
+		if strings.TrimSpace(m.Content) == "" {
+			continue
+		}
+		role := "assistant"
+		if m.Role == "user" {
+			role = "user"
+		}
+		fmt.Fprintf(&b, `<div class="msg %s"><div class="role">%s</div>%s</div>`, role, role, html.EscapeString(m.Content))
+	}
+	b.WriteString(`</body></html>`)
+	io.WriteString(w, b.String())
 }
 
 // handleMoveSessionProject reassigns one chat to a different project

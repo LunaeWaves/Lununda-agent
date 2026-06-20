@@ -468,6 +468,8 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("setup: embed sub: %w", err)
 	}
+	// Public read-only session share viewer (no auth). Must be before the "/" SPA catch-all.
+	mux.HandleFunc("GET /share/{token}", s.handleViewSharedSession)
 	mux.Handle("/", spaHandler{fs: webRoot})
 
 	var addr string
