@@ -109,13 +109,16 @@ var filePolicies = []FilePolicy{
 //   WriteAllowed(path string, actor WriteActor) bool
 ```
 
-### D2. 三个消费点改成查表
+### D2. 三个消费点（4 处调用）改成查表
 
-| 消费点 | 现状 | 改后 |
+| 消费点（调用点） | 现状 | 改后 |
 |---|---|---|
-| 读取作用域 `context.go:990 loadFileForUser` | `if name=="USER.md" {Exact} else {overlay}` | `if policyFor(name).ReadScope==ScopeChatter {Exact} else {overlay}` |
-| 写入权限 `registry.go:88 identityFileBlocked` | `!callerIsAdmin && isIdentityFilePath(path)` | `!accessAllowed(path)`，内部 `actor = owner if callerIsAdmin else chatter`，查 `WriteAllowed` |
-| 写入路由 `registry.go:421 systemFileUserID` | `identityFiles[base]→ownerID; else→chatterID` | `policyFor(base).ReadScope==ScopeOwner → ownerID; else → chatterID` |
+| 读取作用域 · `context.go loadFileForUser` | `if name=="USER.md" {Exact} else {overlay}` | `if tools.IsChatterScoped(name) {Exact} else {overlay}` |
+| 读取作用域 · `registry.go isPerUserSystemFile`（供 `readSystemFileForUser` 用） | 硬编码 `USER.md`/`MEMORY.md` | 委托 `IsChatterScoped` |
+| 写入权限 `registry.go identityFileBlocked` | `!callerIsAdmin && isIdentityFilePath(path)` | `actor` 由 `callerIsAdmin` 映射，`!WriteAllowed(path, actor)` |
+| 写入路由 `registry.go systemFileUserID` | `identityFiles[base]→ownerID; else→chatterID` | `PolicyFor(base).ReadScope==ScopeOwner → ownerID; else → chatterID` |
+
+> 实现备注：spec 初稿只列了 `loadFileForUser` 一处读取作用域调用，执行 Task 4 时发现 `readSystemFileForUser` 经 `isPerUserSystemFile` 是同一逻辑的第二个副本，一并收口。另，`isIdentityFilePath` 实际是**删除**（路径形态判定迁入 `filepolicy.go` 的 `ManagedFileBase`），非初稿所述"保留改查"。
 
 ### D3. 路径形态判定保留（不能丢）
 
@@ -173,17 +176,18 @@ func (r *Registry) identityFileBlocked(path string) bool {
 ## 改动清单
 
 **新增（1 个文件）：**
-- `internal/agent/tools/filepolicy.go` — `FilePolicy` 类型、`filePolicies` 表（9 条）、纯函数 `policyFor` / `managedFileBase` / `WriteAllowed`。
+- `internal/agent/tools/filepolicy.go` — `FilePolicy` 类型、`filePolicies` 表（9 条）、纯函数 `PolicyFor` / `ManagedFileBase` / `WriteAllowed` / `IsChatterScoped`。
 
 **修改（2 个文件）：**
 
 | 文件 | 函数 / 符号 | 改动 |
 |---|---|---|
-| `tools/registry.go` | `identityFiles` map (`:31-39`) | **删除**，由 `filePolicies` 取代 |
-| `tools/registry.go` | `isIdentityFilePath` (`:56-72`) | 内部「是否身份文件」从 `identityFiles[base]` 改查 `policyFor(base)`；**路径形态判定保留** |
-| `tools/registry.go` | `identityFileBlocked` (`:88-90`) | **保留方法名**，内部委托 `WriteAllowed`，actor 由 `callerIsAdmin` 映射 |
-| `tools/registry.go` | `systemFileUserID` (`:421-427`) | 路由判定从 `identityFiles[base]` 改成 `policyFor(base).ReadScope` |
-| `agent/context.go` | `loadFileForUser` (`:990`) | `if name=="USER.md"` 改成 `if policyFor(name).ReadScope==ScopeChatter` |
+| `tools/registry.go` | `identityFiles` map | **删除**，由 `filePolicies` 取代 |
+| `tools/registry.go` | `isIdentityFilePath` | **删除**，路径形态判定迁入 `filepolicy.go` 的 `ManagedFileBase` |
+| `tools/registry.go` | `identityFileBlocked` | **保留方法名**，内部委托 `WriteAllowed`，actor 由 `callerIsAdmin` 映射 |
+| `tools/registry.go` | `systemFileUserID` | 路由判定从 `identityFiles[base]` 改成 `PolicyFor(base).ReadScope` |
+| `tools/registry.go` | `isPerUserSystemFile` | 委托 `IsChatterScoped`（原硬编码 USER.md/MEMORY.md）—— 执行中发现，读取作用域第二处调用 |
+| `agent/context.go` | `loadFileForUser` | `if name=="USER.md"` 改成 `if tools.IsChatterScoped(name)` |
 
 `file.go` 的 6 处 `identityFileBlocked` 调用点**零改动**。
 
