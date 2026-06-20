@@ -164,6 +164,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateConversationSummariesScoring(ctx); err != nil {
 		return fmt.Errorf("migrate conversation_summaries scoring columns: %w", err)
 	}
+	if err := d.migratePurgeNonOwnerAgentFiles(ctx); err != nil {
+		return fmt.Errorf("migrate purge non-owner agent_files: %w", err)
+	}
 	return nil
 }
 
@@ -1128,6 +1131,21 @@ func (d *DBStore) migrateAgentFilesOrigin(ctx context.Context) error {
 	stmt := `ALTER TABLE agent_files ADD COLUMN origin TEXT NOT NULL DEFAULT 'foreground'`
 	if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 		return fmt.Errorf("add agent_files.origin: %w", err)
+	}
+	return nil
+}
+
+// migratePurgeNonOwnerAgentFiles deletes agent_files rows whose user_id is a
+// non-owner chatter. Under agent privatization only the owner converses, so
+// chatter-scoped override rows are dead data. Kept: the owner's own row
+// (user_id = agent's owner) and the legacy owner template (user_id = '').
+// Idempotent: a no-op once no non-owner rows remain.
+func (d *DBStore) migratePurgeNonOwnerAgentFiles(ctx context.Context) error {
+	stmt := `DELETE FROM agent_files
+		WHERE user_id <> ''
+		AND user_id <> (SELECT user_id FROM agents WHERE agents.id = agent_files.agent_id)`
+	if _, err := d.db.ExecContext(ctx, stmt); err != nil {
+		return fmt.Errorf("purge non-owner agent_files: %w", err)
 	}
 	return nil
 }
