@@ -1,6 +1,10 @@
 package tools
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -40,5 +44,40 @@ func TestRootForPathSkillsAlwaysAgent(t *testing.T) {
 	// 其它走 userRoot）——确保改动只影响 skills 分支。
 	if got := r.rootForPath("notes/draft.md"); got != "/user/ws" {
 		t.Errorf("rootForPath(notes/draft.md) = %q, want %q (userRoot 不变)", got, "/user/ws")
+	}
+}
+
+// TestWriteSkillLandsInAgentLayer: 多用户配置下，writeSkillToHost 写
+// skills/foo/SKILL.md 必须落到 systemRoot/skills/foo/（agent 层），
+// 不能落到 chatter 桶（userSkillsRoot/skills/）。
+func TestWriteSkillLandsInAgentLayer(t *testing.T) {
+	agentHome := t.TempDir()
+	chatterRoot := t.TempDir()
+	r := NewRegistry(agentHome, t.TempDir())
+	r.agentID = "agent-1"
+	r.SetUserSkillsRoot(chatterRoot) // 多用户：chatter 桶存在
+
+	ctx := context.Background()
+	abs, err := r.writeSkillToHost(ctx, "skills/foo/SKILL.md", "---\nname: foo\n---\nbody")
+	if err != nil {
+		t.Fatalf("writeSkillToHost failed: %v", err)
+	}
+
+	// 必须落在 agent 层
+	wantAgentSkill := filepath.Join(agentHome, "skills", "foo")
+	if !strings.HasPrefix(abs, wantAgentSkill+string(filepath.Separator)) && abs != filepath.Join(wantAgentSkill, "SKILL.md") {
+		t.Errorf("写入落点 %q，期望在 agent 层 %q 下", abs, wantAgentSkill)
+	}
+	if _, err := os.Stat(filepath.Join(agentHome, "skills", "foo", "SKILL.md")); err != nil {
+		t.Errorf("agent 层 SKILL.md 不存在: %v", err)
+	}
+
+	// 绝不能落在 chatter 桶
+	if strings.HasPrefix(abs, chatterRoot) {
+		t.Errorf("写入落到了 chatter 桶 %q —— 应落 agent 层", chatterRoot)
+	}
+	chatterSkill := filepath.Join(chatterRoot, "skills", "foo", "SKILL.md")
+	if _, err := os.Stat(chatterSkill); err == nil {
+		t.Errorf("chatter 桶里不应有技能文件: %q", chatterSkill)
 	}
 }
