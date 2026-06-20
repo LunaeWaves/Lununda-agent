@@ -867,7 +867,7 @@ func (s *Server) handleDeleteAgent(w http.ResponseWriter, r *http.Request) {
 //     agent owner's user_id — so admin provisioning, the owner's edits,
 //     and the agent's own BOOTSTRAP-flow write_file calls all converge on
 //     the same row. Mirrors handlers_admin.forkAgentFiles and
-//     internal/agent/tools.identityFiles; keep these three lists in sync.
+//     internal/agent/tools.filePolicies (ScopeOwner entries); keep these lists in sync.
 //
 //   - per-user files (USER.md, MEMORY.md) are state that genuinely
 //     differs per chatter. They're keyed by the caller's effective
