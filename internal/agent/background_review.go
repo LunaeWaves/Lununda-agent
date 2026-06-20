@@ -104,7 +104,7 @@ func (a *Agent) runBackgroundReview(ctx context.Context, messages []provider.Mes
 	}
 	slog.Info("background review done",
 		"agent", a.name, "result_len", len(result), "write_origin", "background_review")
-	maybeEmitReviewFeedback(ctx, result, chatterUID)
+	maybeEmitReviewFeedback(bgCtx, result, chatterUID)
 }
 
 // summarizeForReview 把 messages 拼成审查输入（跳过 system/tool，截断超长）。
