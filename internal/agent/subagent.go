@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 )
 
@@ -19,6 +20,22 @@ import (
 // cancel still propagates so a genuinely killed parent kills every
 // subagent.
 const subagentDefaultTimeout = 15 * time.Minute
+
+// loopDeps 聚合 runSubagentLoopWith 需要的 Agent 依赖，让后台审查能传 fork
+// 的 registry/ctxBuilder 而共享 provider/engine。delegate_task 走 RunSubagent
+// （传 a.*），行为不变。
+type loopDeps struct {
+	registry          *tools.Registry
+	ctxBuilder        *ContextBuilder
+	provider          provider.Provider
+	engine            *sdkEngine
+	model             string
+	maxTokens         int
+	temperature       float64
+	workspacePath     string
+	name              string
+	maxToolIterations int
+}
 
 // RunSubagent implements tools.SubagentRunner so the delegate_task tool
 // can call back into the Agent without creating an import cycle.
@@ -35,7 +52,18 @@ func (a *Agent) RunSubagent(ctx context.Context, task string, maxIterations int)
 			"phase": "done",
 		}})
 	}()
-	return a.runSubagentLoop(ctx, task, maxIterations)
+	return runSubagentLoopWith(ctx, task, maxIterations, loopDeps{
+		registry:          a.registry,
+		ctxBuilder:        a.ctxBuilder,
+		provider:          a.provider,
+		engine:            a.engine,
+		model:             a.model,
+		maxTokens:         a.maxTokens,
+		temperature:       a.temperature,
+		workspacePath:     a.workspacePath,
+		name:              a.name,
+		maxToolIterations: a.maxToolIterations,
+	})
 }
 
 // runSubagentLoop is a self-contained ReAct loop used by delegate_task.
@@ -63,12 +91,12 @@ func (a *Agent) RunSubagent(ctx context.Context, task string, maxIterations int)
 // A non-nil error is returned only for plumbing failures (no provider,
 // transient API error during a Chat call); callers fold that into the
 // tool_result so the parent agent can react.
-func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations int) (string, error) {
-	if a.provider == nil {
+func runSubagentLoopWith(ctx context.Context, task string, maxIterations int, d loopDeps) (string, error) {
+	if d.provider == nil {
 		return "", fmt.Errorf("agent has no provider configured")
 	}
 	if maxIterations <= 0 {
-		maxIterations = a.maxToolIterations
+		maxIterations = d.maxToolIterations
 	}
 	if maxIterations <= 0 {
 		maxIterations = 20
@@ -81,7 +109,7 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 	defer cancel()
 	ctx = subCtx
 
-	systemPrompt := a.ctxBuilder.BuildSystemPrompt() + subagentSystemSuffix()
+	systemPrompt := d.ctxBuilder.BuildSystemPrompt() + subagentSystemSuffix()
 	messages := []provider.Message{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: task},
@@ -91,7 +119,7 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 	// in v1. Other tools (web_fetch, exec, file ops, MCP, …) flow
 	// through unchanged.
 	var toolDefs []provider.Tool
-	for _, t := range a.registry.Definitions() {
+	for _, t := range d.registry.Definitions() {
 		if t.Function.Name == "delegate_task" {
 			continue
 		}
@@ -109,17 +137,10 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 
 	for i := 0; i < maxIterations; i++ {
 		slog.Info("subagent iteration",
-			"agent", a.name,
+			"agent", d.name,
 			"iteration", i+1,
 			"max", maxIterations,
 		)
-		// Heartbeat to the parent's chat stream so the UI can show
-		// the user that a sub-agent is making progress and where it
-		// is. Without this the delegate_task tool card looks frozen
-		// for the entire sub-agent run (often 5-15 min). We emit at
-		// the start of every iteration plus right before tool execution
-		// (with the tool name) so the user sees both "thinking" and
-		// "running web_search" phases.
 		emitEvent(ctx, ChatEvent{Type: "subagent_progress", Data: map[string]any{
 			"iteration": i + 1,
 			"max":       maxIterations,
@@ -130,7 +151,7 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 		llmMsgs := messages
 		if allFailedRounds >= failedRoundsLimit {
 			slog.Warn("subagent disabling tools after consecutive failed rounds",
-				"agent", a.name, "failed_rounds", allFailedRounds)
+				"agent", d.name, "failed_rounds", allFailedRounds)
 			callTools = nil
 			llmMsgs = append(llmMsgs, provider.Message{
 				Role: "system",
@@ -141,12 +162,8 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 			})
 		}
 
-		resp, err := a.provider.Chat(ctx, llmMsgs, callTools, a.model, a.maxTokens, a.temperature)
+		resp, err := d.provider.Chat(ctx, llmMsgs, callTools, d.model, d.maxTokens, d.temperature)
 		if err != nil {
-			// If the ctx itself expired, the parent caller has more
-			// useful framing than "context deadline exceeded" mid-
-			// stream — surface the timeout explicitly so the parent
-			// agent can decide to retry with a tighter task scope.
 			if errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
 				return "", fmt.Errorf(
 					"subagent ran out of its %s wall-time budget at iteration %d — task was too large; the parent should retry with a tighter scope or lower max_iterations",
@@ -167,7 +184,6 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 			RawAssistant: resp.RawAssistant,
 		})
 
-		// Loop detection: same shape as HandleMessage but on private state.
 		loopDetected := false
 		for _, tc := range resp.ToolCalls {
 			s := sig{name: tc.Function.Name, hash: sha256.Sum256([]byte(tc.Function.Arguments))}
@@ -178,7 +194,7 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 				lastSig = s
 			}
 			if consecutiveCount >= 3 {
-				slog.Warn("subagent tool-loop detected", "agent", a.name, "tool", tc.Function.Name)
+				slog.Warn("subagent tool-loop detected", "agent", d.name, "tool", tc.Function.Name)
 				messages = append(messages, provider.Message{
 					Role:    "system",
 					Content: "Loop detected: same tool with same arguments 3 times. Stop and produce the deliverable from what you have.",
@@ -191,9 +207,6 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 			break
 		}
 
-		// Second heartbeat: tools are about to run. Surface their names
-		// so the UI can show "running web_search" / "running exec
-		// (camoufox-cli open …)" instead of just a spinner.
 		toolNames := make([]string, 0, len(resp.ToolCalls))
 		for _, tc := range resp.ToolCalls {
 			toolNames = append(toolNames, tc.Function.Name)
@@ -205,7 +218,7 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 			"tools":     toolNames,
 		}})
 
-		results := a.engine.executeToolsConcurrently(ctx, a.registry, resp.ToolCalls, a.workspacePath)
+		results := d.engine.executeToolsConcurrently(ctx, d.registry, resp.ToolCalls, d.workspacePath)
 		roundAllFailed := true
 		for idx, r := range results {
 			tc := resp.ToolCalls[idx]
@@ -227,17 +240,15 @@ func (a *Agent) runSubagentLoop(ctx context.Context, task string, maxIterations 
 		}
 	}
 
-	// Cap reached — forced-delivery turn with tools off. Same nudge as
-	// HandleMessage; the system message reads naturally in both contexts.
 	slog.Warn("subagent max iterations reached — forcing final delivery",
-		"agent", a.name, "max", maxIterations)
+		"agent", d.name, "max", maxIterations)
 	emitEvent(ctx, ChatEvent{Type: "subagent_progress", Data: map[string]any{
 		"iteration": maxIterations,
 		"max":       maxIterations,
 		"phase":     "final-delivery",
 	}})
 	finalMessages := append(messages, capReachedNudge(maxIterations))
-	finalResp, err := a.provider.Chat(ctx, finalMessages, nil, a.model, a.maxTokens, a.temperature)
+	finalResp, err := d.provider.Chat(ctx, finalMessages, nil, d.model, d.maxTokens, d.temperature)
 	if err != nil {
 		return "", fmt.Errorf("subagent forced final delivery failed: %w", err)
 	}
