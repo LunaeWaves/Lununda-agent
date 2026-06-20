@@ -351,6 +351,11 @@ func (r *Registry) SetAgentOwnerUserID(uid string) {
 	r.agentOwnerUserID = uid
 }
 
+// AgentOwnerUserID 导出 agent owner user id（后台审查 fork 时由 agent 包读取）。
+func (r *Registry) AgentOwnerUserID() string {
+	return r.agentOwnerUserID
+}
+
 // SetUserSkillsRoot points chat-time `skills/...` writes at the
 // chatter's per-user skills dir (~/.lununda/users/<uid>/skills/).
 // Empty disables — `skills/...` then falls back to systemRoot (agent
@@ -609,6 +614,35 @@ func NewRegistry(systemRoot, userRoot string) *Registry {
 		shellMgr:   newShellManager(),
 	}
 	r.registerBuiltins()
+	return r
+}
+
+// NewReviewRegistry 构造一个绑死 chatter、只装白名单工具的 fork registry，
+// 供后台审查（ActorReview 主体）跑 agent loop。复制 parent 的 store 基础设施
+// 句柄，但 chatterUserID/agentOwnerUserID/callerIsAdmin 独立设置 —— 不共享
+// parent 的可变 per-turn 状态，多 chatter 并发安全。只注册 read_file/write_file
+// /edit_file/list_dir（registerFile）+ memory_search；exec/web_fetch/delegate_task
+// 等一律不装，审查物理上不能跑命令/联网/递归。
+func NewReviewRegistry(parent *Registry, chatterUID, ownerUserID, agentID string) *Registry {
+	r := &Registry{
+		tools:            make(map[string]registeredTool),
+		systemRoot:       parent.systemRoot,
+		userRoot:         parent.userRoot,
+		agentID:          agentID,
+		userID:           parent.userID,
+		chatterUserID:    chatterUID,
+		agentOwnerUserID: ownerUserID,
+		callerIsAdmin:    false,
+		workspaceStore:   parent.workspaceStore,
+		systemFileStore:  parent.systemFileStore,
+		summaryDB:        parent.summaryDB,
+		vecDB:            parent.vecDB,
+		userSkillsRoot:   parent.userSkillsRoot,
+		shellMgr:         newShellManager(),
+		turnFails:        map[turnFailKey]string{},
+	}
+	registerFile(r)                            // read_file / write_file / edit_file / list_dir
+	RegisterMemorySearch(r, parent.systemRoot) // memory_search（fts 省略，走 KNN fallback）
 	return r
 }
 
