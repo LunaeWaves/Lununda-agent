@@ -79,3 +79,5 @@ onboard-welcome.png
 
 # Runtime logs
 /lununda.*.log
+
+.worktrees/
