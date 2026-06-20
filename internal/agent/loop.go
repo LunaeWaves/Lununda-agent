@@ -268,9 +268,13 @@ func NewAgentWithFullCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bu
 		}
 	}
 
-	// Set memory auto-persist defaults
+	// Set background-review defaults: 默认开 every-10（解决"不更新"痛点）。
+	// 零值（未配置）→ Enabled=true/EveryNTurns=10；显式 enabled:false 尊重。
 	if ag.memoryCfg.Review.EveryNTurns == 0 {
-		ag.memoryCfg.Review.EveryNTurns = 5
+		ag.memoryCfg.Review.EveryNTurns = 10
+	}
+	if !ag.memoryCfg.Review.Enabled && ag.memoryCfg.Review.Model == "" {
+		ag.memoryCfg.Review.Enabled = true
 	}
 
 	// Auto-title: default-on at the third user turn. ResolvedAgent
@@ -449,7 +453,7 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 		}
 	}
 	if ag.memoryCfg.Review.EveryNTurns == 0 {
-		ag.memoryCfg.Review.EveryNTurns = 5
+		ag.memoryCfg.Review.EveryNTurns = 10
 	}
 
 	// message tool — registered HERE (post-Agent) so the closure can read
@@ -2775,7 +2779,8 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 			"chatter", chatterUID,
 			"dataStore_wired", a.dataStore != nil)
 	}
-	// 阶段2: 旧 persist 钩子已删，background review 钩子在 Task 7 接入
+	// 阶段2: background review —— fork 审查 subagent 写 USER/MEMORY/skills。
+	a.maybeBackgroundReview(ctx, messages, chatterUID, chatterTurns)
 
 	// Auto-title: ask the LLM to summarise the conversation into a
 	// short title and write it to sessions.title. The window is
