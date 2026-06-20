@@ -292,6 +292,18 @@ type Store interface {
 	// the order provided (first element gets sort_order=0, etc.).
 	ReorderRegexHooks(ctx context.Context, agentID string, hookIDs []string) error
 
+	// --- Session shares (owner-generated read-only share links) ---
+	//
+	// One row per token; at most one ACTIVE (RevokedAt zero) row per
+	// (agent_id, session_key). Creating a new share revokes any prior
+	// active share for that session so the latest token is the only
+	// valid one. RevokeSessionShareBySession exists because the owner
+	// revoke API knows (agent, session), not the token.
+	CreateSessionShare(ctx context.Context, agentID, sessionKey, ownerID string) (string, error)
+	GetSessionShare(ctx context.Context, token string) (*SessionShareRecord, error)
+	RevokeSessionShare(ctx context.Context, token string) error
+	RevokeSessionShareBySession(ctx context.Context, agentID, sessionKey string) error
+
 	Close() error
 }
 
@@ -437,6 +449,19 @@ type SessionEventRecord struct {
 	Type       string    `json:"type"`
 	Data       []byte    `json:"data,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
+}
+
+// SessionShareRecord is one row of session_shares — an owner-generated
+// read-only share link for a single session. RevokedAt is zero while
+// active; once revoked the token is inert. At most one active row exists
+// per (agent_id, session_key) — creating a new share revokes the prior.
+type SessionShareRecord struct {
+	Token      string    `json:"token"`
+	AgentID    string    `json:"agentId"`
+	SessionKey string    `json:"sessionKey"`
+	OwnerID    string    `json:"ownerId"`
+	CreatedAt  time.Time `json:"createdAt"`
+	RevokedAt  time.Time `json:"revokedAt,omitempty"`
 }
 
 // SessionOwnerPair is one (user_id, agent_id) tuple returned by

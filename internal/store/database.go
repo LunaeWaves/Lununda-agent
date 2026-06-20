@@ -1597,6 +1597,23 @@ func (d *DBStore) migrationSQL() []string {
 			PRIMARY KEY (user_id, agent_id, session_key, seq)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_session_messages_lookup ON session_messages (user_id, agent_id, session_key, seq)`,
+		// session_shares holds owner-generated read-only share tokens for
+		// individual sessions. token is the public-facing opaque id; the
+		// (agent_id, session_key) pair is what the share actually grants
+		// access to. owner_id is the agent owner who minted it (used by
+		// the owner revoke API to authorize). revoked_at is NULL while the
+		// share is active; CreateSessionShare revokes any prior active row
+		// for the same (agent_id, session_key) first so at most one active
+		// share exists per session.
+		`CREATE TABLE IF NOT EXISTS session_shares (
+			token TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			session_key TEXT NOT NULL,
+			owner_id TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			revoked_at TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_session_shares_session ON session_shares (agent_id, session_key)`,
 		// session_events is the real-time event stream the agent emits
 		// during a turn (content chunks, tool_call, error, done).
 		// Persisted so that a client that refreshes / reconnects
@@ -2749,6 +2766,77 @@ func (d *DBStore) ListSessionMessages(ctx context.Context, userID, agentID, sess
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+// CreateSessionShare mints a read-only share token for the session. Any
+// previously-active share for the same (agent_id, session_key) is revoked
+// first so at most one active share exists per session. Token is 128-bit
+// crypto/rand, hex-encoded (32 chars).
+func (d *DBStore) CreateSessionShare(ctx context.Context, agentID, sessionKey, ownerID string) (string, error) {
+	if agentID == "" || sessionKey == "" || ownerID == "" {
+		return "", errors.New("store.CreateSessionShare: agentID, sessionKey, ownerID required")
+	}
+	var buf [16]byte
+	if _, err := cryptorand.Read(buf[:]); err != nil {
+		return "", fmt.Errorf("store.CreateSessionShare: rand: %w", err)
+	}
+	token := hex.EncodeToString(buf[:])
+	if _, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`UPDATE session_shares SET revoked_at = CURRENT_TIMESTAMP
+		 WHERE agent_id = %s AND session_key = %s AND revoked_at IS NULL`,
+		d.ph(1), d.ph(2)), agentID, sessionKey); err != nil {
+		return "", fmt.Errorf("store.CreateSessionShare: revoke prior: %w", err)
+	}
+	if _, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO session_shares (token, agent_id, session_key, owner_id, created_at)
+		 VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)`,
+		d.ph(1), d.ph(2), d.ph(3), d.ph(4)), token, agentID, sessionKey, ownerID); err != nil {
+		return "", fmt.Errorf("store.CreateSessionShare: insert: %w", err)
+	}
+	return token, nil
+}
+
+// GetSessionShare returns the share record for token (including revoked
+// ones), or ErrNotFound.
+func (d *DBStore) GetSessionShare(ctx context.Context, token string) (*SessionShareRecord, error) {
+	row := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT token, agent_id, session_key, owner_id, created_at, revoked_at
+		 FROM session_shares WHERE token = %s`, d.ph(1)), token)
+	var rec SessionShareRecord
+	var revoked sql.NullTime
+	if err := row.Scan(&rec.Token, &rec.AgentID, &rec.SessionKey, &rec.OwnerID, &rec.CreatedAt, &revoked); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if revoked.Valid {
+		rec.RevokedAt = revoked.Time
+	}
+	return &rec, nil
+}
+
+// RevokeSessionShare marks the token's share revoked. Idempotent — a
+// no-op on already-revoked or unknown tokens.
+func (d *DBStore) RevokeSessionShare(ctx context.Context, token string) error {
+	if _, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`UPDATE session_shares SET revoked_at = CURRENT_TIMESTAMP
+		 WHERE token = %s AND revoked_at IS NULL`, d.ph(1)), token); err != nil {
+		return fmt.Errorf("store.RevokeSessionShare: %w", err)
+	}
+	return nil
+}
+
+// RevokeSessionShareBySession revokes every active share for the session
+// (used by the owner revoke endpoint, which knows agent+session not token).
+func (d *DBStore) RevokeSessionShareBySession(ctx context.Context, agentID, sessionKey string) error {
+	if _, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`UPDATE session_shares SET revoked_at = CURRENT_TIMESTAMP
+		 WHERE agent_id = %s AND session_key = %s AND revoked_at IS NULL`,
+		d.ph(1), d.ph(2)), agentID, sessionKey); err != nil {
+		return fmt.Errorf("store.RevokeSessionShareBySession: %w", err)
+	}
+	return nil
 }
 
 // CountChatterUserMessages returns the count of user-role messages
