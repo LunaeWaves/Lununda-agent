@@ -214,9 +214,9 @@ func (s *Server) agentScopeMCPServers(r *http.Request, agentID string) map[strin
 
 // agentScopeReview reads the per-agent autoPersist override.
 // Returns nil when absent — same convention as agentScopeSplitReplies.
-// Drives the runPostTurn ReviewMemory pass (LLM-distilled writes to
-// USER.md / MEMORY.md) which is the only chatter-memory persistence
-// path in chatbot mode.
+// Drives the runPostTurn background review (fork subagent writing to
+// USER.md / MEMORY.md / skills) which is the chatter-memory
+// persistence path.
 func (s *Server) agentScopeReview(r *http.Request, agentID string) *bool {
 	rec, err := s.dataStore.GetConfigByName(r.Context(), store.KindSetting, "", agentID, "agents.defaults")
 	if err != nil || rec == nil {

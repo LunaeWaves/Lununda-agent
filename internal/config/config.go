@@ -718,8 +718,8 @@ type ResolvedAgent struct {
 	SplitReplies *bool
 	// Review — nil = inherit system MemoryCfg.Review.Enabled,
 	// non-nil = authoritative for this agent. Drives whether the
-	// runPostTurn hook fires ReviewMemory (the LLM-driven distill-
-	// to-USER.md/MEMORY.md pass) every N turns.
+	// runPostTurn hook fires the background review (fork subagent
+	// writing to USER.md/MEMORY.md/skills) every N turns.
 	Review *bool
 	// KB auto-query config forwarded from AgentFileConfig.KB.
 	KB *AgentKBCfg
