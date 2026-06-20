@@ -282,9 +282,10 @@ type MemorySettingsCfg struct {
 }
 
 type ReviewCfg struct {
-	Enabled     bool   `json:"enabled"`
-	EveryNTurns int    `json:"everyNTurns,omitempty"`
-	Model       string `json:"model,omitempty"`
+	Enabled       bool   `json:"enabled"`
+	EveryNTurns   int    `json:"everyNTurns,omitempty"`
+	Model         string `json:"model,omitempty"`
+	MaxIterations int    `json:"maxIterations,omitempty"`
 }
 
 // AutoTitleCfg drives the PostTurn hook that asks the LLM to summarise
