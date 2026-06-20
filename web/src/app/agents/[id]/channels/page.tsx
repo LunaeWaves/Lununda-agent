@@ -518,15 +518,12 @@ function ImOwnerClaimSection({
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => startClaim(c.type)} disabled={!!busy}>
-                      {busy === c.type ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
-                      {t("channels.claim.claimBtn")}
-                    </Button>
-                    {ids.length > 0 && (
+                    {ids.length === 0 ? (
+                      <Button size="sm" variant="outline" onClick={() => startClaim(c.type)} disabled={!!busy}>
+                        {busy === c.type && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        {t("channels.claim.claimBtn")}
+                      </Button>
+                    ) : (
                       <Button
                         size="sm"
                         variant="outline"
