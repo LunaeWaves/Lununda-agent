@@ -94,7 +94,10 @@ func (a *Agent) runBackgroundReview(ctx context.Context, messages []provider.Mes
 		name:              a.name + "/review",
 		maxToolIterations: maxIter,
 	}
-	result, err := runSubagentLoopWith(ctx, task, maxIter, deps)
+	// 用 background ctx 脱离 request —— runPostTurn 的 ctx 在 HTTP response
+	// flush 后已 cancel，审查复用会立即 DeadlineExceeded（实测踩过）。
+	bgCtx := context.Background()
+	result, err := runSubagentLoopWith(bgCtx, task, maxIter, deps)
 	if err != nil {
 		slog.Warn("background review failed", "agent", a.name, "error", err)
 		return
