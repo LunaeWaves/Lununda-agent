@@ -41,14 +41,17 @@ func TestIsAdminChatterOwnerImID(t *testing.T) {
 	}
 }
 
-func TestIsAdminChatterDelegate(t *testing.T) {
+// TestIsAdminChatterDelegateNoLongerAdmin: delegates (admins[channel]) were
+// previously admitted as admin. Agent privatization cut delegates — only the
+// owner (ownerImIds / web-api owner) is admin now.
+func TestIsAdminChatterDelegateNoLongerAdmin(t *testing.T) {
 	a := &Agent{
 		ownerUserID: "owner-1",
 		ownerImIds:  map[string][]string{},
 		admins:      map[string][]string{"telegram": {"delegate-1"}},
 	}
-	if !a.isAdminChatter(bus.InboundMessage{Channel: "telegram", UserID: "delegate-1"}) {
-		t.Fatal("admins delegate match should be admin")
+	if a.isAdminChatter(bus.InboundMessage{Channel: "telegram", UserID: "delegate-1"}) {
+		t.Fatal("delegate must NOT be admin after privatization (admins allowlist dropped)")
 	}
 }
 

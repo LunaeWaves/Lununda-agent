@@ -216,30 +216,26 @@ var writeSlashCommands = map[string]bool{
 	"/yolo":        true,
 }
 
-// isAdminChatter decides whether the chatter may run a write-mode slash
-// command on this channel AND — via registry.SetCallerIsAdmin — access the
-// agent's identity files (SOUL.md / agent.json / …).
+// isAdminChatter decides whether the chatter is the agent owner (the only
+// identity admitted to converse, run write-mode slash commands, and — via
+// registry.SetCallerIsAdmin — access the agent's identity files).
 //
 // Web / api: msg.UserID is the Lununda Agent user UUID; owner is identified
-// by direct equality with a.ownerUserID. No per-platform allowlist needed.
+// by direct equality with a.ownerUserID.
 //
 // IM channels (discord, telegram, slack, ...): msg.UserID is the platform's
-// own user ID (Discord snowflake, …), which has no inherent link to the
-// agent's Lununda Agent owner. The owner establishes that link via the web
-// verification-code claim flow (`/claim <code>`), which records their
-// platform ID in ownerImIds[channel]. admins[channel] is a separate
-// DELEGATE allowlist (other trusted IDs the owner authorized).
+// own user ID (Discord snowflake, …). The owner establishes that link via
+// the web verification-code claim flow (`/claim <code>`), which records their
+// platform ID in ownerImIds[channel].
 //
-// Fail-closed: if neither ownerImIds nor admins matches, returns false. The
-// legacy "empty allowlist → anyone is admin" behavior was removed — it let
-// any group chatter read/write the agent's persona + config. The owner
-// recovers access via /whoami (always open) + the web claim flow.
+// Delegates (admins[channel]) were removed under agent privatization: only
+// the owner converses. The admins field is retained for data compat but no
+// longer grants any access. Fail-closed: empty ownerImIds → false.
 func (a *Agent) isAdminChatter(msg bus.InboundMessage) bool {
 	if msg.Channel == "web" || msg.Channel == "api" {
 		return msg.UserID != "" && msg.UserID == a.ownerUserID
 	}
-	return slices.Contains(a.ownerImIds[msg.Channel], msg.UserID) ||
-		slices.Contains(a.admins[msg.Channel], msg.UserID)
+	return slices.Contains(a.ownerImIds[msg.Channel], msg.UserID)
 }
 
 // slashClaim redeems a web-generated verification code to bind the
