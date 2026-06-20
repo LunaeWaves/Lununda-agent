@@ -1969,7 +1969,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			emitEvent(ctx, ChatEvent{Type: "done"})
 		}
 		if !result.continueToLoop {
-			return result.reply
+			return replyText
 		}
 	}
 
@@ -2921,7 +2921,7 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		if !result.continueToLoop {
 			ch := make(chan provider.StreamChunk, 2)
 			go func() {
-				ch <- provider.StreamChunk{Content: result.reply, Done: true}
+				ch <- provider.StreamChunk{Content: replyText, Done: true}
 				close(ch)
 			}()
 			return provider.NewStreamReader(ch)
