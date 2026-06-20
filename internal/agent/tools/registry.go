@@ -36,6 +36,9 @@ func (r *Registry) identityFileBlocked(path string) bool {
 	if r.callerIsAdmin {
 		actor = ActorOwner
 	}
+	if r.reviewMode {
+		actor = ActorReview
+	}
 	return !WriteAllowed(path, actor)
 }
 
@@ -206,6 +209,11 @@ type Registry struct {
 	// configuration. Without that fail-closed default, a missed wire
 	// silently makes every chatter an admin.
 	callerIsAdmin bool
+	// reviewMode marks this registry as a background-review fork (set by
+	// NewReviewRegistry). identityFileBlocked maps it to ActorReview so
+	// review file access is governed by the review column of filePolicies,
+	// independent of chatter permissions.
+	reviewMode bool
 	// envProvider + skillDirs cache the skill-env injection wiring set
 	// at agent boot via RegisterExecWithSkillEnv so a later
 	// SetExecutor (per-session) can re-register the sandboxed exec
@@ -633,6 +641,7 @@ func NewReviewRegistry(parent *Registry, chatterUID, ownerUserID, agentID string
 		chatterUserID:    chatterUID,
 		agentOwnerUserID: ownerUserID,
 		callerIsAdmin:    false,
+		reviewMode:       true,
 		workspaceStore:   parent.workspaceStore,
 		systemFileStore:  parent.systemFileStore,
 		summaryDB:        parent.summaryDB,
