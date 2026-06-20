@@ -1890,6 +1890,12 @@ func (a *Agent) flushLeftoverSteer(sess *session.Session) {
 
 // HandleMessage processes an inbound message through the ReAct loop.
 func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) string {
+	// Agent is owner-private: drop non-owner messages silently — no
+	// session, no memory, no reply. /claim and /whoami bypass so the
+	// owner can bind their IM identity before being recognized.
+	if !a.isAdmitted(msg) {
+		return ""
+	}
 	// Regex hooks: intercept messages matching a pattern and execute CLI
 	// instead of the LLM. Evaluated before slash commands so fixed-format
 	// messages (e.g. "翻译 xxx") bypass the agent loop entirely.
@@ -2863,6 +2869,14 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 // a StreamReader for the final response. Tool call iterations use non-streaming Chat;
 // the final text response uses ChatStream for true SSE streaming.
 func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage) *provider.StreamReader {
+	// Agent is owner-private: drop non-owner messages silently. Return an
+	// empty stream (closes immediately) so the SSE handler still gets a
+	// well-formed reader without echoing anything back to the chatter.
+	if !a.isAdmitted(msg) {
+		ch := make(chan provider.StreamChunk, 1)
+		close(ch)
+		return provider.NewStreamReader(ch)
+	}
 	// Regex hooks: intercept messages matching a pattern and execute CLI
 	// instead of the LLM.
 	if reply, hookName, matched := a.matchRegexHooks(ctx, msg.Text); matched {
