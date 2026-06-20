@@ -17,19 +17,21 @@ import (
 )
 
 // MemoryStore is an optional interface for DB-backed memory persistence.
-// userID is the chatter — chat-time MEMORY.md / USER.md updates land in
-// that user's per-user override row so they don't pollute the shared
-// template that the agent owner edits via the Customize page.
+// userID is the owner (agent-private after privatization) — MEMORY.md /
+// USER.md are the agent's memory OF its owner, keyed by (agentID, ownerID).
 //
 // GetWorkspaceFile vs GetWorkspaceFileExact:
 //   - GetWorkspaceFile picks the caller's row first, falls back to the
 //     agent owner's row when the caller has none. Used for shared
-//     identity files (SOUL/IDENTITY/AGENTS/...): a chatter inherits
+//     identity files (SOUL/IDENTITY/AGENTS/...): a reader inherits
 //     whatever the owner configured.
 //   - GetWorkspaceFileExact returns ONLY the caller's row, or
-//     ErrNotFound. Used for per-chatter files (USER.md, MEMORY.md):
-//     a brand-new visitor must see an empty profile/memory, never
-//     leak the owner's.
+//     ErrNotFound. Used for per-(agent, owner) files (USER.md, MEMORY.md):
+//     the owner's profile/memory is keyed by (agentID, ownerID).
+//
+// Under agent privatization the reader is always the owner, so the
+// Exact vs owner-fallback distinction is now vestigial (caller == owner)
+// and slated for later simplification.
 type MemoryStore interface {
 	GetMemory(ctx context.Context, agentID, userID string) (string, error)
 	SaveMemory(ctx context.Context, agentID, userID, content string) error
@@ -62,13 +64,13 @@ func NewMemoryWithStoreForUser(workspace string, st MemoryStore, userID, agentID
 
 // UserID returns the userID this Memory is bound to (set via
 // NewMemoryWithStoreForUser / WithUserID). Used by the agent loop's
-// autoPersist gate to query the per-chatter user-message count
-// without re-resolving chatterUID through the inbound message.
+// autoPersist gate to query the per-(agent, owner) user-message count
+// without re-resolving the owner through the inbound message.
 func (m *Memory) UserID() string { return m.userID }
 
 // WithUserID returns a shallow copy bound to a different userID.
 // Lets a per-turn caller rebind MEMORY.md / USER.md reads + writes to
-// the chatter (rather than the agent owner) without mutating the
+// the owner (keyed by (agentID, ownerID)) without mutating the
 // shared agent-scoped Memory other concurrent turns may be reading.
 // Returns nil when m is nil so callers don't have to nil-guard.
 func (m *Memory) WithUserID(uid string) *Memory {
@@ -266,11 +268,11 @@ func (m *Memory) SaveUserFile(content string) error {
 }
 
 // LoadUserFile reads the USER.md file for this Memory's user. Same
-// rationale as LoadMemory: USER.md is per-chatter (the visitor's
-// profile, not the agent owner's), so we read it via the Exact path
+// rationale as LoadMemory: USER.md is per-(agent, owner) (the owner's
+// profile as this agent knows them), so we read it via the Exact path
 // that bypasses the SQL owner-fallback overlay, and skip the on-disk
-// fallback when a store is configured to avoid leaking the owner's
-// workspace copy to a chatter without their own row.
+// fallback when a store is configured to avoid leaking the on-disk
+// workspace copy when the owner has no row yet.
 func (m *Memory) LoadUserFile() string {
 	if m.store != nil {
 		if m.userID == "" {
