@@ -1737,13 +1737,15 @@ func (s *Server) handleViewSharedSession(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "failed to load session", http.StatusInternalServerError)
 		return
 	}
-	renderSharedSessionHTML(w, rec, msgs)
+	renderSharedSessionHTML(w, msgs)
 }
 
 // renderSharedSessionHTML writes a minimal, HTML-escaped read-only chat
 // transcript. All user/assistant content is escaped to prevent XSS from
-// model/user output on the public page.
-func renderSharedSessionHTML(w http.ResponseWriter, rec *store.SessionShareRecord, msgs []store.SessionMessage) {
+// model/user output on the public page. The share record is intentionally
+// NOT rendered — it carries internal owner/agent/session IDs that must not
+// leak on the public page.
+func renderSharedSessionHTML(w http.ResponseWriter, msgs []store.SessionMessage) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var b strings.Builder
 	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shared session</title><style>body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}.msg{padding:.6rem .8rem;border-radius:8px;margin:.4rem 0;white-space:pre-wrap;word-wrap:break-word}.user{background:#eef}.assistant{background:#f6f6f6}.role{font-weight:600;font-size:.8rem;text-transform:uppercase;opacity:.6;margin-bottom:.2rem}</style></head><body>`)
