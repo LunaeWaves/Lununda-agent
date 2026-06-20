@@ -167,6 +167,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migratePurgeNonOwnerAgentFiles(ctx); err != nil {
 		return fmt.Errorf("migrate purge non-owner agent_files: %w", err)
 	}
+	if err := d.migratePurgeNonOwnerSessions(ctx); err != nil {
+		return fmt.Errorf("migrate purge non-owner sessions: %w", err)
+	}
 	return nil
 }
 
@@ -442,6 +445,24 @@ func (d *DBStore) migrateSessionsAddChatterUserID(ctx context.Context) error {
 	for _, stmt := range indexSQL {
 		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("create chatter index: %w (sql: %s)", err, stmt)
+		}
+	}
+	return nil
+}
+
+// migratePurgeNonOwnerSessions deletes sessions / session_messages /
+// session_events rows whose chatter_user_id is a non-owner participant:
+// chatter_user_id is set AND differs from user_id (the agent owner). Under
+// agent privatization only the owner converses, so non-owner chatter sessions
+// are dead data. Owner chats (chatter_user_id == user_id) and legacy rows
+// (chatter_user_id == '') are kept. Idempotent: a no-op once no non-owner
+// rows remain.
+func (d *DBStore) migratePurgeNonOwnerSessions(ctx context.Context) error {
+	for _, t := range []string{"sessions", "session_messages", "session_events"} {
+		stmt := fmt.Sprintf(`DELETE FROM %s
+			WHERE chatter_user_id <> '' AND chatter_user_id <> user_id`, t)
+		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("purge non-owner %s: %w", t, err)
 		}
 	}
 	return nil
