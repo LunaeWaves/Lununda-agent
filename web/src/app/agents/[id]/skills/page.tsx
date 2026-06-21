@@ -309,11 +309,11 @@ export default function AgentSkillsPage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setUploadOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
-            Upload Skills
+            {t("skills.uploadSkills")}
           </Button>
           <Button variant="outline" onClick={() => setInstallOpen(true)}>
             <Download className="h-4 w-4 mr-2" />
-            Install Skill
+            {t("skills.installSkill")}
           </Button>
         </div>
       </div>
@@ -442,14 +442,14 @@ export default function AgentSkillsPage() {
               <Sparkles className="h-7 w-7 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground mb-1">
-              No agent-scoped skills yet
+              {t("skills.noAgentSkills")}
             </p>
             <p className="text-xs text-muted-foreground/60 mb-4 max-w-sm text-center">
               {t("skills.noAgentSkillsDesc")}
             </p>
             <Button variant="outline" size="sm" onClick={() => setInstallOpen(true)}>
               <Download className="h-4 w-4 mr-2" />
-              Install Skill
+              {t("skills.installSkill")}
             </Button>
           </div>
         </div>

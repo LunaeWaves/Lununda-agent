@@ -178,9 +178,7 @@ export default function AgentChatsPage() {
                     className="cursor-pointer"
                     onClick={() =>
                       router.push(
-                        `/agents/${agentId}/chat/?session=${encodeURIComponent(
-                          s.id,
-                        )}`,
+                        `/agents/${agentId}/chat/${encodeURIComponent(s.id)}/`,
                       )
                     }
                   >

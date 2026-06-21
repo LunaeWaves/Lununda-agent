@@ -149,7 +149,7 @@ export default function SkillsPage() {
           </Button>
           <Button onClick={() => setInstallOpen(true)}>
             <Download className="h-4 w-4 mr-2" />
-            Install Skill
+            {t("skills.installSkill")}
           </Button>
         </div>
       </div>
@@ -166,9 +166,9 @@ export default function SkillsPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4">
               <Sparkles className="h-7 w-7 text-primary" />
             </div>
-            <p className="text-sm text-muted-foreground mb-1">No skills installed</p>
+            <p className="text-sm text-muted-foreground mb-1">{t("skills.noneInstalled")}</p>
             <p className="text-xs text-muted-foreground/60">
-              Skills extend agent capabilities with specialized behaviors
+              {t("skills.emptySubtitle")}
             </p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function SkillsPage() {
                 Object.keys(skillEntries[skill.name]?.env || {}).length > 0) && (
                 <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-emerald-500">
                   <Check className="h-3 w-3" />
-                  configured
+                  {t("skills.configured")}
                 </div>
               )}
             </div>
@@ -270,31 +270,29 @@ export default function SkillsPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium break-all">{uploadFile.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {(uploadFile.size / 1024).toFixed(1)} KB · click to choose a different file
+                  {(uploadFile.size / 1024).toFixed(1)} KB · {t("skills.uploadChangeHint")}
                 </p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Drag and drop or click to upload
+                {t("skills.uploadDropHint")}
               </p>
             )}
           </button>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium">File requirements</p>
+            <p className="text-sm font-medium">{t("skills.fileRequirements")}</p>
             <ul className="space-y-1.5 text-sm text-muted-foreground">
               <li className="flex gap-2">
                 <span className="text-muted-foreground/60">•</span>
                 <span>
-                  <code className="text-foreground">.zip</code> file that includes a{" "}
-                  <code className="text-foreground">SKILL.md</code> at the root level
+                  <code className="text-foreground">.zip</code> {t("skills.zipWithSkillMd")}
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-muted-foreground/60">•</span>
                 <span>
-                  <code className="text-foreground">SKILL.md</code> contains a skill name
-                  and description formatted in YAML
+                  {t("skills.skillMdYaml")}
                 </span>
               </li>
             </ul>
@@ -308,7 +306,7 @@ export default function SkillsPage() {
               rel="noreferrer"
               className="underline hover:text-foreground"
             >
-              Read more about creating skills
+              {t("skills.readMoreSkills")}
             </a>
           </div>
 
@@ -324,7 +322,7 @@ export default function SkillsPage() {
               onClick={() => handleUploadOpenChange(false)}
               disabled={uploading}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleUploadConfirm}
@@ -333,7 +331,7 @@ export default function SkillsPage() {
               {uploading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Uploading…
+                  {t("skills.uploading")}
                 </>
               ) : (
                 t("skills.upload")
@@ -348,7 +346,7 @@ export default function SkillsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t("skills.removeSkill")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <strong>{deleteTarget}</strong> from installed skills?
+              {t("skills.removeGlobalConfirm", { skill: deleteTarget || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -357,7 +355,7 @@ export default function SkillsPage() {
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              {t("skills.removeBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -460,9 +458,8 @@ function InstallSkillDialog({
         <DialogHeader>
           <DialogTitle>{t("skills.installSkill")}</DialogTitle>
           <DialogDescription>
-            Search skills.sh for a published skill. Installs land in{" "}
-            <code className="font-mono text-xs">~/.lununda/skills/</code> and
-            become available to every agent.
+            {t("skills.installGlobalDesc")}{" "}
+            <code className="font-mono text-xs">~/.lununda/skills/</code>{" "}{t("skills.installGlobalDescSuffix")}
           </DialogDescription>
         </DialogHeader>
 
@@ -470,7 +467,7 @@ function InstallSkillDialog({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
           <Input
             autoFocus
-            placeholder="pdf, translation, web scraping…"
+            placeholder={t("skills.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
@@ -482,7 +479,7 @@ function InstallSkillDialog({
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Sparkles className="h-8 w-8 text-muted-foreground/40 mb-3" />
               <p className="text-sm text-muted-foreground">
-                Start typing to search skills.sh
+                {t("skills.startTyping")}
               </p>
             </div>
           ) : searching ? (
@@ -494,19 +491,17 @@ function InstallSkillDialog({
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <p className="text-sm text-muted-foreground mb-1">
-                No skills found on skills.sh for{" "}
+                {t("skills.noSkillsGlobalFound")}{" "}
                 <strong className="text-foreground">{query}</strong>
               </p>
               <p className="text-xs text-muted-foreground/70 max-w-sm">
-                Ask one of your agents to build a custom skill with the{" "}
-                <code className="font-mono">skill-creator</code> skill — it
-                will scaffold and iterate a new skill for you.
+                {t("skills.noSkillsGlobalHint")}
               </p>
             </div>
           ) : (
             <>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1.5 px-1">
-                Results from skills.sh
+                {t("skills.resultsFromSkillsh")}
               </p>
               <div className="space-y-1.5 py-1">
                 {visible.map((r) => {
@@ -527,7 +522,7 @@ function InstallSkillDialog({
                             {r.skillId}
                           </p>
                           <span className="text-[10px] text-muted-foreground">
-                            {r.installs.toLocaleString()} installs
+                            {r.installs.toLocaleString()} {t("skills.installs")}
                           </span>
                         </div>
                         <a
@@ -548,9 +543,9 @@ function InstallSkillDialog({
                         onClick={() => handleInstall(r)}
                       >
                         {already ? (
-                          <><Check className="h-3.5 w-3.5 mr-1.5" /> Installed</>
+                          <><Check className="h-3.5 w-3.5 mr-1.5" /> {t("skills.installed")}</>
                         ) : busy ? (
-                          <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Installing…</>
+                          <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> {t("skills.installing")}</>
                         ) : (
                           t("skills.installBtn")
                         )}
