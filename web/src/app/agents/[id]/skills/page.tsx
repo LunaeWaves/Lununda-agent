@@ -100,6 +100,7 @@ export default function AgentSkillsPage() {
   const [archived, setArchived] = useState<ArchivedSkill[]>([]);
   const [evoCfg, setEvoCfg] = useState<SkillEvolutionCfg>({ enabled: false });
   const [evoSaving, setEvoSaving] = useState(false);
+  const evoSavingRef = useRef(false);
   const [keepMap, setKeepMap] = useState<Record<string, Record<string, boolean>>>({});
   const [archiveDelete, setArchiveDelete] = useState<ArchivedSkill | null>(null);
   const [stale, setStale] = useState<string[]>([]);
@@ -191,6 +192,11 @@ export default function AgentSkillsPage() {
   };
 
   const saveEvoCfg = async (next: SkillEvolutionCfg) => {
+    // Ref guard fires synchronously (disabled={evoSaving} only takes effect
+    // next render), so two quick toggles in one batch can't interleave their
+    // read-modify-write and clobber each other.
+    if (evoSavingRef.current) return;
+    evoSavingRef.current = true;
     setEvoCfg(next);
     setEvoSaving(true);
     try {
@@ -199,6 +205,7 @@ export default function AgentSkillsPage() {
       await setAgentMemory(agentId, { ...base, skillEvolution: next });
     } finally {
       setEvoSaving(false);
+      evoSavingRef.current = false;
     }
   };
 
