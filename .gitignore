@@ -78,6 +78,7 @@ cookies.txt
 onboard-welcome.png
 
 # Runtime logs
+/lununda.log
 /lununda.*.log
 
 .worktrees/
