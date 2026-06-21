@@ -326,36 +326,43 @@ export default function AgentSkillsPage() {
             disabled={evoSaving}
           />
         </label>
-        <Input
-          placeholder={t("skills.evolution.notifyChatID")}
-          className="w-32"
-          value={evoCfg.notify?.chatID || ""}
-          onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, chatID: e.target.value } })}
-          disabled={evoSaving}
-        />
-        <Select
-          value={evoCfg.notify?.channel || ""}
-          onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "" } })}
-          disabled={evoSaving}
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder={t("skills.evolution.notifyChannel")} />
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from(new Set(agentChannels.map((c) => c.type))).map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
-              </SelectItem>
-            ))}
-            {evoCfg.notify?.channel && !agentChannels.some((c) => c.type === evoCfg.notify?.channel) && (
-              <SelectItem value={evoCfg.notify.channel}>{evoCfg.notify.channel}</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-xs text-muted-foreground">{t("skills.evolution.notifyChannel")}</span>
+          <Select
+            value={evoCfg.notify?.channel || ""}
+            onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "" } })}
+            disabled={evoSaving}
+          >
+            <SelectTrigger className="w-32 h-8">
+              <SelectValue placeholder={t("skills.evolution.notifyChannel")} />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from(new Set(agentChannels.map((c) => c.type))).map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+              {evoCfg.notify?.channel && !agentChannels.some((c) => c.type === evoCfg.notify?.channel) && (
+                <SelectItem value={evoCfg.notify.channel}>{evoCfg.notify.channel}</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        {evoCfg.notify?.chatID && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-xs text-muted-foreground">{t("skills.evolution.notifyChatID")}</span>
+            <Badge variant="outline" className="font-mono text-[10px] max-w-[200px] truncate" title={evoCfg.notify.chatID}>
+              {evoCfg.notify.chatID}
+            </Badge>
+          </div>
+        )}
         {evoCfg.notify?.accountID && (
-          <Badge variant="outline" className="font-mono text-[10px] max-w-[180px] truncate" title={evoCfg.notify.accountID}>
-            {evoCfg.notify.accountID}
-          </Badge>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-xs text-muted-foreground">{t("skills.evolution.notifyAccountID")}</span>
+            <Badge variant="outline" className="font-mono text-[10px] max-w-[180px] truncate" title={evoCfg.notify.accountID}>
+              {evoCfg.notify.accountID}
+            </Badge>
+          </div>
         )}
         {evoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
       </div>
