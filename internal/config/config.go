@@ -299,11 +299,12 @@ type ReviewCfg struct {
 // class-level skill proposal. Disabled by default — burns tokens.
 type SkillEvolutionCfg struct {
 	Enabled    bool          `json:"enabled"`
-	Interval   time.Duration `json:"interval,omitempty"`  // default 7*24h
-	Model      string        `json:"model,omitempty"`     // empty = agent primary model
+	Interval   time.Duration `json:"interval,omitempty"`           // 升级懒触发间隔，默认 7*24h
+	StaleCheckInterval time.Duration `json:"staleCheckInterval,omitempty"` // stale 自动归档间隔，默认 30*24h；0 = 禁用 stale cron
+	Model      string        `json:"model,omitempty"`              // empty = agent primary model
 	Notify     NotifyCfg     `json:"notify,omitempty"`
-	StaleAfter time.Duration `json:"staleAfter,omitempty"` // default 90*24h; 0 = disable stale detection
-	Pinned     []string      `json:"pinned,omitempty"`     // skill names never marked stale
+	StaleAfter time.Duration `json:"staleAfter,omitempty"`         // 默认 90*24h；0 = 禁用 stale 检测
+	Pinned     []string      `json:"pinned,omitempty"`             // skill names never marked stale
 }
 
 // NotifyCfg routes the "new proposal ready" ping to one specific chat.
