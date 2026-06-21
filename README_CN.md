@@ -583,14 +583,12 @@ CI 也使用这些 target——详见 `.github/workflows/`。
 
 ## 许可证
 
-Lununda Agent 基于 [Lununda Agent Community License](LICENSE) **源代码开放**，
-在 Apache License 2.0 基础上增加额外条款。
+Lununda Agent 基于 FastClaw 衍生。除继承的 FastClaw Community License（Apache 2.0 基础）外，**使用本（Lununda）开发版本进行任何商业使用，均须事先获得 LunaeWaves 的书面授权**。
 
 **简而言之：**
-- ✅ 作为自有产品的后端商业使用
-- ✅ 组织内部部署
-- ❌ 为无关组织托管 Lununda Agent 即服务（需商业许可）
+- ❌ 任何形式的商业使用（作为产品后端、内部商业部署、向第三方提供服务等）——需 LunaeWaves 授权
+- ❌ 为无关组织托管 Lununda Agent 即多租户服务
 - ❌ 移除或修改控制面板中的 Lununda Agent 品牌标识
 
-完整的 Apache 2.0 文本 reproduced 在 [LICENSE](LICENSE) 文件的附录中。
-商业许可咨询请联系：support@thinkany.ai。
+完整条款见 [LICENSE](LICENSE)（顶部 LunaeWaves 额外条款 + 原 FastClaw Community License + Apache 2.0 附录）。
+商业授权咨询：lunae@moon.wf。

@@ -627,15 +627,12 @@ via `-ldflags`. CI uses these targets too — see `.github/workflows/`.
 
 ## License
 
-Lununda Agent is **source-available** under the [Lununda Agent Community License](LICENSE),
-based on Apache License 2.0 with additional conditions.
+Lununda Agent is derived from FastClaw. Beyond the inherited FastClaw Community License (Apache 2.0 based), **any commercial use of this (Lununda) development version requires prior written authorization from LunaeWaves**.
 
 **TL;DR:**
-- ✅ Use it commercially as a backend for your own product
-- ✅ Internal deployment within your organization
-- ❌ Hosting Lununda Agent as a multi-tenant SaaS for unrelated organizations
-  (without a commercial license)
+- ❌ Any commercial use (as a product backend, internal commercial deployment, offering a service to third parties, etc.) — requires LunaeWaves authorization
+- ❌ Hosting Lununda Agent as a multi-tenant service for unrelated organizations
 - ❌ Removing or modifying the Lununda Agent branding in the dashboard UI
 
-The full Apache 2.0 text is reproduced inside the [LICENSE](LICENSE) file
-under the addendum. For commercial licensing inquiries: support@thinkany.ai.
+Full terms in [LICENSE](LICENSE) (LunaeWaves additional conditions on top + original FastClaw Community License + Apache 2.0 addendum).
+For commercial authorization: lunae@moon.wf.
