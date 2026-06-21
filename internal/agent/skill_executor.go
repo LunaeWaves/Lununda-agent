@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
@@ -15,6 +16,9 @@ import (
 // archives sources the user did not keep, then marks the proposal "applied".
 // keepSources = source skill ids the user wants to retain unchanged.
 // Already-absent sources are skipped (idempotent re-applies).
+//
+// Target / source names are LLM-derived (frontmatter / Sources list) —
+// reject anything that would escape skillDir via traversal.
 func ApplyProposal(ctx context.Context, st store.Store, proposalID string, keepSources []string, skillDir string) error {
 	p, err := st.GetProposal(ctx, proposalID)
 	if err != nil {
@@ -22,6 +26,14 @@ func ApplyProposal(ctx context.Context, st store.Store, proposalID string, keepS
 	}
 	if p.Status != "pending" && p.Status != "accepted" {
 		return fmt.Errorf("proposal not applicable (status=%s)", p.Status)
+	}
+	if !isSafeSkillName(p.TargetName) {
+		return fmt.Errorf("unsafe target name: %q", p.TargetName)
+	}
+	for _, s := range p.Sources {
+		if !isSafeSkillName(s) {
+			return fmt.Errorf("unsafe source name: %q", s)
+		}
 	}
 	keep := map[string]bool{}
 	for _, s := range keepSources {
@@ -106,6 +118,9 @@ func ListArchived(skillDir string) ([]ArchivedSkill, error) {
 // DeleteArchivedSkill permanently removes one archived skill dir. Curator
 // never calls this — only the user via the dashboard "delete forever" button.
 func DeleteArchivedSkill(skillDir, archivedAt, name string) error {
+	if !isSafeSkillName(name) || !isSafeSkillName(archivedAt) {
+		return fmt.Errorf("unsafe name")
+	}
 	return os.RemoveAll(filepath.Join(skillDir, ".archive", archivedAt, name))
 }
 
@@ -113,6 +128,9 @@ func DeleteArchivedSkill(skillDir, archivedAt, name string) error {
 // later restore or manual cleanup. Powers stale-skill archival and the
 // manual "archive" button. Idempotent: missing source is a no-op.
 func ArchiveSkill(skillDir, name string) error {
+	if !isSafeSkillName(name) {
+		return fmt.Errorf("unsafe skill name: %q", name)
+	}
 	src := filepath.Join(skillDir, name)
 	if _, err := os.Stat(src); os.IsNotExist(err) {
 		return nil
@@ -123,4 +141,20 @@ func ArchiveSkill(skillDir, name string) error {
 		return fmt.Errorf("mkdir archive: %w", err)
 	}
 	return os.Rename(src, dst)
+}
+
+// isSafeSkillName rejects path-traversal / separator / empty names so
+// LLM-derived or user-supplied identifiers can't escape skillDir via
+// ../, absolute paths, or platform separators.
+func isSafeSkillName(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return false
+	}
+	if strings.Contains(name, "..") {
+		return false
+	}
+	return filepath.Base(name) == name
 }

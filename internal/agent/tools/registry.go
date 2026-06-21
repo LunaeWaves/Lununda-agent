@@ -298,8 +298,13 @@ func (r *Registry) SetSkillUsageRecorder(rec SkillUsageRecorder) {
 // recordSkillUsage is called by load_skill after a successful load. Best-effort:
 // missing recorder / agentID / userID / session all short-circuit silently —
 // usage is an enhancement, never blocks the load.
+//
+// Uses ChatterUserID (not r.userID) so public agents with chatter-bound
+// sessions record the actual chatter, not the agent owner — the judge's
+// ListSessionMessagesBySeq lookup uses this user_id to pull convo context.
 func (r *Registry) recordSkillUsage(ctx context.Context, skillName string) {
-	if r.skillUsageRecorder == nil || r.agentID == "" || r.userID == "" {
+	uid := r.ChatterUserID()
+	if r.skillUsageRecorder == nil || r.agentID == "" || uid == "" {
 		return
 	}
 	sessionKey := r.scopeSessionID()
@@ -307,7 +312,7 @@ func (r *Registry) recordSkillUsage(ctx context.Context, skillName string) {
 		return
 	}
 	ts := time.Now().UTC().Format(time.RFC3339)
-	_ = r.skillUsageRecorder(ctx, r.userID, r.agentID, sessionKey, skillName, ts)
+	_ = r.skillUsageRecorder(ctx, uid, r.agentID, sessionKey, skillName, ts)
 }
 
 // SetSystemFileStore installs a durable store for identity files so the
