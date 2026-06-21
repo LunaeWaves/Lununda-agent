@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import {
   getAgentSkills,
+  getAgent,
   deleteAgentSkill,
   installSkill,
   uploadSkill,
@@ -63,16 +64,34 @@ import {
   togglePinSkill,
   listAgentChannels,
   getLastSessionByChannel,
+  listProviders,
   type SkillInfo,
   type SkillSearchResult,
   type SkillProposal,
   type ArchivedSkill,
   type SkillEvolutionCfg,
   type AgentChannel,
+  type ProviderRow,
 } from "@/lib/api";
 import { ConfigureSkillDialog, type SkillEntryView } from "@/components/configure-skill-dialog";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { useAgentName } from "@/hooks/use-agent-name";
+
+// mergeProviderRows flattens the three provider scopes into a single
+// list with scope-tagged rows, ordered agent > user > system so the
+// dedupe pass (curatorModelOptions useMemo) keeps the lowest-scope
+// row — the one the runtime would actually pick. Same shape as the
+// models page's merged providers, minus the form-only fields
+// (apiKey draft, maskedKey) this page never edits.
+function mergeProviderRows(
+  agentScope: { providers?: ProviderRow[] } | null,
+  userScope: { providers?: ProviderRow[] } | null,
+  sysScope: { providers?: ProviderRow[] } | null,
+): ProviderRow[] {
+  const pick = (res: { providers?: ProviderRow[] } | null): ProviderRow[] =>
+    res && Array.isArray(res.providers) ? (res.providers as ProviderRow[]) : [];
+  return [...pick(agentScope), ...pick(userScope), ...pick(sysScope)];
+}
 
 export default function AgentSkillsPage() {
   const t = useT();
@@ -107,6 +126,11 @@ export default function AgentSkillsPage() {
   const [stale, setStale] = useState<string[]>([]);
   const [agentChannels, setAgentChannels] = useState<AgentChannel[]>([]);
   const [evoError, setEvoError] = useState<string | null>(null);
+  // Providers resolved from the agent's runtime scope chain
+  // (agent overrides > user > system) — feeds the curator model
+  // dropdown so it can list the same models the agent itself sees.
+  // Mirrors the allModelOptions pattern on the agent /models page.
+  const [providers, setProviders] = useState<ProviderRow[]>([]);
 
   const fetchSkills = useCallback(() => {
     setLoading(true);
@@ -118,9 +142,52 @@ export default function AgentSkillsPage() {
       getAgentMemory(agentId).catch(() => null),
       getStaleSkills(agentId).catch(() => [] as string[]),
       listAgentChannels(agentId).catch(() => [] as AgentChannel[]),
+      // Resolve the agent's full provider chain (agent > user > system)
+      // so the curator model dropdown can list the same models the
+      // agent can use. The user-scope row needs the owner's id, which
+      // we fetch in a follow-up promise; the rest run in parallel.
+      getAgent(agentId).catch(() => null),
+      listProviders("agent", agentId).catch(
+        () => null as null | { providers?: ProviderRow[] },
+      ),
+      listProviders("system", "").catch(
+        () => null as null | { providers?: ProviderRow[] },
+      ),
     ])
-      .then(([list, cfg, props, arch, mem, staleList, chans]) => {
-        setSkills(list || []);
+      .then(
+        ([
+          list,
+          cfg,
+          props,
+          arch,
+          mem,
+          staleList,
+          chans,
+          agentRec,
+          agentScopeRes,
+          sysScopeRes,
+        ]) => {
+          // user-scope inherited rows need the owner id (resolved above).
+          // Stash the async result without blocking the rest of the page.
+          const ownerId = agentRec?.userId || "";
+          if (ownerId) {
+            listProviders("user", ownerId)
+              .then((userScopeRes: { providers?: ProviderRow[] }) => {
+                setProviders(
+                  mergeProviderRows(agentScopeRes, userScopeRes, sysScopeRes),
+                );
+              })
+              .catch(() =>
+                setProviders(
+                  mergeProviderRows(agentScopeRes, null, sysScopeRes),
+                ),
+              );
+          } else {
+            setProviders(
+              mergeProviderRows(agentScopeRes, null, sysScopeRes),
+            );
+          }
+          setSkills(list || []);
         // Per-agent override map first (this page edits there); merge
         // global defaults underneath so the "configured" badge still
         // lights up when only the global value is set.
@@ -184,6 +251,29 @@ export default function AgentSkillsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, notifyChannel, evoCfg.notify?.chatID]);
+
+  // Curator model dropdown options — same dedupe + scope-order logic
+  // as the models page's allModelOptions: iterate agent > user > system,
+  // emit `provider/modelId` (value) + `provider/modelName` (label),
+  // and drop duplicates on value so an agent override of "openai" can't
+  // list the same model twice.
+  const curatorModelOptions: { value: string; label: string }[] = useMemo(() => {
+    const seen = new Set<string>();
+    const order: ProviderRow["scope"][] = ["agent", "user", "system"];
+    const out: { value: string; label: string }[] = [];
+    for (const sc of order) {
+      for (const p of providers) {
+        if (p.scope !== sc) continue;
+        for (const m of p.models || []) {
+          const value = `${p.name}/${m.id}`;
+          if (seen.has(value)) continue;
+          seen.add(value);
+          out.push({ value, label: `${p.name}/${m.name || m.id}` });
+        }
+      }
+    }
+    return out;
+  }, [providers]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -378,17 +468,44 @@ export default function AgentSkillsPage() {
           />
           <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          {t("skills.evolution.model")}
-          <Input
-            type="text"
-            className="w-40 h-8"
-            placeholder={t("skills.evolution.modelPlaceholder")}
-            value={evoCfg.model || ""}
-            onChange={(e) => saveEvoCfg({ ...evoCfg, model: e.target.value })}
-            disabled={evoSaving}
-          />
-        </label>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-xs text-muted-foreground">{t("skills.evolution.model")}</span>
+          {curatorModelOptions.length > 0 ? (
+            <Select
+              value={evoCfg.model || "__inherit__"}
+              onValueChange={(v) =>
+                saveEvoCfg({
+                  ...evoCfg,
+                  model: !v || v === "__inherit__" ? "" : v,
+                })
+              }
+              disabled={evoSaving}
+            >
+              <SelectTrigger className="w-56 h-8 text-sm">
+                <SelectValue placeholder={t("skills.evolution.modelPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__inherit__">
+                  {t("skills.evolution.modelPlaceholder")}
+                </SelectItem>
+                {curatorModelOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className="font-mono text-xs">{opt.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="text"
+              className="w-40 h-8"
+              placeholder={t("skills.evolution.modelPlaceholder")}
+              value={evoCfg.model || ""}
+              onChange={(e) => saveEvoCfg({ ...evoCfg, model: e.target.value })}
+              disabled={evoSaving}
+            />
+          )}
+        </div>
         <label className="flex items-center gap-2 text-sm">
           {t("skills.evolution.notify")}
           <input
