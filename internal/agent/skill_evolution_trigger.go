@@ -24,7 +24,9 @@ func shouldRunSkillEvolution(cfg config.SkillEvolutionCfg, lastRun time.Time) bo
 }
 
 // maybeSkillEvolution 由 runPostTurn 调用：门控命中则异步跑一遍 curator。
-// 用 last_run 的 set-if-recent 作 per-agent 守卫，防多 chatter 并发重复跑。
+// Get→检查→Set 非原子（SetSkillEvolutionLastRun 是无条件 UPSERT），用
+// skillEvoMu 串行化临界段，防同一 agent 的并发 turn 双开 curator goroutine。
+// goroutine 在锁外异步执行（go 语句立即返回、defer 随函数返回释放），不阻塞 turn。
 func (a *Agent) maybeSkillEvolution(ctx context.Context, agentID string) {
 	if a.dataStore == nil {
 		return
@@ -33,6 +35,8 @@ func (a *Agent) maybeSkillEvolution(ctx context.Context, agentID string) {
 	if cfg.Interval <= 0 {
 		cfg.Interval = 7 * 24 * time.Hour
 	}
+	a.skillEvoMu.Lock()
+	defer a.skillEvoMu.Unlock()
 
 	last, err := a.dataStore.GetSkillEvolutionLastRun(ctx, agentID)
 	if err != nil {

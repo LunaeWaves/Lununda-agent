@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/codeany-ai/open-agent-sdk-go/costtracker"
@@ -87,6 +88,11 @@ type Agent struct {
 	ftsStore        *store.FTSStore
 	piiScrubEnabled bool
 	memoryCfg       config.MemoryCfg
+	// skillEvoMu guards maybeSkillEvolution's Get→check→Set gate so two
+	// concurrent turns on the same agent can't both launch the async
+	// curator. SQLite's single-conn pool already serializes this; the
+	// mutex also covers Postgres' pooled connections in-process.
+	skillEvoMu      sync.Mutex
 	autoTitleCfg    config.AutoTitleCfg
 	// splitReplies is the per-agent multi-bubble toggle. Gates the
 	// per-turn system-prompt hint that advertises SplitMessageMarker
