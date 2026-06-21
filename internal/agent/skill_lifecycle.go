@@ -40,15 +40,22 @@ func StaleAgentSkills(st store.Store, agentID, skillDir string, staleAfter time.
 		if pinSet[name] {
 			continue
 		}
-		anchor := cutoff.Add(-1) // 默认视为陈旧
+		// anchor 优先级：load 时间戳 > SKILL.md mtime。
+		// 解析失败的 usage（罕见 — DB 里 ts 被篡改）退回 mtime，而不是
+		// 默认判陈旧触发误报。
+		var anchor time.Time
 		if ts, ok, err := st.LastSkillUse(ctx, agentID, name); err == nil && ok {
 			if t, perr := time.Parse(time.RFC3339, ts); perr == nil {
 				anchor = t
 			}
-		} else {
+		}
+		if anchor.IsZero() {
 			if info, serr := os.Stat(filepath.Join(skillDir, name, "SKILL.md")); serr == nil {
 				anchor = info.ModTime()
 			}
+		}
+		if anchor.IsZero() {
+			continue // 既无 usage 又无 mtime：无法判定，跳过（不冒陈旧告警）
 		}
 		if anchor.Before(cutoff) {
 			stale = append(stale, name)

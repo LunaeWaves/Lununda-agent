@@ -233,3 +233,68 @@ func TestParseFrontmatterName(t *testing.T) {
 		}
 	}
 }
+
+// TestSkillEvolutionFullFlowAudit exercises the full curator chain that
+// reviewer issue #8 flagged as missing: Run → ApplyProposal → archive →
+// ListArchived. Asserts the合成→接受→归档可恢复 loop behaves end-to-end
+// with a mock provider.
+func TestSkillEvolutionFullFlowAudit(t *testing.T) {
+	st := newEvolutionTestStore(t)
+	ctx := context.Background()
+	ts := time.Now().UTC().Format(time.RFC3339)
+
+	for i, sess := range []string{"s-A", "s-B", "s-C"} {
+		userID := "u-" + string(rune('1'+i))
+		st.AppendSessionMessage(ctx, userID, "agent-X", sess, store.SessionMessage{Role: "user", Content: "pdf"})
+		st.AppendSessionMessage(ctx, userID, "agent-X", sess, store.SessionMessage{Role: "user", Content: "docx"})
+		recordUsageAt(t, st, ctx, userID, "agent-X", sess, 1, "pdf-extract", ts)
+		recordUsageAt(t, st, ctx, userID, "agent-X", sess, 1, "docx-extract", ts)
+	}
+	skillDir := filepath.Join(t.TempDir(), "skills")
+	for _, name := range []string{"pdf-extract", "docx-extract"} {
+		dir := filepath.Join(skillDir, name)
+		os.MkdirAll(dir, 0o755)
+		os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("---\nname: "+name+"\n---\n# "+name+"\n"), 0o644)
+	}
+
+	ev := &skillEvolution{
+		store: st, provider: &routingProvider{
+			verdictResp: `{"verdict":"related","reason":"doc class"}`,
+			synthResp:   "---\nname: document-extract\ndescription: 类级\n---\n# 通用\n## PDF\n## DOCX\n",
+		},
+		model: "test", skillDir: skillDir, maxDistance: 10, minSessions: 3,
+	}
+	ids, err := ev.Run(ctx, "agent-X")
+	if err != nil || len(ids) != 1 {
+		t.Fatalf("Run: err=%v ids=%v", err, ids)
+	}
+
+	// Accept — keep none of the sources so both get archived.
+	if err := ApplyProposal(ctx, st, ids[0], nil, skillDir); err != nil {
+		t.Fatalf("ApplyProposal: %v", err)
+	}
+
+	// proposal status flipped to applied
+	p, _ := st.GetProposal(ctx, ids[0])
+	if p.Status != "applied" {
+		t.Errorf("proposal status = %q, want applied", p.Status)
+	}
+	// new target exists
+	if _, err := os.Stat(filepath.Join(skillDir, "document-extract", "SKILL.md")); err != nil {
+		t.Errorf("target skill missing: %v", err)
+	}
+	// both sources archived (not at top level)
+	for _, name := range []string{"pdf-extract", "docx-extract"} {
+		if _, err := os.Stat(filepath.Join(skillDir, name)); !os.IsNotExist(err) {
+			t.Errorf("source %s still at top level (should be archived)", name)
+		}
+	}
+	// archive listed
+	arch, err := ListArchived(skillDir)
+	if err != nil {
+		t.Fatalf("ListArchived: %v", err)
+	}
+	if len(arch) != 2 {
+		t.Errorf("archived = %d items, want 2: %+v", len(arch), arch)
+	}
+}

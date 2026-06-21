@@ -80,9 +80,15 @@ func (a *Agent) runSkillEvolution(ctx context.Context, agentID string, cfg confi
 
 // notifySkillEvolution 发一条 IM 提醒（只提醒，不 review）。
 func (a *Agent) notifySkillEvolution(n config.NotifyCfg, agentName string, nProposals int) {
-	if a.messageBus == nil || n.Channel == "" || n.ChatID == "" {
+	if a.messageBus == nil {
+		slog.Debug("skill evolution notify: no messageBus", "agent", a.name)
 		return
 	}
+	if n.Channel == "" || n.ChatID == "" {
+		slog.Debug("skill evolution notify: missing channel/chatID", "agent", a.name, "channel", n.Channel)
+		return
+	}
+	slog.Info("skill evolution notify", "agent", a.name, "channel", n.Channel, "chatID", n.ChatID, "proposals", nProposals)
 	a.messageBus.Outbound <- bus.OutboundMessage{
 		AgentID:   a.agentID,
 		Channel:   n.Channel,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,7 +217,7 @@ func (e *skillEvolution) Run(ctx context.Context, agentID string) ([]string, err
 			continue
 		}
 		if _, _, err := judger.Judge(ctx, agentID, c.SkillA, c.SkillB, e.maxDistance); err != nil {
-			fmt.Printf("skill evolution: judge %s/%s failed: %v\n", c.SkillA, c.SkillB, err)
+			slog.Warn("skill evolution: judge failed", "agent", agentID, "a", c.SkillA, "b", c.SkillB, "error", err)
 			continue
 		}
 	}
@@ -233,7 +234,7 @@ func (e *skillEvolution) Run(ctx context.Context, agentID string) ([]string, err
 	for _, cl := range clusters {
 		id, err := synth.Synthesize(ctx, agentID, cl, e.skillDir, "curator run")
 		if err != nil {
-			fmt.Printf("skill evolution: synthesize %v failed: %v\n", cl, err)
+			slog.Warn("skill evolution: synthesize failed", "agent", agentID, "cluster", cl, "error", err)
 			continue
 		}
 		proposalIDs = append(proposalIDs, id)

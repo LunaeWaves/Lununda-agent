@@ -3467,7 +3467,7 @@ func (d *DBStore) CandidateSkillPairs(ctx context.Context, agentID string, maxDi
 		WHERE a.agent_id = %s
 		GROUP BY a.skill_id, b.skill_id
 		HAVING COUNT(DISTINCT a.user_id || '|' || a.session_key) >= %d
-		ORDER BY sessions DESC, avg_dist ASC`,
+		ORDER BY (1.0 * COUNT(DISTINCT a.user_id || '|' || a.session_key)) / (1 + AVG(ABS(a.seq - b.seq))) DESC, sessions DESC, avg_dist ASC`,
 		maxDistance, d.ph(1), minSessions)
 	rows, err := d.db.QueryContext(ctx, q, agentID)
 	if err != nil {
