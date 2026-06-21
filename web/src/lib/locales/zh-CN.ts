@@ -1088,6 +1088,8 @@ const zhCN: Record<string, string> = {
   "skills.evolution.reject": "拒绝",
   "skills.evolution.archived": "已归档技能",
   "skills.evolution.permanentDelete": "永久删除归档技能",
+  "skills.evolution.stale": "陈旧技能",
+  "skills.evolution.pin": "保留",
 
   // Agent channels page extras
   "channels.channelsTitle": "通道",

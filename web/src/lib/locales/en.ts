@@ -1088,6 +1088,8 @@ const en: Record<string, string> = {
   "skills.evolution.reject": "Reject",
   "skills.evolution.archived": "Archived skills",
   "skills.evolution.permanentDelete": "Permanently delete archived skill",
+  "skills.evolution.stale": "Stale skills",
+  "skills.evolution.pin": "Pin",
 
   // Agent channels page extras
   "channels.channelsTitle": "Channels",

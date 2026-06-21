@@ -50,6 +50,9 @@ import {
   rejectSkillProposal,
   getArchivedSkills,
   deleteArchivedSkill,
+  getStaleSkills,
+  archiveOneSkill,
+  togglePinSkill,
   type SkillInfo,
   type SkillSearchResult,
   type SkillProposal,
@@ -89,6 +92,7 @@ export default function AgentSkillsPage() {
   const [evoSaving, setEvoSaving] = useState(false);
   const [keepMap, setKeepMap] = useState<Record<string, Record<string, boolean>>>({});
   const [archiveDelete, setArchiveDelete] = useState<ArchivedSkill | null>(null);
+  const [stale, setStale] = useState<string[]>([]);
 
   const fetchSkills = useCallback(() => {
     setLoading(true);
@@ -98,8 +102,9 @@ export default function AgentSkillsPage() {
       getAgentSkillProposals(agentId).catch(() => [] as SkillProposal[]),
       getArchivedSkills(agentId).catch(() => [] as ArchivedSkill[]),
       getAgentMemory(agentId).catch(() => null),
+      getStaleSkills(agentId).catch(() => [] as string[]),
     ])
-      .then(([list, cfg, props, arch, mem]) => {
+      .then(([list, cfg, props, arch, mem, staleList]) => {
         setSkills(list || []);
         // Per-agent override map first (this page edits there); merge
         // global defaults underneath so the "configured" badge still
@@ -119,6 +124,7 @@ export default function AgentSkillsPage() {
         setSkillEntries(merged);
         setProposals(props || []);
         setArchived(arch || []);
+        setStale(staleList || []);
         setEvoCfg(mem?.memory?.skillEvolution || { enabled: false });
         const km: Record<string, Record<string, boolean>> = {};
         for (const p of props || []) {
@@ -169,6 +175,15 @@ export default function AgentSkillsPage() {
     if (!archiveDelete) return;
     await deleteArchivedSkill(agentId, archiveDelete.Name, archiveDelete.ArchivedAt);
     setArchiveDelete(null);
+    fetchSkills();
+  };
+
+  const handlePinStale = async (name: string) => {
+    await togglePinSkill(agentId, name, true);
+    fetchSkills();
+  };
+  const handleArchiveStale = async (name: string) => {
+    await archiveOneSkill(agentId, name);
     fetchSkills();
   };
 
@@ -405,6 +420,33 @@ export default function AgentSkillsPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 陈旧技能 */}
+      {stale.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold flex items-center gap-2">
+            <Info className="h-4 w-4" /> {t("skills.evolution.stale")}
+          </h2>
+          <div className="space-y-1">
+            {stale.map((name) => (
+              <div
+                key={name}
+                className="flex items-center justify-between rounded border px-3 py-1 text-sm"
+              >
+                <span className="font-mono text-xs">{name}</span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => handlePinStale(name)}>
+                    {t("skills.evolution.pin")}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleArchiveStale(name)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

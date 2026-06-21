@@ -1643,6 +1643,30 @@ export async function deleteArchivedSkill(agentId: string, name: string, at: str
   );
 }
 
+export async function getStaleSkills(agentId: string): Promise<string[]> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skills/stale`);
+  const data = await res.json();
+  return data.stale || [];
+}
+
+export async function archiveOneSkill(agentId: string, name: string): Promise<void> {
+  await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/skills/${encodeURIComponent(name)}/archive`,
+    { method: "POST" },
+  );
+}
+
+export async function togglePinSkill(agentId: string, name: string, pinned: boolean): Promise<void> {
+  await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/skills/${encodeURIComponent(name)}/pin`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned }),
+    },
+  );
+}
+
 // Search results use skills.sh's shape; clawhub has a different shape but the
 // admin UI only wires skills.sh (primary registry). Callers that want clawhub
 // go through installSkill with source="clawhub".
