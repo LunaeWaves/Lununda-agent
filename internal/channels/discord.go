@@ -151,7 +151,6 @@ func (d *Discord) registerCommands() {
 		},
 		{Name: "help", Description: "Show available commands"},
 		{Name: "version", Description: "Show version"},
-		{Name: "whoami", Description: "Show your platform user ID (for admin allowlist)"},
 	}
 	if _, err := d.session.ApplicationCommandBulkOverwrite(appID, "", cmds); err != nil {
 		slog.Warn("discord command registration failed", "account", d.accountID, "error", err)

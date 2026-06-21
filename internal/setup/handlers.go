@@ -1772,6 +1772,8 @@ func (s *Server) handleViewSharedSession(w http.ResponseWriter, r *http.Request)
 		http.NotFound(w, r)
 		return
 	}
+	// no-store so a revoked share isn't readable from browser/CDN cache.
+	w.Header().Set("Cache-Control", "no-store")
 	http.Redirect(w, r, "/shared?token="+tok, http.StatusFound)
 }
 
@@ -1784,6 +1786,8 @@ func (s *Server) handleGetSharedSessionJSON(w http.ResponseWriter, r *http.Reque
 		http.NotFound(w, r)
 		return
 	}
+	// no-store so a revoked share isn't readable from browser/CDN cache.
+	w.Header().Set("Cache-Control", "no-store")
 	rec, err := s.dataStore.GetSessionShare(r.Context(), tok)
 	if err != nil || rec == nil || !rec.RevokedAt.IsZero() {
 		http.NotFound(w, r)

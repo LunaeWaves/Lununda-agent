@@ -145,13 +145,20 @@ func (g *Gateway) resolveChannelOwner(ctx context.Context, msg bus.InboundMessag
 // resolveChatter returns the canonical internal user_id that an IM inbound
 // message should be stamped with.
 //
-// Post agent-privatization (D1), admission.go guarantees only the agent
-// owner can reach this point — so the chatter is always the owner and we
-// no longer mint app_users per (channel, account, im_user_id). The old
-// EnsureAppUser path is dead code under privatization; keep the function
-// signature so callers don't need touching.
+// Post agent-privatization (D1), the chatter is always the owner (per-(agent,
+// owner) memory, no per-chatter bucket). So for IM messages we rewrite
+// msg.UserID from the raw platform id (Discord snowflake, telegram numeric,
+// wechat openid, …) to the owner's internal lununda `u_xxx` id. This is
+// load-bearing for admission: HandleMessage's isAdminChatter checks
+// ownerImIds[channel] for the (already-rewritten) msg.UserID, and the
+// /claim flow persists ownerImIds using the same rewritten value — the two
+// sides match because BOTH go through this rewrite.
 //
-// Returns "" when the caller should keep msg.UserID unchanged.
+// NOTE: admission runs in HandleMessage (downstream of this rewrite), not
+// before it. Do not assume non-owners are filtered out here — they aren't.
+//
+// Returns "" when the caller should keep msg.UserID unchanged (empty input
+// or already-canonical u_-prefixed id — web/api path).
 func (g *Gateway) resolveChatter(ctx context.Context, ownerID string, msg bus.InboundMessage) string {
 	if msg.UserID == "" {
 		return ""

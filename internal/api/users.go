@@ -10,20 +10,17 @@ import (
 
 // HandleProvisionAppUser handles POST /v1/users.
 //
-// Authenticated by api_key only. Mints (or returns) the lununda user
-// representing the calling app's end-user identified by external_id.
-// Idempotent: repeated calls with the same external_id return the same
-// lununda user_id, regardless of whether the row already existed.
+// DEPRECATED under agent privatization (D1): the app_user multi-tenant path
+// was closed — SwitchToAppUser is no longer reachable from the request path.
+// This endpoint is retained for backward compatibility with calling apps
+// but is now a no-op: it echoes back the agent-scoped apikey owner's
+// user_id and the supplied external_id unchanged. No new user is minted.
 //
-// Request body: { "external_id": "...", "display_name": "..." (optional) }
-// Response:     { "user_id": "u_…", "external_id": "...", "created": bool }
+// Request body: { "external_id": "...", "display_name": "..." (ignored) }
+// Response:     { "user_id": "<owner user_id>", "external_id": "<echo>" }
 //
-// Sessions, agent_files, and scope=user configs all key off the returned
-// user_id, so once the calling app has it, every downstream interaction
-// for that end-user partitions cleanly. Apps that prefer not to
-// pre-provision can skip this endpoint entirely and pass `user` in the
-// /v1/chat/completions body (or the X-Lununda-End-User header) on
-// every call — the auth layer lazy-mints on first sight either way.
+// Apps should migrate to per-agent apikeys (each agent's settings page
+// issues its own key; the holder chats as the owner).
 func (s *Server) HandleProvisionAppUser(w http.ResponseWriter, r *http.Request) {
 	ident, ok := auth.FromContext(r.Context())
 	if !ok || ident.AuthMethod != "apikey" || ident.APIKeyID == "" {

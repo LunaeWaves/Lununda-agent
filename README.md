@@ -173,7 +173,7 @@ table and is edited through the dashboard or `lununda agents config`.
 - Sessions isolated per channel + chatID — a user's Telegram thread and Discord thread never collide
 - **Per-chatter memory & timezone** — MEMORY.md / USER.md are isolated per sender; prompts and cron schedules honor the chatter's timezone
 - **Multi-bubble replies** — long agent replies can be split into multiple IM bubbles (per-agent tri-state: inherit / on / off)
-- **Slash commands** — `/new`, `/whoami`, `/yes`, `/no`, `/ask`, `/auto`, `/yolo` work across channels
+- **Slash commands** — `/new`, `/yes`, `/no`, `/ask`, `/auto`, `/yolo` work across channels
 - **Auth prompts in chat** — when an agent needs to step outside its workspace, the IM channel surfaces a tappable prompt so the user can approve inline
 
 ### Tools & Sandbox
