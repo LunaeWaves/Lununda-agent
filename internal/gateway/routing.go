@@ -142,9 +142,16 @@ func (g *Gateway) resolveChannelOwner(ctx context.Context, msg bus.InboundMessag
 //     same numeric id on two platforms or two bots cannot merge into one
 //     USER.md / MEMORY.md row.
 //
-// Returns "" when the original msg.UserID should be kept unchanged
-// (empty input, already canonical, or any error path) — the caller treats
-// "" as "no rewrite".
+// resolveChatter returns the canonical internal user_id that an IM inbound
+// message should be stamped with.
+//
+// Post agent-privatization (D1), admission.go guarantees only the agent
+// owner can reach this point — so the chatter is always the owner and we
+// no longer mint app_users per (channel, account, im_user_id). The old
+// EnsureAppUser path is dead code under privatization; keep the function
+// signature so callers don't need touching.
+//
+// Returns "" when the caller should keep msg.UserID unchanged.
 func (g *Gateway) resolveChatter(ctx context.Context, ownerID string, msg bus.InboundMessage) string {
 	if msg.UserID == "" {
 		return ""
@@ -152,27 +159,7 @@ func (g *Gateway) resolveChatter(ctx context.Context, ownerID string, msg bus.In
 	if strings.HasPrefix(msg.UserID, "u_") {
 		return ""
 	}
-	if g.store == nil || g.accounts == nil {
-		return ""
-	}
-	owner, err := g.store.GetUser(ctx, ownerID)
-	if err != nil {
-		slog.Warn("resolveChatter: owner lookup failed",
-			"owner", ownerID, "channel", msg.Channel, "error", err)
-		return ""
-	}
-	namespace := owner.APIKeyID
-	if namespace == "" {
-		namespace = "owner:" + ownerID
-	}
-	extID := msg.Channel + ":" + msg.AccountID + ":" + msg.UserID
-	acc, err := g.accounts.EnsureAppUser(ctx, namespace, extID, msg.SenderName)
-	if err != nil {
-		slog.Warn("resolveChatter: EnsureAppUser failed",
-			"owner", ownerID, "namespace", namespace, "ext", extID, "error", err)
-		return ""
-	}
-	return acc.ID
+	return ownerID
 }
 
 // trySteer diverts msg into target's currently in-flight turn instead of

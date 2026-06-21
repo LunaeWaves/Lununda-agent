@@ -101,6 +101,10 @@ func TestResolveChatterSeparatesIMSendersForRegularOwner(t *testing.T) {
 	}
 	g := &Gateway{store: db, accounts: accts}
 
+	// Post agent-privatization (D1): admission.go guarantees only the owner
+	// reaches resolveChatter, so every IM sender — regardless of platform
+	// id — resolves to the owner. The old per-sender app_user minting is
+	// gone. Two different senders → same owner id; no new app_user rows.
 	alice := bus.InboundMessage{
 		Channel:    "telegram",
 		AccountID:  "bot-a",
@@ -113,29 +117,19 @@ func TestResolveChatterSeparatesIMSendersForRegularOwner(t *testing.T) {
 		UserID:     "222",
 		SenderName: "Bob",
 	}
-	aliceID := g.resolveChatter(ctx, owner.ID, alice)
-	if aliceID == "" || aliceID == owner.ID {
-		t.Fatalf("alice should resolve to app_user, got %q", aliceID)
+	if got := g.resolveChatter(ctx, owner.ID, alice); got != owner.ID {
+		t.Errorf("alice: resolveChatter = %q, want owner %q", got, owner.ID)
 	}
-	bobID := g.resolveChatter(ctx, owner.ID, bob)
-	if bobID == "" || bobID == owner.ID {
-		t.Fatalf("bob should resolve to app_user, got %q", bobID)
-	}
-	if aliceID == bobID {
-		t.Fatalf("different Telegram senders resolved to same user: %s", aliceID)
-	}
-	if again := g.resolveChatter(ctx, owner.ID, alice); again != aliceID {
-		t.Fatalf("same sender should resolve stably: got %q want %q", again, aliceID)
+	if got := g.resolveChatter(ctx, owner.ID, bob); got != owner.ID {
+		t.Errorf("bob: resolveChatter = %q, want owner %q", got, owner.ID)
 	}
 
-	aliceAccount, err := db.GetUser(ctx, aliceID)
-	if err != nil {
-		t.Fatalf("get alice app_user: %v", err)
+	// Already-canonical u_ ids pass through unchanged.
+	if got := g.resolveChatter(ctx, owner.ID, bus.InboundMessage{UserID: "u_xyz"}); got != "" {
+		t.Errorf("u_ prefix should pass through (\"\"), got %q", got)
 	}
-	if aliceAccount.APIKeyID != "owner:"+owner.ID {
-		t.Fatalf("unexpected namespace: %q", aliceAccount.APIKeyID)
-	}
-	if aliceAccount.ExternalID != "telegram:bot-a:111" {
-		t.Fatalf("unexpected external id: %q", aliceAccount.ExternalID)
+	// Empty UserID short-circuits.
+	if got := g.resolveChatter(ctx, owner.ID, bus.InboundMessage{UserID: ""}); got != "" {
+		t.Errorf("empty UserID should return \"\", got %q", got)
 	}
 }

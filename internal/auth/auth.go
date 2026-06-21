@@ -396,18 +396,12 @@ done:
 			ident.ActAsUserID = act
 		}
 	}
-	// If the calling app named an end-user via X-Lununda-End-User on an
-	// api_key request, rebind to the corresponding app_user (lazy mint).
-	// We swallow errors here so a malformed header can't 401 a request —
-	// the request just stays under the api_key owner. The OpenAI
-	// /v1/chat/completions handler also honors `user` in the request
-	// body for clients that prefer the OpenAI shape; that path calls
-	// SwitchToAppUser explicitly after parsing the body.
-	if eu := strings.TrimSpace(req.Header.Get(EndUserHeader)); eu != "" {
-		if next, swErr := r.SwitchToAppUser(req.Context(), ident, eu); swErr == nil {
-			ident = next
-		}
-	}
+	// X-Lununda-End-User used to trigger lazy app_user minting here.
+	// Agent privatization (D1) deprecated the app_user multi-tenant path —
+	// every API call now resolves to the agent-scoped apikey owner, and
+	// the header is ignored. The SwitchToAppUser function is kept around
+	// (see spec boundary: "code retained, entries closed") but no longer
+	// reachable from the request path.
 	return ident, nil
 }
 

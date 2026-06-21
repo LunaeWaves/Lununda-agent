@@ -51,21 +51,13 @@ func (s *Server) HandleProvisionAppUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Going through SwitchToAppUser keeps the mint logic in one place
-	// — the same code path the request-time switch uses. The returned
-	// identity carries the resolved app_user user_id; we don't write it
-	// back onto the request context here because this endpoint is a
-	// pure provisioning call, not a passthrough.
-	switched, err := s.authResolver.SwitchToAppUser(r.Context(), ident, req.ExternalID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"error": map[string]string{"message": err.Error(), "type": "server_error"},
-		})
-		return
-	}
-
+	// Agent privatization (D1) deprecated the app_user multi-tenant path.
+	// This endpoint is kept for backward compatibility with calling apps
+	// but no longer mints a new user — it returns the agent-scoped apikey
+	// owner's user_id. The `external_id` field is echoed back unchanged
+	// so callers reading it don't break.
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user_id":     switched.UserID,
+		"user_id":     ident.UserID,
 		"external_id": req.ExternalID,
 	})
 }
