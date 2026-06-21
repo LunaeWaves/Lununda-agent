@@ -1665,6 +1665,8 @@ export interface SkillEvolutionNotifyCfg {
 export interface SkillEvolutionCfg {
   enabled: boolean;
   interval?: number;
+  staleCheckInterval?: number; // 纳秒（Go time.Duration JSON）；undefined = 默认 30 天
+  staleAfter?: number;         // 纳秒；undefined = 默认 90 天
   model?: string;
   notify?: SkillEvolutionNotifyCfg;
 }

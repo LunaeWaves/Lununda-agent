@@ -1112,6 +1112,8 @@ const en: Record<string, string> = {
   "skill.customEnvVars": "Custom env vars",
   "skill.addCustomEnvVar": "Add custom env var",
   "skills.evolution.autoUpgrade": "Auto upgrade",
+  "skills.evolution.staleCheckInterval": "Stale auto-archive (every)",
+  "skills.evolution.days": "days",
   "skills.evolution.notify": "Notify on proposal",
   "skills.evolution.notifyChannel": "Channel",
   "skills.evolution.notifyChatID": "Chat",

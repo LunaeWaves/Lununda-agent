@@ -330,6 +330,21 @@ export default function AgentSkillsPage() {
           {t("skills.evolution.autoUpgrade")}
         </label>
         <label className="flex items-center gap-2 text-sm">
+          {t("skills.evolution.staleCheckInterval")}
+          <Input
+            type="number"
+            min={1}
+            className="w-20 h-8"
+            value={evoCfg.staleCheckInterval ? Math.round(evoCfg.staleCheckInterval / 86400000000000) : 30}
+            onChange={(e) => {
+              const days = Math.max(1, Number(e.target.value) || 30);
+              saveEvoCfg({ ...evoCfg, staleCheckInterval: days * 86400000000000 });
+            }}
+            disabled={evoSaving}
+          />
+          <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
           {t("skills.evolution.notify")}
           <input
             type="checkbox"

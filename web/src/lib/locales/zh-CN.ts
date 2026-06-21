@@ -1112,6 +1112,8 @@ const zhCN: Record<string, string> = {
   "skill.customEnvVars": "自定义环境变量",
   "skill.addCustomEnvVar": "添加自定义环境变量",
   "skills.evolution.autoUpgrade": "自动迭代升级",
+  "skills.evolution.staleCheckInterval": "陈旧自动归档（每）",
+  "skills.evolution.days": "天",
   "skills.evolution.notify": "新提案提醒",
   "skills.evolution.notifyChannel": "渠道",
   "skills.evolution.notifyChatID": "会话",
