@@ -72,6 +72,11 @@ type Store interface {
 	GetSession(ctx context.Context, userID, agentID, sessionKey string) (*SessionRecord, error)
 	SaveSession(ctx context.Context, userID, agentID, sessionKey string, session *SessionRecord) error
 	ListSessions(ctx context.Context, userID, agentID string) ([]SessionMeta, error)
+	// LastSessionByChannel returns the most recently updated session for
+	// this agent on the given channel with a non-empty chat_id, or
+	// (nil, nil) when no such session exists. Used by the skill-evolution
+	// notify picker to default chatID/accountID from the last conversation.
+	LastSessionByChannel(ctx context.Context, agentID, channel string) (*SessionMeta, error)
 	// ListSessionOwnerPairs returns every distinct (user_id, agent_id)
 	// pair present in the sessions table. Used by the admin Chats page
 	// to discover non-owner sessions: when a chatter binds their own bot

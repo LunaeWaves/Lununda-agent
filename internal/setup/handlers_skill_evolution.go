@@ -168,6 +168,31 @@ type pinSkillReq struct {
 	Pinned bool `json:"pinned"`
 }
 
+// handleListLastSessionByChannel returns the most recent session for
+// (agent, channel) with a non-empty chat_id. Used by the skill-evolution
+// notify picker to default chatID/accountID from the last conversation.
+func (s *Server) handleListLastSessionByChannel(w http.ResponseWriter, r *http.Request) {
+	agentID := r.PathValue("id")
+	channel := r.URL.Query().Get("channel")
+	if s.requireAgentOwner(w, r, agentID) == nil {
+		return
+	}
+	if channel == "" {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "channel required"})
+		return
+	}
+	sess, err := s.dataStore.LastSessionByChannel(r.Context(), agentID, channel)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if sess == nil {
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "session": nil})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "session": sess})
+}
+
 func (s *Server) handleTogglePinSkill(w http.ResponseWriter, r *http.Request) {
 	agentID := r.PathValue("id")
 	name := r.PathValue("name")

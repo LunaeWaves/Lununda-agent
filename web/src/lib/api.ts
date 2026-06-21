@@ -1667,6 +1667,26 @@ export async function togglePinSkill(agentId: string, name: string, pinned: bool
   );
 }
 
+// Skill-evolution notify: default chatID/accountID from the agent's most
+// recent session on a given channel. Returns null session when none.
+export interface LastSessionByChannel {
+  key: string;
+  channel: string;
+  accountId: string;
+  chatId: string;
+  title?: string;
+}
+export async function getLastSessionByChannel(
+  agentId: string,
+  channel: string,
+): Promise<LastSessionByChannel | null> {
+  const res = await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/sessions/last?channel=${encodeURIComponent(channel)}`,
+  );
+  const data = await res.json();
+  return data.session || null;
+}
+
 // Search results use skills.sh's shape; clawhub has a different shape but the
 // admin UI only wires skills.sh (primary registry). Callers that want clawhub
 // go through installSkill with source="clawhub".

@@ -2517,6 +2517,24 @@ func (d *DBStore) ListSessions(ctx context.Context, userID, agentID string) ([]S
 	return metas, rows.Err()
 }
 
+// LastSessionByChannel returns the most recently updated session on
+// (agent, channel) with a non-empty chat_id. nil + nil error when none.
+func (d *DBStore) LastSessionByChannel(ctx context.Context, agentID, channel string) (*SessionMeta, error) {
+	row := d.db.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT session_key, channel, account_id, chat_id, project_id, title, message_count, updated_at FROM sessions
+		 WHERE agent_id = %s AND channel = %s AND chat_id <> ''
+		 ORDER BY updated_at DESC LIMIT 1`, d.ph(1), d.ph(2)),
+		agentID, channel)
+	var m SessionMeta
+	if err := row.Scan(&m.Key, &m.Channel, &m.AccountID, &m.ChatID, &m.ProjectID, &m.Title, &m.MessageCount, &m.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &m, nil
+}
+
 // ListSessionOwnerPairs enumerates every distinct (user_id, agent_id)
 // tuple in the sessions table. The admin Chats page calls this to find
 // all conversation owners (chatters/binders) across all agents — the

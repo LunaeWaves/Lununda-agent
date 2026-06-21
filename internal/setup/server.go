@@ -362,6 +362,7 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("GET /api/agents/{id}/skills/stale", auth(s.handleListStaleSkills))
 	mux.HandleFunc("POST /api/agents/{id}/skills/{name}/archive", auth(s.handleArchiveOneSkill))
 	mux.HandleFunc("POST /api/agents/{id}/skills/{name}/pin", auth(s.handleTogglePinSkill))
+	mux.HandleFunc("GET /api/agents/{id}/sessions/last", auth(s.handleListLastSessionByChannel))
 
 	// Plugins (super_admin only).
 	mux.HandleFunc("GET /api/plugins", admin(s.handleListPlugins))

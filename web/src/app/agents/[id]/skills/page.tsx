@@ -22,6 +22,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sparkles,
@@ -53,11 +60,14 @@ import {
   getStaleSkills,
   archiveOneSkill,
   togglePinSkill,
+  listAgentChannels,
+  getLastSessionByChannel,
   type SkillInfo,
   type SkillSearchResult,
   type SkillProposal,
   type ArchivedSkill,
   type SkillEvolutionCfg,
+  type AgentChannel,
 } from "@/lib/api";
 import { ConfigureSkillDialog, type SkillEntryView } from "@/components/configure-skill-dialog";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
@@ -93,6 +103,7 @@ export default function AgentSkillsPage() {
   const [keepMap, setKeepMap] = useState<Record<string, Record<string, boolean>>>({});
   const [archiveDelete, setArchiveDelete] = useState<ArchivedSkill | null>(null);
   const [stale, setStale] = useState<string[]>([]);
+  const [agentChannels, setAgentChannels] = useState<AgentChannel[]>([]);
 
   const fetchSkills = useCallback(() => {
     setLoading(true);
@@ -103,8 +114,9 @@ export default function AgentSkillsPage() {
       getArchivedSkills(agentId).catch(() => [] as ArchivedSkill[]),
       getAgentMemory(agentId).catch(() => null),
       getStaleSkills(agentId).catch(() => [] as string[]),
+      listAgentChannels(agentId).catch(() => [] as AgentChannel[]),
     ])
-      .then(([list, cfg, props, arch, mem, staleList]) => {
+      .then(([list, cfg, props, arch, mem, staleList, chans]) => {
         setSkills(list || []);
         // Per-agent override map first (this page edits there); merge
         // global defaults underneath so the "configured" badge still
@@ -125,6 +137,7 @@ export default function AgentSkillsPage() {
         setProposals(props || []);
         setArchived(arch || []);
         setStale(staleList || []);
+        setAgentChannels(chans || []);
         setEvoCfg(mem?.memory?.skillEvolution || { enabled: false });
         const km: Record<string, Record<string, boolean>> = {};
         for (const p of props || []) {
@@ -138,6 +151,36 @@ export default function AgentSkillsPage() {
   useEffect(() => {
     fetchSkills();
   }, [fetchSkills]);
+
+  // Auto-fill chatID/accountID from the agent's most recent session on
+  // the selected channel. Fires on channel change + once channels load.
+  // Skips when chatID is already set (user override or saved value).
+  const notifyChannel = evoCfg.notify?.channel || "";
+  useEffect(() => {
+    if (!agentId || !notifyChannel) return;
+    if (evoCfg.notify?.chatID) return;
+    let cancelled = false;
+    getLastSessionByChannel(agentId, notifyChannel)
+      .then((s) => {
+        if (cancelled || !s) return;
+        const next = {
+          ...evoCfg,
+          notify: {
+            ...evoCfg.notify,
+            enabled: true,
+            chatID: s.chatId,
+            accountID: s.accountId || evoCfg.notify?.accountID || "",
+          },
+        };
+        setEvoCfg(next);
+        void saveEvoCfg(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, notifyChannel, evoCfg.notify?.chatID]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -284,19 +327,31 @@ export default function AgentSkillsPage() {
           />
         </label>
         <Input
-          placeholder={t("skills.evolution.notifyChannel")}
-          className="w-32"
-          value={evoCfg.notify?.channel || ""}
-          onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: e.target.value } })}
-          disabled={evoSaving}
-        />
-        <Input
           placeholder={t("skills.evolution.notifyChatID")}
           className="w-32"
           value={evoCfg.notify?.chatID || ""}
           onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, chatID: e.target.value } })}
           disabled={evoSaving}
         />
+        <Select
+          value={evoCfg.notify?.channel || ""}
+          onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "" } })}
+          disabled={evoSaving}
+        >
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder={t("skills.evolution.notifyChannel")} />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from(new Set(agentChannels.map((c) => c.type))).map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+            {evoCfg.notify?.channel && !agentChannels.some((c) => c.type === evoCfg.notify?.channel) && (
+              <SelectItem value={evoCfg.notify.channel}>{evoCfg.notify.channel}</SelectItem>
+            )}
+          </SelectContent>
+        </Select>
         {evoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
       </div>
 
