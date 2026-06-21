@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type userIDKey struct{}
@@ -243,6 +244,10 @@ type RateLimitCfg struct {
 
 type MemoryCfg struct {
 	Review ReviewCfg    `json:"autoPersist,omitempty"`
+	// SkillEvolution drives the background curator: candidate pairs → LLM
+	// verdicts → cluster synthesis → proposals (Plan 2-4). Disabled by
+	// default — synthesis burns tokens, owner opts in.
+	SkillEvolution SkillEvolutionCfg `json:"skillEvolution,omitempty"`
 	AutoTitle   AutoTitleCfg      `json:"autoTitle,omitempty"`
 	FTS         FTSCfg            `json:"fts,omitempty"`
 	Embedding   EmbeddingCfg      `json:"embedding,omitempty"`
@@ -286,6 +291,27 @@ type ReviewCfg struct {
 	EveryNTurns   int    `json:"everyNTurns,omitempty"`
 	Model         string `json:"model,omitempty"`
 	MaxIterations int    `json:"maxIterations,omitempty"`
+}
+
+// SkillEvolutionCfg drives the background skill-curator (Plan 2-6):
+// every Interval, scan skill_usage for co-occurring skill pairs, ask
+// the LLM if they're related, synthesize related clusters into a single
+// class-level skill proposal. Disabled by default — burns tokens.
+type SkillEvolutionCfg struct {
+	Enabled  bool          `json:"enabled"`
+	Interval time.Duration `json:"interval,omitempty"` // default 7*24h
+	Model    string        `json:"model,omitempty"`     // empty = agent primary model
+	Notify   NotifyCfg     `json:"notify,omitempty"`
+}
+
+// NotifyCfg routes the "new proposal ready" ping to one specific chat.
+// Channel+ChatID+AccountID form the same routing triple cron_jobs uses;
+// the UI (Plan 7) picks from this agent's bound channels.
+type NotifyCfg struct {
+	Enabled   bool   `json:"enabled"`
+	Channel   string `json:"channel,omitempty"`
+	ChatID    string `json:"chatID,omitempty"`
+	AccountID string `json:"accountID,omitempty"`
 }
 
 // AutoTitleCfg drives the PostTurn hook that asks the LLM to summarise

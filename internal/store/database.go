@@ -1768,6 +1768,12 @@ func (d *DBStore) migrationSQL() []string {
 			decided_at     TEXT NOT NULL DEFAULT ''
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_proposals_agent_status ON skill_proposals (agent_id, status)`,
+		// skill_evolution_state stores per-agent last-run timestamp so
+		// maybeSkillEvolution can gate on Interval without a global lock.
+		`CREATE TABLE IF NOT EXISTS skill_evolution_state (
+			agent_id    TEXT PRIMARY KEY,
+			last_run_at TEXT NOT NULL DEFAULT ''
+		)`,
 		// projects groups sessions that share a workspace folder. PK
 		// matches sessions: a project is "user X's working folder on
 		// agent Y", same private-per-user ownership model. The on-disk
@@ -3601,6 +3607,38 @@ func (d *DBStore) SetProposalStatus(ctx context.Context, id, status, decidedAt s
 		d.ph(1), d.ph(2), d.ph(3)), status, decidedAt, id)
 	if err != nil {
 		return fmt.Errorf("set proposal status: %w", err)
+	}
+	return nil
+}
+
+// GetSkillEvolutionLastRun returns the agent's last curator run timestamp;
+// zero time.Time means "never run" (first run defers one interval).
+func (d *DBStore) GetSkillEvolutionLastRun(ctx context.Context, agentID string) (time.Time, error) {
+	var s string
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT last_run_at FROM skill_evolution_state WHERE agent_id = %s`, d.ph(1)), agentID).Scan(&s)
+	if err == sql.ErrNoRows {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
+}
+
+// SetSkillEvolutionLastRun UPSERTs the agent's last curator run timestamp.
+// Acts as a concurrency guard — maybeSkillEvolution sets this before firing
+// the async Run so concurrent turns see "recent" and skip.
+func (d *DBStore) SetSkillEvolutionLastRun(ctx context.Context, agentID string, t time.Time) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO skill_evolution_state (agent_id, last_run_at) VALUES (%s, %s)
+		 ON CONFLICT (agent_id) DO UPDATE SET last_run_at = excluded.last_run_at`,
+		d.ph(1), d.ph(2)), agentID, t.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("set skill evolution last_run: %w", err)
 	}
 	return nil
 }

@@ -302,6 +302,14 @@ type Store interface {
 	// and stamps decided_at.
 	SetProposalStatus(ctx context.Context, id, status, decidedAt string) error
 
+	// --- Skill evolution trigger state ---
+	//
+	// GetSkillEvolutionLastRun returns the agent's last curator run; zero
+	// time.Time means "never run" (first run defers one interval).
+	GetSkillEvolutionLastRun(ctx context.Context, agentID string) (time.Time, error)
+	// SetSkillEvolutionLastRun UPSERTs the agent's last curator run timestamp.
+	SetSkillEvolutionLastRun(ctx context.Context, agentID string, t time.Time) error
+
 	// --- IM owner-identity claim (verification code) ---
 	//
 	// Web-side owner (authenticated) mints a one-time code via
