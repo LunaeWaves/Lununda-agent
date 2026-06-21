@@ -359,6 +359,9 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("POST /api/agents/{id}/skill-proposals/{pid}/reject", auth(s.handleRejectSkillProposal))
 	mux.HandleFunc("GET /api/agents/{id}/skills/archived", auth(s.handleListArchivedSkills))
 	mux.HandleFunc("DELETE /api/agents/{id}/skills/archived/{name}", auth(s.handleDeleteArchivedSkill))
+	mux.HandleFunc("GET /api/agents/{id}/skills/stale", auth(s.handleListStaleSkills))
+	mux.HandleFunc("POST /api/agents/{id}/skills/{name}/archive", auth(s.handleArchiveOneSkill))
+	mux.HandleFunc("POST /api/agents/{id}/skills/{name}/pin", auth(s.handleTogglePinSkill))
 
 	// Plugins (super_admin only).
 	mux.HandleFunc("GET /api/plugins", admin(s.handleListPlugins))
