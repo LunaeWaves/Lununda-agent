@@ -352,6 +352,14 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("GET /api/agents/{id}/skills", auth(s.handleListAgentSkills))
 	mux.HandleFunc("DELETE /api/agents/{id}/skills/{name}", auth(s.handleDeleteAgentSkill))
 
+	// Skill evolution (curator): list/accept/reject pending proposals,
+	// list/delete archived sources. All owner-gated like /skills above.
+	mux.HandleFunc("GET /api/agents/{id}/skill-proposals", auth(s.handleListSkillProposals))
+	mux.HandleFunc("POST /api/agents/{id}/skill-proposals/{pid}/accept", auth(s.handleAcceptSkillProposal))
+	mux.HandleFunc("POST /api/agents/{id}/skill-proposals/{pid}/reject", auth(s.handleRejectSkillProposal))
+	mux.HandleFunc("GET /api/agents/{id}/skills/archived", auth(s.handleListArchivedSkills))
+	mux.HandleFunc("DELETE /api/agents/{id}/skills/archived/{name}", auth(s.handleDeleteArchivedSkill))
+
 	// Plugins (super_admin only).
 	mux.HandleFunc("GET /api/plugins", admin(s.handleListPlugins))
 	mux.HandleFunc("PUT /api/plugins/{id}", admin(s.handleUpdatePlugin))
