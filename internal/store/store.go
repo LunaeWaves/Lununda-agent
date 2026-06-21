@@ -245,6 +245,16 @@ type Store interface {
 	// next job is due instead of polling.
 	GetNextDueTime(ctx context.Context) (time.Time, error)
 
+	// --- Skill usage (curator input) ---
+	//
+	// RecordSkillUsage logs one load_skill invocation. seq is derived
+	// inside (MAX(seq) from session_messages for the same user+agent+
+	// session) so it reflects current conversation depth — distance
+	// between two loads in the same session = |seq_A - seq_B|.
+	// Duplicate (user,agent,session,seq,skill) is ignored via
+	// ON CONFLICT DO NOTHING.
+	RecordSkillUsage(ctx context.Context, userID, agentID, sessionKey, skillName, ts string) error
+
 	// --- IM owner-identity claim (verification code) ---
 	//
 	// Web-side owner (authenticated) mints a one-time code via
@@ -689,6 +699,15 @@ type CronJobRecord struct {
 	// deletes the row once it crosses an internal threshold.
 	FailureCount int       `json:"failureCount,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// CandidatePair is a scored pair of skills frequently co-used.
+type CandidatePair struct {
+	SkillA   string  `json:"skillA"`
+	SkillB   string  `json:"skillB"`
+	Sessions int     `json:"sessions"` // 跨多少个不同 session（user+session_key）共用
+	AvgDist  float64 `json:"avgDist"`  // 同 session 内平均 seq 距离
+	Score    float64 `json:"score"`    // Sessions / (1 + AvgDist)
 }
 
 // IMClaimRecord holds a pending IM owner-identity verification code. See

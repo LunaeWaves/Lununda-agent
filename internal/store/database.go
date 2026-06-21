@@ -1723,6 +1723,21 @@ func (d *DBStore) migrationSQL() []string {
 		// installs reach the same code path via Migrate's full sweep.
 		`CREATE INDEX IF NOT EXISTS idx_cron_jobs_schedule ON cron_jobs (enabled, next_run)`,
 		`CREATE INDEX IF NOT EXISTS idx_cron_jobs_agent ON cron_jobs (agent_id)`,
+		// skill_usage logs every load_skill invocation so the curator can
+		// detect skill pairs that co-occur near in conversation and recur
+		// across sessions. seq is derived from session_messages.MAX(seq)
+		// at insert time — same scale as the conversation itself.
+		`CREATE TABLE IF NOT EXISTS skill_usage (
+			user_id     TEXT    NOT NULL,
+			agent_id    TEXT    NOT NULL,
+			session_key TEXT    NOT NULL,
+			seq         INTEGER NOT NULL,
+			skill_id    TEXT    NOT NULL,
+			ts          TEXT    NOT NULL,
+			UNIQUE (user_id, agent_id, session_key, seq, skill_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_skill_usage_agent_skill ON skill_usage (agent_id, skill_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_skill_usage_session ON skill_usage (agent_id, user_id, session_key, seq)`,
 		// projects groups sessions that share a workspace folder. PK
 		// matches sessions: a project is "user X's working folder on
 		// agent Y", same private-per-user ownership model. The on-disk
@@ -3309,6 +3324,32 @@ func (d *DBStore) DeleteCronJob(ctx context.Context, jobID string) error {
 	_, err := d.db.ExecContext(ctx,
 		fmt.Sprintf(`DELETE FROM cron_jobs WHERE id = %s`, d.ph(1)), jobID)
 	return err
+}
+
+// RecordSkillUsage logs one load_skill invocation. seq is derived from
+// session_messages.MAX(seq) for the same user+agent+session so it reflects
+// the current conversation depth; distance between two loads in the same
+// session = |seq_A - seq_B|. Duplicate rows are silently ignored via
+// ON CONFLICT DO NOTHING (idempotent retries from the registry helper).
+func (d *DBStore) RecordSkillUsage(ctx context.Context, userID, agentID, sessionKey, skillName, ts string) error {
+	var seq int
+	row := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT COALESCE(MAX(seq), 0) FROM session_messages
+		 WHERE user_id = %s AND agent_id = %s AND session_key = %s`,
+		d.ph(1), d.ph(2), d.ph(3)), userID, agentID, sessionKey)
+	if err := row.Scan(&seq); err != nil {
+		return fmt.Errorf("skill_usage derive seq: %w", err)
+	}
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO skill_usage (user_id, agent_id, session_key, seq, skill_id, ts)
+		 VALUES (%s, %s, %s, %s, %s, %s)
+		 ON CONFLICT (user_id, agent_id, session_key, seq, skill_id) DO NOTHING`,
+		d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5), d.ph(6)),
+		userID, agentID, sessionKey, seq, skillName, ts)
+	if err != nil {
+		return fmt.Errorf("insert skill_usage: %w", err)
+	}
+	return nil
 }
 
 func (d *DBStore) GetDueCronJobs(ctx context.Context, now time.Time) ([]CronJobRecord, error) {
