@@ -3456,7 +3456,7 @@ func (d *DBStore) SampleCoUsage(ctx context.Context, agentID, skillA, skillB str
 		FROM skill_usage a
 		JOIN skill_usage b
 		  ON a.agent_id = b.agent_id AND a.user_id = b.user_id AND a.session_key = b.session_key
-		 AND ABS(a.seq - b.seq) BETWEEN 1 AND %d
+		 AND ABS(a.seq - b.seq) BETWEEN 0 AND %d
 		WHERE a.agent_id = %s AND a.skill_id = %s AND b.skill_id = %s
 		LIMIT 1`, maxDistance, d.ph(1), d.ph(2), d.ph(3)),
 		agentID, a, b).Scan(&userID, &sessionKey, &seqA, &seqB)
@@ -3485,7 +3485,7 @@ func (d *DBStore) CandidateSkillPairs(ctx context.Context, agentID string, maxDi
 		 AND a.user_id = b.user_id
 		 AND a.session_key = b.session_key
 		 AND a.skill_id < b.skill_id
-		 AND ABS(a.seq - b.seq) BETWEEN 1 AND %d
+		 AND ABS(a.seq - b.seq) BETWEEN 0 AND %d
 		WHERE a.agent_id = %s
 		GROUP BY a.skill_id, b.skill_id
 		HAVING COUNT(DISTINCT a.user_id || '|' || a.session_key) >= %d
