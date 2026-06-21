@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -117,5 +119,45 @@ func TestApplyEdit(t *testing.T) {
 				t.Errorf("count mismatch: got %d, want %d", count, tc.wantCount)
 			}
 		})
+	}
+}
+
+// TestValidateFileTargetPath_WindowsReservedNames pins Bug 2: paths whose
+// any segment stem matches a DOS device name (nul/con/aux/prn/comN/lptN)
+// are rejected so Windows doesn't materialize an unopenable phantom file.
+func TestValidateFileTargetPath_WindowsReservedNames(t *testing.T) {
+	bad := []string{"nul", "NUL", "nul.txt", "nul.tar.gz", "dir/con", "COM1.log", "a/b/AUX", "lpt9"}
+	for _, p := range bad {
+		if err := validateFileTargetPath(p); err == nil {
+			t.Errorf("expected rejection for reserved-name path %q, got nil", p)
+		}
+	}
+	ok := []string{"null", "nulles.txt", "console.log", "report.nul.tar.gz", "report.md", "sub/dir/file.txt", "COM10.txt"}
+	for _, p := range ok {
+		if err := validateFileTargetPath(p); err != nil {
+			t.Errorf("expected acceptance for %q, got %v", p, err)
+		}
+	}
+}
+
+// TestWorkspaceRelative pins Bug 1: an absolute path inside the agent's
+// workspace dir collapses to a workspace-relative path (so writes
+// session-scope under sessions/<sid>/ instead of landing at the workspace
+// root). Paths outside the workspace and already-relative paths are
+// returned unchanged.
+func TestWorkspaceRelative(t *testing.T) {
+	root := filepath.Join(os.TempDir(), "lununda-ws-test")
+	r := NewRegistry("", root)
+	cases := []struct{ in, want string }{
+		{filepath.Join(root, "foo.html"), "foo.html"},
+		{filepath.Join(root, "sub", "bar.md"), "sub/bar.md"},
+		{filepath.Join(root, "a", "b", "c.txt"), "a/b/c.txt"},
+		{filepath.Join(os.TempDir(), "elsewhere", "x.md"), filepath.Join(os.TempDir(), "elsewhere", "x.md")}, // outside → unchanged
+		{"foo.html", "foo.html"}, // relative → unchanged
+	}
+	for _, c := range cases {
+		if got := r.workspaceRelative(c.in); got != c.want {
+			t.Errorf("workspaceRelative(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

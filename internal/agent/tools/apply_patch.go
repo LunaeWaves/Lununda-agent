@@ -530,6 +530,10 @@ func (r *Registry) readForPatch(ctx context.Context, path string) (string, error
 }
 
 func (r *Registry) writeForPatch(ctx context.Context, path, content string) error {
+	if err := validateFileTargetPath(path); err != nil {
+		return fmt.Errorf("apply_patch: %w", err)
+	}
+	path = r.workspaceRelative(path)
 	if r.workspaceStore != nil && r.agentID != "" && r.isWorkspacePath(path) {
 		return r.workspaceStore.Put(ctx, r.agentID, r.projectID, r.sessionID, path,
 			strings.NewReader(content), int64(len(content)), "")

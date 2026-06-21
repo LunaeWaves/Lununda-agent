@@ -16,11 +16,6 @@ const (
 	AuthModeYolo = "yolo" // allow everything
 )
 
-// presetAllowlistDirs are created under each agent's root and pre-authorized
-// for writes, so the agent has obvious safe places to drop artifacts without
-// prompting. Surfaced to the agent via context so it knows what they're for.
-var presetAllowlistDirs = []string{"temp", "download", "data"}
-
 // authPolicyFile is the per-agent allowlist. allowWrite entries are path
 // prefixes RELATIVE to the agent root (~/.lununda/agents/<id>/) and MUST
 // resolve under it — entries pointing outside are silently dropped, which
@@ -62,10 +57,6 @@ func newAuthGate(agentRoot, workspace string) *authGate {
 // callers that edit policy.json invoke this to pick up changes.
 func (g *authGate) reload() {
 	prefixes := []string{}
-	// Preset dirs (always allowed, created on demand under agentRoot).
-	for _, d := range presetAllowlistDirs {
-		prefixes = append(prefixes, filepath.Join(g.agentRoot, d))
-	}
 	// policy.json user-configured allowWrite, constrained to agentRoot.
 	if data, err := os.ReadFile(filepath.Join(g.agentRoot, "policy.json")); err == nil {
 		var pf authPolicyFile
@@ -81,10 +72,6 @@ func (g *authGate) reload() {
 	g.mu.Lock()
 	g.allowWrite = prefixes
 	g.mu.Unlock()
-	// Ensure preset dirs exist so the agent can write into them immediately.
-	for _, d := range presetAllowlistDirs {
-		_ = os.MkdirAll(filepath.Join(g.agentRoot, d), 0o755)
-	}
 }
 
 // authDecision is the gate's verdict on a single tool call.

@@ -81,7 +81,43 @@ func validateFileTargetPath(path string) error {
 	case ".", "..", "/":
 		return fmt.Errorf("path %q is a directory, not a file; include a filename", path)
 	}
+	if bad := windowsReservedNameSegment(path); bad != "" {
+		return fmt.Errorf("path %q contains Windows reserved device name %q (CON/PRN/AUX/NUL/COMn/LPTn); on Windows this materializes an unopenable phantom file — rename that segment", path, bad)
+	}
 	return nil
+}
+
+// windowsReservedNames are DOS device names that cannot be a filename (or
+// filename stem before the first dot) on Windows — writing one creates a
+// phantom unopenable file (e.g. `nul`) instead of a real file. Checked on
+// every platform so a `nul` created under Linux doesn't break when synced
+// to Windows.
+var windowsReservedNames = map[string]bool{
+	"CON": true, "PRN": true, "AUX": true, "NUL": true,
+	"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true,
+	"COM6": true, "COM7": true, "COM8": true, "COM9": true,
+	"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true,
+	"LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
+}
+
+// windowsReservedNameSegment returns the first path segment whose stem
+// (text before the first dot, upper-cased) is a Windows reserved device
+// name, or "" if none. `nul`, `NUL.txt`, `nul.tar.gz`, `dir/con` all match;
+// `null` and `nulles.txt` do not.
+func windowsReservedNameSegment(path string) string {
+	for _, seg := range strings.Split(strings.ReplaceAll(path, `\`, "/"), "/") {
+		seg = strings.ToUpper(strings.TrimSpace(seg))
+		if seg == "" {
+			continue
+		}
+		if i := strings.IndexByte(seg, '.'); i >= 0 {
+			seg = seg[:i]
+		}
+		if windowsReservedNames[seg] {
+			return seg
+		}
+	}
+	return ""
 }
 
 // asIsDirToolError detects the "is a directory" failure mode (raised when
@@ -165,6 +201,26 @@ func (r *Registry) isWorkspacePath(path string) bool {
 		return false
 	}
 	return true
+}
+
+// workspaceRelative collapses an absolute path that points inside the
+// agent's workspace dir (r.userRoot) into a workspace-relative path, so
+// it flows through the session-scoped workspace store and lands under
+// sessions/<sid>/ (visible in the chat file panel) instead of the
+// workspace root on host disk. Non-absolute paths and paths outside the
+// workspace are returned unchanged.
+func (r *Registry) workspaceRelative(p string) string {
+	if !filepath.IsAbs(p) || r.userRoot == "" {
+		return p
+	}
+	abs := filepath.Clean(p)
+	root := filepath.Clean(r.userRoot)
+	if abs == root || strings.HasPrefix(abs, root+string(filepath.Separator)) {
+		if rel, err := filepath.Rel(root, abs); err == nil {
+			return filepath.ToSlash(rel)
+		}
+	}
+	return p
 }
 
 // hostHomePath returns the resolved absolute filesystem path when the
@@ -585,6 +641,11 @@ func makeWriteFile(r *Registry) ToolFunc {
 			return IdentityFileRefusal, nil
 		}
 
+		// Absolute paths inside the workspace collapse to relative so the
+		// write session-scopes (sessions/<sid>/) and shows in the chat file
+		// panel, instead of landing at the workspace root on host disk.
+		args.Path = r.workspaceRelative(args.Path)
+
 		// When a workspace store is configured, route userRoot-destined
 		// writes through it. Identity files (systemRoot) still hit the
 		// filesystem because the memory store already covers their
@@ -672,6 +733,9 @@ func makeEditFile(r *Registry) ToolFunc {
 		if r.identityFileBlocked(args.Path) {
 			return IdentityFileRefusal, nil
 		}
+
+		// Absolute workspace paths collapse to relative (session-scope).
+		args.Path = r.workspaceRelative(args.Path)
 
 		// Mirror makeWriteFile's routing precedence: workspace store first
 		// (user artifacts), then identity-file store (SOUL.md / IDENTITY.md /
