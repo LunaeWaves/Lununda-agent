@@ -384,6 +384,10 @@ Lununda Agent evolves the FastClaw foundation in several directions. Highlights:
 - **Automatic config migration** — one-shot `~/.fastclaw` → `~/.lununda` rename on first boot, including `fastclaw.db` → `lununda.db`. Existing users keep all their data without manual intervention.
 - **RealFaviconGenerator asset set** — full favicon stack (16–512px PNG, multi-size ICO, apple-touch-icon, Android Chrome icons, PWA manifest, og:image) with theme-appropriate icon coverage.
 - **Skill self-upgrade + auto-archive** — curator subsystem: conversation-driven merging of similar skills (LLM synthesis, human confirmation) + scheduled cleanup of unused skills (no LLM, recoverable, `Pinned` safeguard).
+- **Background review** — every N turns a forked sub-agent reviews the conversation and auto-updates `USER.md` / `MEMORY.md` / skill `SKILL.md` (on by default, replaces the old AutoPersist). See [Background Review](#background-review) below.
+- **Agent privatization** — public agent access removed; memory and files collapse to (agent × owner); IM only accepts the claimed owner; API entry points lock to the owner identity.
+- **Session sharing** — owners mint read-only share links (`/share/{token}`), one active link per session, live-rendered with HTML escaping for XSS safety.
+- **Auto session titles** — a configurable model generates session titles automatically, with live sidebar sync and a swap animation.
 
 ## Skill Self-Upgrade & Auto-Archival
 
@@ -440,6 +444,30 @@ flowchart TD
 ```
 
 Configure in the dashboard under **Agent → Skills → Skill self-upgrade** (`Enabled`, `Interval`, `StaleCheckInterval`, `StaleAfter`, `Model`, `Notify`, `Pinned`). Full runtime logic and code locations in [docs/skill-evolution-and-archival-logic.md](docs/skill-evolution-and-archival-logic.md).
+
+## Background Review (Memory & Skill Auto-Evolution)
+
+Background review replaces the two weak hooks `AutoPersistMemory` + `SkillsLearner` with a single forked sub-agent, so `USER.md` / `MEMORY.md` / skill `SKILL.md` actually evolve. **On by default** (the old hooks defaulted off — the root cause of "memory never updates"). Config: `ReviewCfg` — `Enabled` / `EveryNTurns` (default 10) / `Model` / `MaxIterations` (default 8).
+
+Two hard safety guards:
+
+- **Tool layer** — the forked registry registers only `read_file` / `write_file` / `edit_file` / `memory_search`; it physically cannot `exec`, go online, or recurse via delegation.
+- **File layer** — the `ActorReview` policy is narrowed: identity files like `SOUL` / `IDENTITY` are blocked; only `USER` / `MEMORY` + skills are writable.
+
+```mermaid
+flowchart TD
+    A["each turn ends, runPostTurn"] --> B{"Enabled and<br/>chatterTurns % EveryNTurns == 0?"}
+    B -- no --> END(["skip"])
+    B -- yes --> R["async fork isolated registry"]
+    R --> F["pin chatter + whitelist tools<br/>callerIsAdmin=false"]
+    F --> P["build review prompt<br/>memory + skills + negative list"]
+    P --> L["runSubagentLoop review"]
+    L --> W{"writes USER/MEMORY/SKILL?"}
+    W -- yes --> UP["update files + push feedback<br/>💾 review updated USER.md"]
+    W -- no --> END
+```
+
+**Negative list** (not persisted as memory): environment failures (missing binary, unconfigured credentials), tool nay-saying (hardens into long-term refusals), transient errors (retry fixed it), one-off task narratives.
 
 ## Configuration
 

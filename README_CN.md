@@ -349,6 +349,10 @@ Lununda Agent 在 FastClaw 基础上多方向演进，亮点包括：
 - **自动配置迁移** — 首次启动自动将 `~/.fastclaw` 迁移至 `~/.lununda`，包括数据库文件名转换（`fastclaw.db` → `lununda.db`）。现有用户无需任何手动操作。
 - **完整 Favicon 资产集** — 全尺寸 favicon（16–512px PNG、多尺寸 ICO、apple-touch-icon、Android Chrome 图标、PWA manifest、og:image），覆盖各大平台和社交分享。
 - **技能自升级 + 自动归档** — curator 子系统：对话驱动的相似技能合并（LLM 综合，需人确认）+ 定时清理久未用技能（无 LLM，可恢复，`Pinned` 兜底）。
+- **后台审查** — 每 N 轮对话 fork 独立子智能体审查对话，自动更新 `USER.md` / `MEMORY.md` / 技能 `SKILL.md`（默认开启，替换旧的 AutoPersist）。详见下文 [后台审查](#后台审查)。
+- **智能体私有化** — 关闭智能体公开访问，记忆与文件收敛到 (agent × owner)，IM 仅认领的 owner 可交互，API 入口锁 owner 身份。
+- **会话分享** — owner 可生成只读分享链接（`/share/{token}`），单会话单活跃，实时渲染并 HTML 转义防 XSS。
+- **会话自动标题** — 用可配置模型为会话自动生成标题，侧栏实时同步 + 切换动画。
 
 ## 技能自升级与自动归档
 
@@ -405,6 +409,30 @@ flowchart TD
 ```
 
 配置项在仪表盘「智能体 → 技能 → 技能自升级设置」面板（`Enabled`、`Interval`、`StaleCheckInterval`、`StaleAfter`、`Model`、`Notify`、`Pinned`）。完整运行逻辑与代码位置见 [docs/skill-evolution-and-archival-logic.md](docs/skill-evolution-and-archival-logic.md)。
+
+## 后台审查（记忆与技能自动演进）
+
+后台审查用一个 fork 出来的子智能体替换了旧的 `AutoPersistMemory` + `SkillsLearner` 两个弱机制，让 `USER.md` / `MEMORY.md` / 技能 `SKILL.md` 真正自动演进。**默认开启**（旧机制默认关，正是「记忆不更新」的根因）。配置 `ReviewCfg`：`Enabled` / `EveryNTurns`（默认 10）/ `Model` / `MaxIterations`（默认 8）。
+
+双重硬约束保证安全：
+
+- **工具层** — fork registry 只注册 `read_file` / `write_file` / `edit_file` / `memory_search`，物理上不能 `exec`、联网或递归委托。
+- **文件层** — 策略表 `ActorReview` 收窄：`SOUL` / `IDENTITY` 等身份文件 ❌，只 `USER` / `MEMORY` + 技能 ✅。
+
+```mermaid
+flowchart TD
+    A["每轮对话结束 runPostTurn"] --> B{"Enabled 且<br/>chatterTurns % EveryNTurns == 0？"}
+    B -- 否 --> END(["跳过"])
+    B -- 是 --> R["异步 fork 独立 registry"]
+    R --> F["绑死 chatter + 白名单工具<br/>callerIsAdmin=false"]
+    F --> P["组装审查 prompt<br/>memory + skills + 负向清单"]
+    P --> L["runSubagentLoop 跑审查"]
+    L --> W{"写入 USER/MEMORY/SKILL？"}
+    W -- 是 --> UP["更新文件 + 推反馈<br/>💾 审查更新了 USER.md"]
+    W -- 否 --> END
+```
+
+**负向清单**（不固化垃圾记忆）：环境相关失败（缺二进制、凭证未配）、工具负面断言（会硬化成长期拒绝）、瞬时错误（重试就好）、一次性任务叙事。
 
 ## 配置
 
