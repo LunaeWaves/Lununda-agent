@@ -220,6 +220,14 @@
   --ring: var(--accent);
 }
 
+/* ponytail: agent 技能自升级设置面板按"弹窗式 UI"处理,强调色品牌紫。
+   机制同弹窗:容器内重映射 --primary/--ring 到 --accent。 */
+.evo-panel {
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --ring: var(--accent);
+}
+
 /* Theme transition */
 html.theme-transition,
 html.theme-transition *,

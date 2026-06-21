@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Sparkles,
   Trash2,
@@ -412,150 +413,160 @@ export default function AgentSkillsPage() {
         </div>
       </div>
 
-      {/* 技能迭代升级控件 */}
-      <div className="rounded-lg border p-4 flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
+      {/* 技能自升级设置(弹窗式面板,强调色品牌紫) */}
+      <div className="evo-panel rounded-lg border p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">{t("skills.evolution.autoUpgrade")}</span>
+          <Switch
             checked={evoCfg.enabled}
-            onChange={(e) => saveEvoCfg({ ...evoCfg, enabled: e.target.checked })}
+            onCheckedChange={(v) => saveEvoCfg({ ...evoCfg, enabled: v })}
             disabled={evoSaving}
           />
-          {t("skills.evolution.autoUpgrade")}
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          {t("skills.evolution.staleCheckInterval")}
-          <Input
-            type="number"
-            min={1}
-            className="w-20 h-8"
-            value={evoCfg.staleCheckInterval ? Math.round(evoCfg.staleCheckInterval / 86400000000000) : 30}
-            onChange={(e) => {
-              const days = Math.max(1, Number(e.target.value) || 30);
-              saveEvoCfg({ ...evoCfg, staleCheckInterval: days * 86400000000000 });
-            }}
-            disabled={evoSaving}
-          />
-          <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          {t("skills.evolution.interval")}
-          <Input
-            type="number"
-            min={1}
-            className="w-20 h-8"
-            value={evoCfg.interval ? Math.round(evoCfg.interval / 86400000000000) : 7}
-            onChange={(e) => {
-              const days = Math.max(1, Number(e.target.value) || 7);
-              saveEvoCfg({ ...evoCfg, interval: days * 86400000000000 });
-            }}
-            disabled={evoSaving}
-          />
-          <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          {t("skills.evolution.staleAfter")}
-          <Input
-            type="number"
-            min={1}
-            className="w-20 h-8"
-            value={evoCfg.staleAfter ? Math.round(evoCfg.staleAfter / 86400000000000) : 90}
-            onChange={(e) => {
-              const days = Math.max(1, Number(e.target.value) || 90);
-              saveEvoCfg({ ...evoCfg, staleAfter: days * 86400000000000 });
-            }}
-            disabled={evoSaving}
-          />
-          <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
-        </label>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-xs text-muted-foreground">{t("skills.evolution.model")}</span>
-          {curatorModelOptions.length > 0 ? (
-            <Select
-              value={evoCfg.model || "__inherit__"}
-              onValueChange={(v) =>
-                saveEvoCfg({
-                  ...evoCfg,
-                  model: !v || v === "__inherit__" ? "" : v,
-                })
-              }
-              disabled={evoSaving}
-            >
-              <SelectTrigger className="w-56 h-8 text-sm">
-                <SelectValue placeholder={t("skills.evolution.modelPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__inherit__">
-                  {t("skills.evolution.modelPlaceholder")}
-                </SelectItem>
-                {curatorModelOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span className="font-mono text-xs">{opt.label}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              type="text"
-              className="w-40 h-8"
-              placeholder={t("skills.evolution.modelPlaceholder")}
-              value={evoCfg.model || ""}
-              onChange={(e) => saveEvoCfg({ ...evoCfg, model: e.target.value })}
-              disabled={evoSaving}
+        </div>
+
+        <div
+          className={`grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2${!evoCfg.enabled ? " pointer-events-none opacity-50" : ""}`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm text-muted-foreground">{t("skills.evolution.staleCheckInterval")}</label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={1}
+                className="w-20 h-8"
+                value={evoCfg.staleCheckInterval ? Math.round(evoCfg.staleCheckInterval / 86400000000000) : 30}
+                onChange={(e) => {
+                  const days = Math.max(1, Number(e.target.value) || 30);
+                  saveEvoCfg({ ...evoCfg, staleCheckInterval: days * 86400000000000 });
+                }}
+                disabled={evoSaving || !evoCfg.enabled}
+              />
+              <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm text-muted-foreground">{t("skills.evolution.interval")}</label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={1}
+                className="w-20 h-8"
+                value={evoCfg.interval ? Math.round(evoCfg.interval / 86400000000000) : 7}
+                onChange={(e) => {
+                  const days = Math.max(1, Number(e.target.value) || 7);
+                  saveEvoCfg({ ...evoCfg, interval: days * 86400000000000 });
+                }}
+                disabled={evoSaving || !evoCfg.enabled}
+              />
+              <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm text-muted-foreground">{t("skills.evolution.staleAfter")}</label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={1}
+                className="w-20 h-8"
+                value={evoCfg.staleAfter ? Math.round(evoCfg.staleAfter / 86400000000000) : 90}
+                onChange={(e) => {
+                  const days = Math.max(1, Number(e.target.value) || 90);
+                  saveEvoCfg({ ...evoCfg, staleAfter: days * 86400000000000 });
+                }}
+                disabled={evoSaving || !evoCfg.enabled}
+              />
+              <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 sm:col-span-2">
+            <label className="text-sm text-muted-foreground">{t("skills.evolution.model")}</label>
+            {curatorModelOptions.length > 0 ? (
+              <Select
+                value={evoCfg.model || "__inherit__"}
+                onValueChange={(v) => saveEvoCfg({ ...evoCfg, model: !v || v === "__inherit__" ? "" : v })}
+                disabled={evoSaving || !evoCfg.enabled}
+              >
+                <SelectTrigger className="w-56 h-8 text-sm">
+                  <SelectValue placeholder={t("skills.evolution.modelPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__inherit__">{t("skills.evolution.modelPlaceholder")}</SelectItem>
+                  {curatorModelOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span className="font-mono text-xs">{opt.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                type="text"
+                className="w-56 h-8"
+                placeholder={t("skills.evolution.modelPlaceholder")}
+                value={evoCfg.model || ""}
+                onChange={(e) => saveEvoCfg({ ...evoCfg, model: e.target.value })}
+                disabled={evoSaving || !evoCfg.enabled}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="border-t" />
+
+        <div className={`space-y-3${!evoCfg.enabled ? " pointer-events-none opacity-50" : ""}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{t("skills.evolution.notify")}</span>
+            <Switch
+              checked={!!evoCfg.notify?.enabled}
+              onCheckedChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: v } })}
+              disabled={evoSaving || !evoCfg.enabled}
             />
-          )}
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          {t("skills.evolution.notify")}
-          <input
-            type="checkbox"
-            checked={!!evoCfg.notify?.enabled}
-            onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: e.target.checked } })}
-            disabled={evoSaving}
-          />
-        </label>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-xs text-muted-foreground">{t("skills.evolution.notifyChannel")}</span>
-          <Select
-            value={evoCfg.notify?.channel || ""}
-            onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "" } })}
-            disabled={evoSaving}
-          >
-            <SelectTrigger className="w-32 h-8">
-              <SelectValue placeholder={t("skills.evolution.notifyChannel")} />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from(new Set(agentChannels.map((c) => c.type))).map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-              {evoCfg.notify?.channel && !agentChannels.some((c) => c.type === evoCfg.notify?.channel) && (
-                <SelectItem value={evoCfg.notify.channel}>{evoCfg.notify.channel}</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-        {evoCfg.notify?.chatID && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-xs text-muted-foreground">{t("skills.evolution.notifyChatID")}</span>
-            <Badge variant="outline" className="font-mono text-[10px] max-w-[200px] truncate" title={evoCfg.notify.chatID}>
-              {evoCfg.notify.chatID}
-            </Badge>
           </div>
-        )}
-        {evoCfg.notify?.accountID && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-xs text-muted-foreground">{t("skills.evolution.notifyAccountID")}</span>
-            <Badge variant="outline" className="font-mono text-[10px] max-w-[180px] truncate" title={evoCfg.notify.accountID}>
-              {evoCfg.notify.accountID}
-            </Badge>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm text-muted-foreground">{t("skills.evolution.notifyChannel")}</label>
+              <Select
+                value={evoCfg.notify?.channel || ""}
+                onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "" } })}
+                disabled={evoSaving || !evoCfg.enabled}
+              >
+                <SelectTrigger className="w-32 h-8">
+                  <SelectValue placeholder={t("skills.evolution.notifyChannel")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from(new Set(agentChannels.map((c) => c.type))).map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                  {evoCfg.notify?.channel && !agentChannels.some((c) => c.type === evoCfg.notify?.channel) && (
+                    <SelectItem value={evoCfg.notify.channel}>{evoCfg.notify.channel}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            {evoCfg.notify?.chatID && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm text-muted-foreground">{t("skills.evolution.notifyChatID")}</span>
+                <Badge variant="outline" className="font-mono text-[10px] max-w-[200px] truncate" title={evoCfg.notify.chatID}>
+                  {evoCfg.notify.chatID}
+                </Badge>
+              </div>
+            )}
+            {evoCfg.notify?.accountID && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm text-muted-foreground">{t("skills.evolution.notifyAccountID")}</span>
+                <Badge variant="outline" className="font-mono text-[10px] max-w-[180px] truncate" title={evoCfg.notify.accountID}>
+                  {evoCfg.notify.accountID}
+                </Badge>
+              </div>
+            )}
           </div>
-        )}
-        {evoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+        </div>
+
+        {evoSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         {evoError && (
-          <p className="w-full rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive break-words">
+          <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive break-words">
             {evoError}
           </p>
         )}
