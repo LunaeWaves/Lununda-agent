@@ -254,6 +254,11 @@ type Store interface {
 	// Duplicate (user,agent,session,seq,skill) is ignored via
 	// ON CONFLICT DO NOTHING.
 	RecordSkillUsage(ctx context.Context, userID, agentID, sessionKey, skillName, ts string) error
+	// CandidateSkillPairs returns skill pairs that co-occur in the same
+	// session within maxDistance seq steps, recurring across at least
+	// minSessions distinct sessions (each session counted once), ranked
+	// by synthesis likelihood.
+	CandidateSkillPairs(ctx context.Context, agentID string, maxDistance, minSessions int) ([]CandidatePair, error)
 
 	// --- IM owner-identity claim (verification code) ---
 	//

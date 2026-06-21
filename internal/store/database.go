@@ -3352,6 +3352,45 @@ func (d *DBStore) RecordSkillUsage(ctx context.Context, userID, agentID, session
 	return nil
 }
 
+// CandidateSkillPairs returns skill pairs that co-occur in the same session
+// within maxDistance seq steps, recurring across at least minSessions distinct
+// sessions (each session counted once via COUNT(DISTINCT user||session)).
+// Self-join with skill_id < skill_id avoids mirror pairs and self-pairs.
+// `||` and ABS/AVG/COUNT(DISTINCT) are portable across SQLite and Postgres.
+func (d *DBStore) CandidateSkillPairs(ctx context.Context, agentID string, maxDistance, minSessions int) ([]CandidatePair, error) {
+	q := fmt.Sprintf(`
+		SELECT a.skill_id, b.skill_id,
+		       COUNT(DISTINCT a.user_id || '|' || a.session_key) AS sessions,
+		       AVG(ABS(a.seq - b.seq)) AS avg_dist
+		FROM skill_usage a
+		JOIN skill_usage b
+		  ON a.agent_id = b.agent_id
+		 AND a.user_id = b.user_id
+		 AND a.session_key = b.session_key
+		 AND a.skill_id < b.skill_id
+		 AND ABS(a.seq - b.seq) BETWEEN 1 AND %d
+		WHERE a.agent_id = %s
+		GROUP BY a.skill_id, b.skill_id
+		HAVING COUNT(DISTINCT a.user_id || '|' || a.session_key) >= %d
+		ORDER BY sessions DESC, avg_dist ASC`,
+		maxDistance, d.ph(1), minSessions)
+	rows, err := d.db.QueryContext(ctx, q, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("candidate skill pairs: %w", err)
+	}
+	defer rows.Close()
+	var out []CandidatePair
+	for rows.Next() {
+		var p CandidatePair
+		if err := rows.Scan(&p.SkillA, &p.SkillB, &p.Sessions, &p.AvgDist); err != nil {
+			return nil, err
+		}
+		p.Score = float64(p.Sessions) / (1 + p.AvgDist)
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 func (d *DBStore) GetDueCronJobs(ctx context.Context, now time.Time) ([]CronJobRecord, error) {
 	var rows *sql.Rows
 	var err error
