@@ -703,44 +703,6 @@ func NewReviewRegistry(parent *Registry, chatterUID, ownerUserID, agentID string
 	return r
 }
 
-// NewCuratorRegistry forks a read-only registry for curator 段 3 synthesis:
-// LLM can read_file/list_dir/memory_search to inspect candidate skills, then
-// emits a synthesized SKILL.md as proposal text (no physical write). All
-// write/exec/web tools are absent so the LLM physically cannot mutate state.
-// Apply (write new skill + archive) is left to the deterministic executor.
-func NewCuratorRegistry(parent *Registry, agentID string) *Registry {
-	r := &Registry{
-		tools:           make(map[string]registeredTool),
-		systemRoot:      parent.systemRoot,
-		userRoot:        parent.userRoot,
-		agentID:         agentID,
-		userID:          parent.userID,
-		workspaceStore:  parent.workspaceStore,
-		systemFileStore: parent.systemFileStore,
-		summaryDB:       parent.summaryDB,
-		vecDB:           parent.vecDB,
-		userSkillsRoot:  parent.userSkillsRoot,
-		shellMgr:        newShellManager(),
-		turnFails:       map[turnFailKey]string{},
-	}
-	r.Register("read_file", "Read the contents of a file", map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"path": map[string]interface{}{"type": "string"},
-		},
-		"required": []string{"path"},
-	}, makeReadFile(r))
-	r.Register("list_dir", "List files and directories in a path", map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"path": map[string]interface{}{"type": "string"},
-		},
-		"required": []string{"path"},
-	}, makeListDir(r))
-	RegisterMemorySearch(r, parent.systemRoot)
-	return r
-}
-
 // Close releases per-Registry resources. Currently terminates every
 // running background shell (started via exec with run_in_background)
 // so they don't outlive their owning agent. Safe to call multiple
