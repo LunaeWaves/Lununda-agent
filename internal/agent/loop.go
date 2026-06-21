@@ -2800,6 +2800,8 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 	}
 	// 阶段2: background review —— fork 审查 subagent 写 USER/MEMORY/skills。
 	a.maybeBackgroundReview(ctx, messages, chatterUID, chatterTurns)
+	// 阶段3: skill evolution —— 间隔门控命中则异步跑 curator（合成类级技能提案）。
+	a.maybeSkillEvolution(ctx, a.agentID)
 
 	// Auto-title: ask the LLM to summarise the conversation into a
 	// short title and write it to sessions.title. The window is
