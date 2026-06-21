@@ -234,6 +234,7 @@ tool:       "written"
 - **智能体私有或全局共享** — 私有技能位于 `agents/<id>/agent/skills/`
 - **渐进式披露** — 技能正文按需加载，保持系统提示精简
 - **对话式安装** — `install_skill` 工具允许智能体在对话中安装技能；新技能热加载到运行中的智能体
+- **自升级 + 自动归档** — curator 自动合并相似技能（需确认）并定期归档久未使用的技能（可恢复）。详见下文 [技能自升级与自动归档](#技能自升级与自动归档)。
 
 ### 记忆
 
@@ -347,6 +348,63 @@ Lununda Agent 在 FastClaw 基础上多方向演进，亮点包括：
 - **项目运行时** — 编码智能体预览，配以项目作用域工作区与仪表盘优化。
 - **自动配置迁移** — 首次启动自动将 `~/.fastclaw` 迁移至 `~/.lununda`，包括数据库文件名转换（`fastclaw.db` → `lununda.db`）。现有用户无需任何手动操作。
 - **完整 Favicon 资产集** — 全尺寸 favicon（16–512px PNG、多尺寸 ICO、apple-touch-icon、Android Chrome 图标、PWA manifest、og:image），覆盖各大平台和社交分享。
+- **技能自升级 + 自动归档** — curator 子系统：对话驱动的相似技能合并（LLM 综合，需人确认）+ 定时清理久未用技能（无 LLM，可恢复，`Pinned` 兜底）。
+
+## 技能自升级与自动归档
+
+curator 子系统负责技能的自动维护，两个职责共用 `SkillEvolutionCfg` 开关，但触发方式、是否用 LLM、风险等级都不同：
+
+| | 技能自升级（合并相似） | 自动归档（清理久未用） |
+|---|---|---|
+| **触发** | 对话驱动（每轮对话后检查） | 定时 ticker（每小时，闲置智能体也跑） |
+| **间隔** | `Interval` 默认 7 天 | `StaleCheckInterval` 默认 30 天 |
+| **用 LLM** | 是（相关性裁决 + 簇综合） | 否（纯 DB 查询 + 文件移动） |
+| **确认** | 需用户 accept / reject | 自动（`Pinned` 列表除外） |
+| **可逆** | 不可逆（销毁旧 + 建新） | 可恢复（移到 `.archive/`） |
+
+### 自升级链路（对话驱动）
+
+```mermaid
+flowchart TD
+    A["对话中调用 load_skill"] --> B["记录 skill_usage"]
+    B --> C["每轮对话结束<br/>maybeSkillEvolution"]
+    C --> D{"Enabled?"}
+    D -- 否 --> END(["结束"])
+    D -- 是 --> E{"距上次 ≥ Interval？<br/>首次延后一周期"}
+    E -- 否 --> END
+    E -- 是 --> R["异步执行"]
+    R --> P1["候选技能对检测<br/>跨 session 共用 ≥3 次"]
+    P1 --> P2["LLM 裁决相关性"]
+    P2 --> P3["并查集聚类"]
+    P3 --> P4["LLM 综合新 SKILL.md"]
+    P4 --> P5["写提案（pending）"]
+    P5 --> N{"开启通知？"}
+    N -- 是 --> NM["发送提案通知"]
+    P5 --> U["dashboard 用户确认"]
+    U --> UA{"accept？"}
+    UA -- 是 --> AP["ApplyProposal<br/>归档旧 + 写新技能"]
+    UA -- 否 --> RJ["reject"]
+```
+
+### 自动归档链路（定时）
+
+```mermaid
+flowchart TD
+    T["gateway central ticker<br/>每小时"] --> C["遍历所有智能体（含闲置）"]
+    C --> D{"Enabled 且<br/>StaleCheckInterval > 0？"}
+    D -- 否 --> SKIP(["跳过"])
+    D -- 是 --> E{"距上次 ≥ StaleCheckInterval？"}
+    E -- 否 --> SKIP
+    E -- 是 --> R["异步 runStaleArchive"]
+    R --> S["StaleAgentSkills<br/>DB 查询最后使用时间"]
+    S --> CH{"技能 > StaleAfter 未用<br/>且非 Pinned？"}
+    CH -- 是 --> AR["ArchiveSkill<br/>移到 .archive（可恢复）"]
+    CH -- 否 --> SKIP
+    AR --> N2{"归档 > 0 且通知？"}
+    N2 -- 是 --> NM2["发送归档通知"]
+```
+
+配置项在仪表盘「智能体 → 技能 → 技能自升级设置」面板（`Enabled`、`Interval`、`StaleCheckInterval`、`StaleAfter`、`Model`、`Notify`、`Pinned`）。完整运行逻辑与代码位置见 [docs/skill-evolution-and-archival-logic.md](docs/skill-evolution-and-archival-logic.md)。
 
 ## 配置
 

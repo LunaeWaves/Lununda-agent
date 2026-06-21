@@ -252,6 +252,7 @@ guardrail, not a security boundary.
 - **Agent-private or globally shared** — agent-private skills live under `agents/<id>/agent/skills/`
 - **Progressive disclosure** — skill bodies load on demand so the system prompt stays lean
 - **Conversational install** — the `install_skill` tool lets an agent install a skill mid-conversation; the new skill is hot-reloaded into the running agent
+- **Self-upgrade + auto-archive** — a curator merges similar skills (confirmation required) and periodically archives unused ones (recoverable). See [Skill Self-Upgrade & Auto-Archival](#skill-self-upgrade--auto-archival) below.
 
 ### Memory
 
@@ -382,6 +383,63 @@ Lununda Agent evolves the FastClaw foundation in several directions. Highlights:
 - **Project runtime** — coding-agent preview with a project-scoped workspace and dashboard refinements.
 - **Automatic config migration** — one-shot `~/.fastclaw` → `~/.lununda` rename on first boot, including `fastclaw.db` → `lununda.db`. Existing users keep all their data without manual intervention.
 - **RealFaviconGenerator asset set** — full favicon stack (16–512px PNG, multi-size ICO, apple-touch-icon, Android Chrome icons, PWA manifest, og:image) with theme-appropriate icon coverage.
+- **Skill self-upgrade + auto-archive** — curator subsystem: conversation-driven merging of similar skills (LLM synthesis, human confirmation) + scheduled cleanup of unused skills (no LLM, recoverable, `Pinned` safeguard).
+
+## Skill Self-Upgrade & Auto-Archival
+
+The curator subsystem maintains skills automatically. Both duties share the `SkillEvolutionCfg` toggle but differ in trigger, LLM use, and risk:
+
+| | Self-upgrade (merge similar) | Auto-archive (clean unused) |
+|---|---|---|
+| **Trigger** | Conversation-driven (after each turn) | Scheduled ticker (hourly, idle agents too) |
+| **Interval** | `Interval` default 7 days | `StaleCheckInterval` default 30 days |
+| **LLM** | Yes (relevance verdict + cluster synthesis) | No (DB query + file move) |
+| **Confirm** | User accept / reject | Automatic (except `Pinned`) |
+| **Reversible** | No (destroys old, creates new) | Yes (moves to `.archive/`) |
+
+### Self-upgrade flow (conversation-driven)
+
+```mermaid
+flowchart TD
+    A["load_skill called in chat"] --> B["record skill_usage"]
+    B --> C["after each turn<br/>maybeSkillEvolution"]
+    C --> D{"Enabled?"}
+    D -- no --> END(["done"])
+    D -- yes --> E{"≥ Interval since last?<br/>first run delays one cycle"}
+    E -- no --> END
+    E -- yes --> R["async run"]
+    R --> P1["detect candidate pairs<br/>shared across sessions ≥3"]
+    P1 --> P2["LLM relevance verdict"]
+    P2 --> P3["union-find clustering"]
+    P3 --> P4["LLM synthesizes new SKILL.md"]
+    P4 --> P5["write proposal (pending)"]
+    P5 --> N{"notify on?"}
+    N -- yes --> NM["send proposal notice"]
+    P5 --> U["user confirms in dashboard"]
+    U --> UA{"accept?"}
+    UA -- yes --> AP["ApplyProposal<br/>archive old + write new"]
+    UA -- no --> RJ["reject"]
+```
+
+### Auto-archive flow (scheduled)
+
+```mermaid
+flowchart TD
+    T["gateway central ticker<br/>hourly"] --> C["iterate all agents (incl. idle)"]
+    C --> D{"Enabled and<br/>StaleCheckInterval > 0?"}
+    D -- no --> SKIP(["skip"])
+    D -- yes --> E{"≥ StaleCheckInterval since last?"}
+    E -- no --> SKIP
+    E -- yes --> R["async runStaleArchive"]
+    R --> S["StaleAgentSkills<br/>DB query last-used time"]
+    S --> CH{"skill unused > StaleAfter<br/>and not Pinned?"}
+    CH -- yes --> AR["ArchiveSkill<br/>move to .archive (recoverable)"]
+    CH -- no --> SKIP
+    AR --> N2{"archived > 0 and notify?"}
+    N2 -- yes --> NM2["send archive notice"]
+```
+
+Configure in the dashboard under **Agent → Skills → Skill self-upgrade** (`Enabled`, `Interval`, `StaleCheckInterval`, `StaleAfter`, `Model`, `Notify`, `Pinned`). Full runtime logic and code locations in [docs/skill-evolution-and-archival-logic.md](docs/skill-evolution-and-archival-logic.md).
 
 ## Configuration
 
