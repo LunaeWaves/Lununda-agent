@@ -250,6 +250,12 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 		ag.ReloadWorkspaceFiles()
 	}
 	if m.opts.dataStore != nil {
+		// Wire load_skill usage recorder: every successful load logs to
+		// skill_usage (seq derived from session_messages inside the store).
+		// Curator reads this to detect frequently-co-used skill pairs.
+		ag.registry.SetSkillUsageRecorder(func(ctx context.Context, userID, agentID, sessionKey, skillName, ts string) error {
+			return m.opts.dataStore.RecordSkillUsage(ctx, userID, agentID, sessionKey, skillName, ts)
+		})
 		// KB auto-query hook: intercepts BeforeModelCall to inject KB
 		// context or skip the LLM call entirely.
 		if rc.KB != nil && rc.KB.Enabled {
