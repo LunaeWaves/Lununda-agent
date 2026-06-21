@@ -292,6 +292,9 @@ type Store interface {
 	// CreateProposal persists a synthesis proposal and returns its new ID
 	// (auto-generated when p.ID is empty). Status defaults to "pending".
 	CreateProposal(ctx context.Context, p *SkillProposal) (id string, err error)
+	// GetProposal returns one proposal by ID, including sources JSON.
+	// Returns sql.ErrNoRows (wrapped) when not found.
+	GetProposal(ctx context.Context, id string) (*SkillProposal, error)
 	// ListPendingProposals returns proposals with status="pending" for
 	// the dashboard queue, oldest first.
 	ListPendingProposals(ctx context.Context, agentID string) ([]SkillProposal, error)

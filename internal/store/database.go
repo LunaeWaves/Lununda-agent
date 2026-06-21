@@ -3577,6 +3577,22 @@ func (d *DBStore) ListPendingProposals(ctx context.Context, agentID string) ([]S
 	return out, rows.Err()
 }
 
+// GetProposal returns one proposal by ID, decoding the JSON sources array.
+// Returns sql.ErrNoRows (wrapped) when not found.
+func (d *DBStore) GetProposal(ctx context.Context, id string) (*SkillProposal, error) {
+	var p SkillProposal
+	var srcs string
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT id, agent_id, sources, target_name, target_content, evidence, recommendation, status, created_at, decided_at
+		 FROM skill_proposals WHERE id = %s`, d.ph(1)), id).
+		Scan(&p.ID, &p.AgentID, &srcs, &p.TargetName, &p.TargetContent, &p.Evidence, &p.Recommendation, &p.Status, &p.CreatedAt, &p.DecidedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get proposal: %w", err)
+	}
+	_ = json.Unmarshal([]byte(srcs), &p.Sources)
+	return &p, nil
+}
+
 // SetProposalStatus transitions a proposal between pending/accepted/rejected/
 // applied and stamps decided_at.
 func (d *DBStore) SetProposalStatus(ctx context.Context, id, status, decidedAt string) error {

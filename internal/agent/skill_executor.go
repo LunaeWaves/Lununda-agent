@@ -1,0 +1,110 @@
+package agent
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"time"
+
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
+)
+
+// ApplyProposal executes an accepted proposal: writes the new target skill,
+// archives sources the user did not keep, then marks the proposal "applied".
+// keepSources = source skill ids the user wants to retain unchanged.
+// Already-absent sources are skipped (idempotent re-applies).
+func ApplyProposal(ctx context.Context, st store.Store, proposalID string, keepSources []string, skillDir string) error {
+	p, err := st.GetProposal(ctx, proposalID)
+	if err != nil {
+		return fmt.Errorf("get proposal: %w", err)
+	}
+	if p.Status != "pending" && p.Status != "accepted" {
+		return fmt.Errorf("proposal not applicable (status=%s)", p.Status)
+	}
+	keep := map[string]bool{}
+	for _, s := range keepSources {
+		keep[s] = true
+	}
+
+	targetDir := filepath.Join(skillDir, p.TargetName)
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return fmt.Errorf("mkdir target: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "SKILL.md"), []byte(p.TargetContent), 0o644); err != nil {
+		return fmt.Errorf("write target SKILL.md: %w", err)
+	}
+
+	ts := time.Now().UTC().Format("20060102-150405")
+	archiveRoot := filepath.Join(skillDir, ".archive", ts)
+	for _, src := range p.Sources {
+		if keep[src] {
+			continue
+		}
+		srcDir := filepath.Join(skillDir, src)
+		if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+			continue
+		}
+		if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
+			return fmt.Errorf("mkdir archive: %w", err)
+		}
+		if err := os.Rename(srcDir, filepath.Join(archiveRoot, src)); err != nil {
+			return fmt.Errorf("archive %s: %w", src, err)
+		}
+	}
+
+	return st.SetProposalStatus(ctx, proposalID, "applied", time.Now().UTC().Format(time.RFC3339))
+}
+
+// ArchivedSkill is one entry under <skillDir>/.archive/<ts>/<name>/.
+type ArchivedSkill struct {
+	Name       string `json:"name"`
+	ArchivedAt string `json:"archivedAt"` // timestamp dir name (YYYYMMDD-HHMMSS)
+	Path       string `json:"path"`
+}
+
+// ListArchived scans <skillDir>/.archive/*/ and returns every archived skill,
+// newest first. Returns nil (no error) if the archive dir doesn't exist yet.
+func ListArchived(skillDir string) ([]ArchivedSkill, error) {
+	archiveBase := filepath.Join(skillDir, ".archive")
+	entries, err := os.ReadDir(archiveBase)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var tsDirs []os.DirEntry
+	for _, e := range entries {
+		if e.IsDir() {
+			tsDirs = append(tsDirs, e)
+		}
+	}
+	sort.Slice(tsDirs, func(i, j int) bool { return tsDirs[i].Name() > tsDirs[j].Name() })
+
+	var out []ArchivedSkill
+	for _, tsDir := range tsDirs {
+		skills, err := os.ReadDir(filepath.Join(archiveBase, tsDir.Name()))
+		if err != nil {
+			continue
+		}
+		for _, s := range skills {
+			if !s.IsDir() {
+				continue
+			}
+			out = append(out, ArchivedSkill{
+				Name:       s.Name(),
+				ArchivedAt: tsDir.Name(),
+				Path:       filepath.Join(archiveBase, tsDir.Name(), s.Name()),
+			})
+		}
+	}
+	return out, nil
+}
+
+// DeleteArchivedSkill permanently removes one archived skill dir. Curator
+// never calls this — only the user via the dashboard "delete forever" button.
+func DeleteArchivedSkill(skillDir, archivedAt, name string) error {
+	return os.RemoveAll(filepath.Join(skillDir, ".archive", archivedAt, name))
+}
