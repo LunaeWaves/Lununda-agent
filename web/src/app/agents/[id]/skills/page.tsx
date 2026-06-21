@@ -620,12 +620,12 @@ export default function AgentSkillsPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium break-all">{uploadFile.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {(uploadFile.size / 1024).toFixed(1)} KB · click to choose a different file
+                  {(uploadFile.size / 1024).toFixed(1)} KB · {t("skills.uploadChangeHint")}
                 </p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Drag and drop or click to upload
+                {t("skills.uploadDropHint")}
               </p>
             )}
           </button>
@@ -656,7 +656,7 @@ export default function AgentSkillsPage() {
               rel="noreferrer"
               className="underline hover:text-foreground"
             >
-              Read more about creating skills
+              {t("skills.readMoreSkills")}
             </a>
           </div>
 
@@ -672,7 +672,7 @@ export default function AgentSkillsPage() {
               onClick={() => handleUploadOpenChange(false)}
               disabled={uploading}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleUploadConfirm}
@@ -684,7 +684,7 @@ export default function AgentSkillsPage() {
                   {t("skills.uploading")}
                 </>
               ) : (
-                "Upload"
+                t("skills.uploadBtn")
               )}
             </Button>
           </div>
@@ -820,11 +820,11 @@ function InstallSkillDialog({
         <DialogHeader>
           <DialogTitle>{t("skills.installFor", { name: agentName })}</DialogTitle>
           <DialogDescription>
-            Search skills.sh and install into{" "}
+            {t("skills.installDescPrefix")}{" "}
             <code className="font-mono text-xs">
               ~/.lununda/agents/{agentId}/skills/
             </code>
-            . Only this agent will see the new skill.
+            . {t("skills.searchDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -832,7 +832,7 @@ function InstallSkillDialog({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
           <Input
             autoFocus
-            placeholder="pdf, translation, web scraping…"
+            placeholder={t("skills.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
@@ -844,7 +844,7 @@ function InstallSkillDialog({
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Sparkles className="h-8 w-8 text-muted-foreground/40 mb-3" />
               <p className="text-sm text-muted-foreground">
-                Start typing to search skills.sh
+                {t("skills.startTyping")}
               </p>
             </div>
           ) : searching ? (
@@ -856,14 +856,14 @@ function InstallSkillDialog({
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <p className="text-sm text-muted-foreground mb-1">
-                No skills found for{" "}
+                {t("skills.noSkillsFound")}{" "}
                 <strong className="text-foreground">{query}</strong>
               </p>
             </div>
           ) : (
             <>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1.5 px-1">
-                Results from skills.sh
+                {t("skills.resultsFromSkillsh")}
               </p>
               <div className="space-y-1.5 py-1">
                 {visible.map((r) => {

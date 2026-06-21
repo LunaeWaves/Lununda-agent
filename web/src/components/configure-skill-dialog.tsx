@@ -129,26 +129,16 @@ export function ConfigureSkillDialog({
         <DialogHeader>
           <DialogTitle>{t("skill.configureTitle", { name: skill.name })}</DialogTitle>
           <DialogDescription>
-            {agentId ? (
-              <>
-                Per-agent override for <strong>{agentName}</strong>.
-                Falls back to the global value when a field is empty here.
-                Other agents are unaffected.
-              </>
-            ) : (
-              <>
-                Global default. Used by every agent that runs this skill
-                unless that agent has its own per-agent override set.
-              </>
-            )}
+            {agentId
+              ? t("skill.perAgentDesc", { name: agentName })
+              : t("skill.globalDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {declaredSpec.length === 0 && customRows.length === 0 && (
             <p className="text-sm text-muted-foreground/70">
-              This skill didn&apos;t declare any env vars in its SKILL.md
-              frontmatter. Add custom variables below if it reads any.
+              {t("skill.noEnvVars")}
             </p>
           )}
 
@@ -166,12 +156,12 @@ export function ConfigureSkillDialog({
                   {spec.name}
                   {spec.required && (
                     <span className="text-[9px] uppercase tracking-wider text-primary">
-                      required
+                      {t("skill.required")}
                     </span>
                   )}
                   {!spec.required && (
                     <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60">
-                      optional
+                      {t("skill.optional")}
                     </span>
                   )}
                 </Label>
@@ -194,7 +184,7 @@ export function ConfigureSkillDialog({
           {customRows.length > 0 && (
             <div className="space-y-2 pt-2 border-t border-border/60">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground/70">
-                Custom env vars
+                {t("skill.customEnvVars")}
               </Label>
               {customRows.map((row, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -231,7 +221,7 @@ export function ConfigureSkillDialog({
             onClick={addCustomRow}
           >
             <Plus className="h-3 w-3 mr-1.5" />
-            Add custom env var
+            {t("skill.addCustomEnvVar")}
           </Button>
 
           {error && <p className="text-xs text-destructive">{error}</p>}
@@ -239,7 +229,7 @@ export function ConfigureSkillDialog({
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? t("skill.saving") : t("common.save")}
