@@ -318,6 +318,11 @@ type Store interface {
 	// SetSkillEvolutionLastRun UPSERTs the agent's last curator run timestamp.
 	SetSkillEvolutionLastRun(ctx context.Context, agentID string, t time.Time) error
 
+	// GetStaleArchiveLastRun returns the agent's last stale-archive run; zero when never run.
+	GetStaleArchiveLastRun(ctx context.Context, agentID string) (time.Time, error)
+	// SetStaleArchiveLastRun UPSERTs the agent's last stale-archive run timestamp.
+	SetStaleArchiveLastRun(ctx context.Context, agentID string, t time.Time) error
+
 	// --- IM owner-identity claim (verification code) ---
 	//
 	// Web-side owner (authenticated) mints a one-time code via

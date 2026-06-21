@@ -170,6 +170,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migratePurgeNonOwnerSessions(ctx); err != nil {
 		return fmt.Errorf("migrate purge non-owner sessions: %w", err)
 	}
+	if err := d.migrateSkillEvolutionStaleRun(ctx); err != nil {
+		return fmt.Errorf("migrate skill_evolution_state.stale_last_run_at: %w", err)
+	}
 	return nil
 }
 
@@ -464,6 +467,24 @@ func (d *DBStore) migratePurgeNonOwnerSessions(ctx context.Context) error {
 		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("purge non-owner %s: %w", t, err)
 		}
+	}
+	return nil
+}
+
+// migrateSkillEvolutionStaleRun adds stale_last_run_at to skill_evolution_state
+// so the gateway stale-archive ticker can gate per-agent on StaleCheckInterval
+// without a separate table. Idempotent via tableHasColumn.
+func (d *DBStore) migrateSkillEvolutionStaleRun(ctx context.Context) error {
+	has, err := d.tableHasColumn(ctx, "skill_evolution_state", "stale_last_run_at")
+	if err != nil {
+		return fmt.Errorf("check stale_last_run_at: %w", err)
+	}
+	if has {
+		return nil
+	}
+	if _, err := d.db.ExecContext(ctx,
+		`ALTER TABLE skill_evolution_state ADD COLUMN stale_last_run_at TEXT NOT NULL DEFAULT ''`); err != nil {
+		return fmt.Errorf("add stale_last_run_at: %w", err)
 	}
 	return nil
 }
@@ -3695,6 +3716,36 @@ func (d *DBStore) SetSkillEvolutionLastRun(ctx context.Context, agentID string, 
 		d.ph(1), d.ph(2)), agentID, t.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("set skill evolution last_run: %w", err)
+	}
+	return nil
+}
+
+// GetStaleArchiveLastRun returns the agent's last stale-archive run; zero when
+// never run. Used by the gateway central ticker to gate on StaleCheckInterval.
+func (d *DBStore) GetStaleArchiveLastRun(ctx context.Context, agentID string) (time.Time, error) {
+	var s string
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT stale_last_run_at FROM skill_evolution_state WHERE agent_id = %s`, d.ph(1)), agentID).Scan(&s)
+	if err == sql.ErrNoRows {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
+}
+
+// SetStaleArchiveLastRun UPSERTs the agent's last stale-archive run timestamp.
+func (d *DBStore) SetStaleArchiveLastRun(ctx context.Context, agentID string, t time.Time) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO skill_evolution_state (agent_id, stale_last_run_at) VALUES (%s, %s)
+		 ON CONFLICT (agent_id) DO UPDATE SET stale_last_run_at = excluded.stale_last_run_at`,
+		d.ph(1), d.ph(2)), agentID, t.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("set stale archive last_run: %w", err)
 	}
 	return nil
 }

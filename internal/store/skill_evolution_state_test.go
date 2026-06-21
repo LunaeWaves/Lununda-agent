@@ -54,3 +54,46 @@ func TestSkillEvolutionStateGetSet(t *testing.T) {
 		t.Errorf("agent-2 last-run = %v, want zero（独立 per-agent）", got2)
 	}
 }
+
+func TestStaleArchiveLastRunCRUD(t *testing.T) {
+	d := setupTestDB(t)
+	ctx := context.Background()
+
+	// 零值：从未跑
+	got, err := d.GetStaleArchiveLastRun(ctx, "agent-1")
+	if err != nil {
+		t.Fatalf("GetStaleArchiveLastRun fresh: %v", err)
+	}
+	if !got.IsZero() {
+		t.Errorf("fresh want zero, got %v", got)
+	}
+
+	// set + read back
+	want := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	if err := d.SetStaleArchiveLastRun(ctx, "agent-1", want); err != nil {
+		t.Fatalf("SetStaleArchiveLastRun: %v", err)
+	}
+	got, err = d.GetStaleArchiveLastRun(ctx, "agent-1")
+	if err != nil {
+		t.Fatalf("Get after set: %v", err)
+	}
+	if !got.Equal(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
+	// upsert 覆盖
+	want2 := want.Add(48 * time.Hour)
+	if err := d.SetStaleArchiveLastRun(ctx, "agent-1", want2); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	got, _ = d.GetStaleArchiveLastRun(ctx, "agent-1")
+	if !got.Equal(want2) {
+		t.Errorf("upsert got %v, want %v", got, want2)
+	}
+
+	// 独立于 curator last_run（同一表不同列）
+	curRun, _ := d.GetSkillEvolutionLastRun(ctx, "agent-1")
+	if !curRun.IsZero() {
+		t.Errorf("curator last_run should stay zero, got %v", curRun)
+	}
+}
