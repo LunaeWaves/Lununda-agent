@@ -127,8 +127,8 @@ type clusterSynthesizer struct {
 
 // Synthesize 读簇成员 SKILL.md，让 LLM 综合成一个类级新技能，写进提案。
 // 返回 proposal id。
-func (c *clusterSynthesizer) Synthesize(ctx context.Context, agentID string, members []string, skillDir, evidence string) (string, error) {
-	parts, err := readSkillBodies(members, skillDir)
+func (c *clusterSynthesizer) Synthesize(ctx context.Context, agentID string, members []string, skillDir, globalSkillDir, evidence string) (string, error) {
+	parts, err := readSkillBodies(members, skillDir, globalSkillDir)
 	if err != nil {
 		return "", err
 	}
@@ -159,16 +159,39 @@ func (c *clusterSynthesizer) Synthesize(ctx context.Context, agentID string, mem
 	})
 }
 
-func readSkillBodies(members []string, skillDir string) (string, error) {
+func readSkillBodies(members []string, dirs ...string) (string, error) {
 	var sb strings.Builder
 	for _, name := range members {
-		data, err := os.ReadFile(filepath.Join(skillDir, name, "SKILL.md"))
+		data, err := readSkillFile(name, dirs)
 		if err != nil {
 			return "", fmt.Errorf("read skill %s: %w", name, err)
 		}
 		fmt.Fprintf(&sb, "### %s\n%s\n\n", name, string(data))
 	}
 	return sb.String(), nil
+}
+
+// readSkillFile 在候选目录里找第一个 <name>/SKILL.md（靠前的优先，调用方按
+// agent 私有 → 全局顺序传）。全局技能也参与 curator 综合，否则装在
+// ~/.lununda/skills/ 的技能会被 cluster synthesis 漏掉。
+func readSkillFile(name string, dirs []string) ([]byte, error) {
+	var firstErr error
+	for _, d := range dirs {
+		if d == "" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(d, name, "SKILL.md"))
+		if err == nil {
+			return data, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	if firstErr == nil {
+		firstErr = fmt.Errorf("no skill dir configured")
+	}
+	return nil, firstErr
 }
 
 // parseFrontmatterName 从 frontmatter（首对 --- 之间）提取 name；无则空。
@@ -204,12 +227,13 @@ const synthesisPrompt = `把以下这些经常被一起使用的窄技能综合�
 直接输出新 SKILL.md 全文（以 --- 开头）。`
 
 type skillEvolution struct {
-	store       store.Store
-	provider    provider.Provider
-	model       string
-	skillDir    string
-	maxDistance int
-	minSessions int
+	store          store.Store
+	provider       provider.Provider
+	model          string
+	skillDir       string
+	globalSkillDir string
+	maxDistance    int
+	minSessions    int
 }
 
 // Run 跑一遍：候选 pair → 段2 裁决 → 图聚类（Plan 3 BuildClusters）→ 段3 综合 → 提案。
@@ -259,7 +283,7 @@ func (e *skillEvolution) Run(ctx context.Context, agentID string) ([]string, err
 			slog.Info("skill evolution: skip cluster, pending proposal exists", "agent", agentID, "cluster", cl)
 			continue
 		}
-		id, err := synth.Synthesize(ctx, agentID, cl, e.skillDir, "curator run")
+		id, err := synth.Synthesize(ctx, agentID, cl, e.skillDir, e.globalSkillDir, "curator run")
 		if err != nil {
 			slog.Warn("skill evolution: synthesize failed", "agent", agentID, "cluster", cl, "error", err)
 			continue

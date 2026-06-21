@@ -91,7 +91,8 @@ func (a *Agent) runSkillEvolution(ctx context.Context, agentID string, cfg confi
 		store:    a.dataStore,
 		provider: a.provider,
 		model:    cfg.Model,
-		skillDir: filepath.Join(a.homePath, "skills"),
+		skillDir:       filepath.Join(a.homePath, "skills"),
+		globalSkillDir: filepath.Join(a.homeDir, "skills"),
 	}
 	if ev.model == "" {
 		ev.model = a.model

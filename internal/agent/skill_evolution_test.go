@@ -123,7 +123,7 @@ func TestSynthesizeCluster(t *testing.T) {
 
 	synthBody := "---\nname: document-extract\ndescription: 类级文档提取\n---\n# 通用流程\n## PDF\n## DOCX\n## XLSX\n"
 	synth := &clusterSynthesizer{store: st, provider: &mockProvider{content: synthBody}, model: "test"}
-	id, err := synth.Synthesize(ctx, "agent-1", []string{"docx-extract", "pdf-extract", "xlsx-extract"}, skillDir, "3 sessions 共用")
+	id, err := synth.Synthesize(ctx, "agent-1", []string{"docx-extract", "pdf-extract", "xlsx-extract"}, skillDir, "", "3 sessions 共用")
 	if err != nil {
 		t.Fatalf("Synthesize: %v", err)
 	}
