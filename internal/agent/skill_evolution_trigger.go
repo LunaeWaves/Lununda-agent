@@ -43,6 +43,14 @@ func (a *Agent) maybeSkillEvolution(ctx context.Context, agentID string) {
 		slog.Debug("skill evolution last-run read failed", "error", err)
 		return
 	}
+	if last.IsZero() {
+		// 首次：种下起点，本周期不触发（延后一个周期），避免新 agent 首个 turn
+		// 立即烧 LLM。不种则 last_run 永远为零、curator 永不自动触发。
+		if err := a.dataStore.SetSkillEvolutionLastRun(ctx, agentID, time.Now()); err != nil {
+			slog.Warn("skill evolution last-run seed failed", "error", err)
+		}
+		return
+	}
 	if !shouldRunSkillEvolution(cfg, last) {
 		return
 	}
