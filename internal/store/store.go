@@ -146,6 +146,10 @@ type Store interface {
 	// untouched by compaction. DeleteSession cascades to clean these up.
 	AppendSessionMessage(ctx context.Context, userID, agentID, sessionKey string, msg SessionMessage) error
 	ListSessionMessages(ctx context.Context, userID, agentID, sessionKey string) ([]SessionMessage, error)
+	// ListSessionMessagesBySeq returns messages in [seqStart, seqEnd] for the
+	// same (userID, agentID, sessionKey) tuple, scoped to chatterUserID.
+	// Used by curator 段 2 to fetch conversation context around a skill usage.
+	ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, seqStart, seqEnd int) ([]SessionMessage, error)
 	// CountChatterUserMessages returns how many role='user' rows this
 	// chatter has accumulated under the agent — across all sessions,
 	// all channels. Used by the autoPersist gate as a *durable* "every
@@ -259,6 +263,11 @@ type Store interface {
 	// minSessions distinct sessions (each session counted once), ranked
 	// by synthesis likelihood.
 	CandidateSkillPairs(ctx context.Context, agentID string, maxDistance, minSessions int) ([]CandidatePair, error)
+	// SampleCoUsage returns one session where skillA and skillB co-occur
+	// within maxDistance seq steps, plus the seqs they were loaded at.
+	// ok=false if no such session exists. Used by curator 段 2 to fetch
+	// conversation context around a candidate pair before judging relevance.
+	SampleCoUsage(ctx context.Context, agentID, skillA, skillB string, maxDistance int) (userID, sessionKey string, seqA, seqB int, ok bool, err error)
 
 	// --- Skill pair verdicts (curator 段 2) ---
 	//

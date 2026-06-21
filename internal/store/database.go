@@ -3382,6 +3382,31 @@ func (d *DBStore) RecordSkillUsage(ctx context.Context, userID, agentID, session
 	return nil
 }
 
+// SampleCoUsage returns one session where skillA and skillB co-occur
+// within maxDistance seq steps, plus the seqs they were loaded at.
+// ok=false if no such session. Pair args are normalized internally.
+func (d *DBStore) SampleCoUsage(ctx context.Context, agentID, skillA, skillB string, maxDistance int) (string, string, int, int, bool, error) {
+	a, b := normalizePair(skillA, skillB)
+	var userID, sessionKey string
+	var seqA, seqB int
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(`
+		SELECT a.user_id, a.session_key, a.seq, b.seq
+		FROM skill_usage a
+		JOIN skill_usage b
+		  ON a.agent_id = b.agent_id AND a.user_id = b.user_id AND a.session_key = b.session_key
+		 AND ABS(a.seq - b.seq) BETWEEN 1 AND %d
+		WHERE a.agent_id = %s AND a.skill_id = %s AND b.skill_id = %s
+		LIMIT 1`, maxDistance, d.ph(1), d.ph(2), d.ph(3)),
+		agentID, a, b).Scan(&userID, &sessionKey, &seqA, &seqB)
+	if err == sql.ErrNoRows {
+		return "", "", 0, 0, false, nil
+	}
+	if err != nil {
+		return "", "", 0, 0, false, fmt.Errorf("sample co-usage: %w", err)
+	}
+	return userID, sessionKey, seqA, seqB, true, nil
+}
+
 // CandidateSkillPairs returns skill pairs that co-occur in the same session
 // within maxDistance seq steps, recurring across at least minSessions distinct
 // sessions (each session counted once via COUNT(DISTINCT user||session)).
