@@ -31,8 +31,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
-import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
-import { deleteChatSession, renameChatSession } from "@/lib/api";
+import { Check, Copy, Link2Icon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  createSessionShare,
+  deleteChatSession,
+  renameChatSession,
+  revokeSessionShare,
+} from "@/lib/api";
 
 // ChatRowActions is the shared "..." dropdown attached to every chat
 // row in the sidebar — both the flat "Chats" list and the chats nested
@@ -67,6 +72,7 @@ export function ChatRowActions({
   const { isMobile } = useSidebar();
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
 
   const onConfirmDelete = async () => {
     setDeleteOpen(false);
@@ -123,6 +129,11 @@ export function ChatRowActions({
             <span>{t("sidebar.editProject")}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShareOpen(true)}>
+            <Link2Icon className="text-muted-foreground" />
+            <span>{t("sidebar.shareReadOnly")}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setDeleteOpen(true)}
             className="text-destructive focus:text-destructive"
@@ -139,6 +150,14 @@ export function ChatRowActions({
         agentId={agentId}
         session={session}
         onSaved={onChanged}
+      />
+
+      <ShareReadOnlyDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        agentId={agentId}
+        sessionId={session.id}
+        sessionTitle={session.title}
       />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -240,6 +259,143 @@ function EditTitleDialog({
           </Button>
           <Button onClick={save} disabled={saving || !draft.trim()}>
             {saving ? t("sidebar.saving") : t("sidebar.saveProject")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ShareReadOnlyDialog generates and displays a read-only share link for
+// the session (agent privatization D3). One active share per session —
+// re-opening the dialog after generation shows the existing link with a
+// Revoke button. Owner-only; server enforces ownership too.
+function ShareReadOnlyDialog({
+  open,
+  onOpenChange,
+  agentId,
+  sessionId,
+  sessionTitle,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  agentId: string;
+  sessionId: string;
+  sessionTitle: string;
+}) {
+  const t = useT();
+  const [share, setShare] = React.useState<{ token: string; url: string } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [revoked, setRevoked] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Reset state whenever the dialog opens fresh.
+  React.useEffect(() => {
+    if (open) {
+      setShare(null);
+      setRevoked(false);
+      setCopied(false);
+      setError(null);
+    }
+  }, [open]);
+
+  const generate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const s = await createSessionShare(agentId, sessionId);
+      setShare({ token: s.token, url: s.url });
+      setRevoked(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "share failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async () => {
+    if (!share) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await revokeSessionShare(agentId, sessionId);
+      setShare(null);
+      setRevoked(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "revoke failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!share || typeof window === "undefined") return;
+    const full = `${window.location.origin}${share.url}`;
+    try {
+      await navigator.clipboard.writeText(full);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard blocked — user can still select the input
+    }
+  };
+
+  const fullUrl =
+    share && typeof window !== "undefined"
+      ? `${window.location.origin}${share.url}`
+      : "";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("sidebar.shareReadOnly")}</DialogTitle>
+          <DialogDescription>
+            {t("sidebar.shareReadOnlyDesc", { title: sessionTitle || sessionId })}
+          </DialogDescription>
+        </DialogHeader>
+
+        {!share && !revoked && (
+          <Button onClick={generate} disabled={busy}>
+            {busy ? t("sidebar.saving") : t("sidebar.generateShareLink")}
+          </Button>
+        )}
+
+        {share && (
+          <div className="space-y-2">
+            <Input readOnly value={fullUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={copyLink} disabled={busy}>
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1.5" /> {t("common.copied")}
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1.5" /> {t("common.copy")}
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" onClick={generate} disabled={busy}>
+                {t("sidebar.regenerate")}
+              </Button>
+              <Button variant="destructive" onClick={revoke} disabled={busy}>
+                {t("sidebar.revoke")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {revoked && (
+          <p className="text-sm text-muted-foreground">{t("sidebar.shareRevoked")}</p>
+        )}
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>

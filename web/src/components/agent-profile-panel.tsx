@@ -33,11 +33,9 @@ export default function AgentProfilePanel() {
   // refresh and so the Save button can compare-then-write.
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
-  const [isPublic, setIsPublic] = React.useState(false);
   const [avatar, setAvatar] = React.useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
   const [avatarBust, setAvatarBust] = React.useState<number>(0);
-  const [linkCopied, setLinkCopied] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const refresh = React.useCallback(() => {
@@ -52,7 +50,6 @@ export default function AgentProfilePanel() {
         setAgent(a);
         setName(a.name || "");
         setDescription(a.description || "");
-        setIsPublic(!!a.isPublic);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -76,7 +73,6 @@ export default function AgentProfilePanel() {
     !!agent &&
     (name.trim() !== (agent.name || "") ||
       description.trim() !== (agent.description || "") ||
-      isPublic !== !!agent.isPublic ||
       avatar !== null);
 
   const onPickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +101,6 @@ export default function AgentProfilePanel() {
       const resp = await updateAgent(agentId, {
         name: name.trim(),
         description: description.trim(),
-        isPublic,
       });
       if (resp && (resp.ok === false || resp.error)) {
         setError(resp.error || t("profile.updateFailed"));
@@ -245,71 +240,6 @@ export default function AgentProfilePanel() {
             disabled={!isOwner}
           />
         </div>
-      </div>
-
-      <div className="space-y-3 rounded-lg border border-border bg-card p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="agent-profile-public" className="text-sm font-medium">
-              {t("profile.publicAccess")}
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              {isPublic
-                ? t("profile.shared")
-                : t("profile.private")}
-            </p>
-          </div>
-          <Switch
-            id="agent-profile-public"
-            checked={isPublic}
-            onCheckedChange={(v) => {
-              setIsPublic(!!v);
-              setLinkCopied(false);
-            }}
-            disabled={!isOwner}
-          />
-        </div>
-        {isPublic && agent && (
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={
-                typeof window !== "undefined"
-                  ? `${window.location.origin}/agents/${agent.id}/chat/`
-                  : `/agents/${agent.id}/chat/`
-              }
-              onFocus={(e) => e.currentTarget.select()}
-              className="font-mono text-xs"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                if (!agent) return;
-                const url = `${window.location.origin}/agents/${agent.id}/chat/`;
-                try {
-                  await navigator.clipboard.writeText(url);
-                  setLinkCopied(true);
-                  setTimeout(() => setLinkCopied(false), 2000);
-                } catch {
-                  // clipboard blocked — user can still select the input
-                }
-              }}
-            >
-              {linkCopied ? (
-                <>
-                  <Check className="h-4 w-4 mr-1.5" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4 mr-1.5" />
-                  Copy
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

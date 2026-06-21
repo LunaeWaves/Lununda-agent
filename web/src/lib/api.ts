@@ -1034,6 +1034,36 @@ export async function deleteChatSession(agentId: string, sessionId: string) {
   return res.json();
 }
 
+// Session read-only share (agent privatization D3): owner generates a
+// /share/{token} link that anyone can read but not chat with. One active
+// share per session — POST again to rotate, DELETE to revoke.
+export interface SessionShare {
+  token: string;
+  url: string;
+  createdAt?: string;
+}
+
+export async function createSessionShare(
+  agentId: string,
+  sessionId: string,
+): Promise<SessionShare> {
+  const res = await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/share`,
+    { method: "POST" },
+  );
+  return res.json();
+}
+
+export async function revokeSessionShare(
+  agentId: string,
+  sessionId: string,
+): Promise<void> {
+  await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/share`,
+    { method: "DELETE" },
+  );
+}
+
 // moveChatSessionToProject reassigns a chat to a project (or detaches
 // it back to the loose-chat list when projectId is ""). Backs the
 // sidebar drag-and-drop affordance. Returns { ok } on success;

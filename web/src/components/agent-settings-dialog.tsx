@@ -9,6 +9,7 @@ import {
   DatabaseIcon,
   IdCardIcon,
   InfoIcon,
+  KeyIcon,
   LayersIcon,
   Palette,
   Plug,
@@ -35,6 +36,7 @@ import AgentChannelsPage from "@/app/agents/[id]/channels/page";
 import AgentSchedulerPage from "@/app/agents/[id]/scheduler/page";
 import AgentRegexHooksPage from "@/app/agents/[id]/regex-hooks/page";
 import AgentUsagePage from "@/app/agents/[id]/usage/page";
+import AgentApiKeysPage from "@/components/agent-api-keys-panel";
 import AccountSettingsPage from "@/app/settings/account/page";
 import GeneralSettingsPage from "@/app/settings/general/page";
 import UserModelsPage from "@/app/models/page";
@@ -53,6 +55,7 @@ export type AgentSettingsTab =
   | "scheduler"
   | "regex-hooks"
   | "usage"
+  | "api-keys"
   | "account"
   | "general"
   | "about";
@@ -72,6 +75,7 @@ const AGENT_TABS = (t: ReturnType<typeof useT>): Array<{ id: AgentSettingsTab; l
   { id: "scheduler", label: t("settings.scheduler"), icon: ClockIcon },
   { id: "regex-hooks", label: t("settings.regexHooks"), icon: RegexIcon },
   { id: "usage", label: t("settings.usage"), icon: CoinsIcon },
+  { id: "api-keys", label: t("settings.apiKeys"), icon: KeyIcon },
 ];
 
 // Runtime intentionally lives only on the standalone /settings/runtime
@@ -190,6 +194,7 @@ export function AgentSettingsDialog({
           {tab === "scheduler" && <AgentSchedulerPage />}
           {tab === "regex-hooks" && <AgentRegexHooksPage />}
           {tab === "usage" && <AgentUsagePage />}
+          {tab === "api-keys" && <AgentApiKeysPage />}
           {tab === "account" && (
             <div className="p-6 max-w-3xl">
               <AccountSettingsPage />
