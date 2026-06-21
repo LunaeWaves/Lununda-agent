@@ -71,3 +71,38 @@ func TestApplyProposalRejectsUnsafeName(t *testing.T) {
 		t.Errorf("ApplyProposal(traversal target) err = %v, want unsafe", err)
 	}
 }
+
+// ApplyProposal must refuse to overwrite an already-existing target skill dir
+// so a benign name collision can't silently destroy a user skill.
+func TestApplyProposalRejectsExistingTarget(t *testing.T) {
+	st := newEvolutionTestStore(t)
+	ctx := context.Background()
+	pid, err := st.CreateProposal(ctx, &store.SkillProposal{
+		AgentID:       "agent-1",
+		Sources:       []string{"a"},
+		TargetName:    "existing",
+		TargetContent: "body",
+		Status:        "pending",
+		CreatedAt:     "2026-06-21T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("CreateProposal: %v", err)
+	}
+	skillDir := t.TempDir()
+	target := filepath.Join(skillDir, "existing")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	orig := []byte("# 我的现有技能")
+	if err := os.WriteFile(filepath.Join(target, "SKILL.md"), orig, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	err = ApplyProposal(ctx, st, pid, nil, skillDir)
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("ApplyProposal(existing target) err = %v, want already exists", err)
+	}
+	got, readErr := os.ReadFile(filepath.Join(target, "SKILL.md"))
+	if readErr != nil || string(got) != string(orig) {
+		t.Errorf("existing skill overwritten: readErr=%v got=%q", readErr, got)
+	}
+}

@@ -41,6 +41,13 @@ func ApplyProposal(ctx context.Context, st store.Store, proposalID string, keepS
 	}
 
 	targetDir := filepath.Join(skillDir, p.TargetName)
+	if _, err := os.Stat(targetDir); err == nil {
+		// 目标已存在：保护用户预存技能不被静默覆盖。碰撞时用户应在
+		// dashboard 改名后重试。
+		return fmt.Errorf("target skill already exists: %q", p.TargetName)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat target: %w", err)
+	}
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir target: %w", err)
 	}
