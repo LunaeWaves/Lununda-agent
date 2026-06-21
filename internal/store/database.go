@@ -3509,6 +3509,23 @@ func (d *DBStore) IsNotRelated(ctx context.Context, agentID, skillA, skillB stri
 	return verdict == "not_related"
 }
 
+// HasVerdict reports whether any verdict exists for the (order-insensitive)
+// pair — used by curator orchestrator to skip already-judged pairs.
+func (d *DBStore) HasVerdict(ctx context.Context, agentID, skillA, skillB string) (bool, error) {
+	a, b := normalizePair(skillA, skillB)
+	var tmp int
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT 1 FROM skill_pair_verdict WHERE agent_id = %s AND skill_a = %s AND skill_b = %s LIMIT 1`,
+		d.ph(1), d.ph(2), d.ph(3)), agentID, a, b).Scan(&tmp)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // CreateProposal persists a synthesis proposal, returning its ID. If p.ID
 // is empty, a 128-bit crypto/rand hex ID is minted (same shape as session
 // share tokens). Status defaults to "pending" when blank.

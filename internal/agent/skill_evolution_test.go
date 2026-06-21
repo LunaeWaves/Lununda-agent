@@ -150,6 +150,75 @@ func TestSynthesizeCluster(t *testing.T) {
 	}
 }
 
+// routingProvider routes Chat calls by inspecting the last user message:
+// relevance prompts (containing "判断") get a JSON verdict, synthesis
+// prompts (containing "综合") get a SKILL.md body. Lets one end-to-end
+// orchestrator test exercise both段 2 and 段 3 without two separate stubs.
+type routingProvider struct {
+	verdictResp string
+	synthResp   string
+}
+
+func (p *routingProvider) Chat(ctx context.Context, messages []provider.Message, tools []provider.Tool, model string, maxTokens int, temperature float64) (*provider.Response, error) {
+	last := ""
+	if len(messages) > 0 {
+		last = messages[len(messages)-1].Content
+	}
+	if strings.Contains(last, "综合") {
+		return &provider.Response{Content: p.synthResp}, nil
+	}
+	return &provider.Response{Content: p.verdictResp}, nil
+}
+func (p *routingProvider) ChatStream(ctx context.Context, messages []provider.Message, tools []provider.Tool, model string, maxTokens int, temperature float64) (*provider.StreamReader, error) {
+	return nil, nil
+}
+
+func TestRunSkillEvolutionEndToEnd(t *testing.T) {
+	st := newEvolutionTestStore(t)
+	ctx := context.Background()
+	ts := time.Now().UTC().Format(time.RFC3339)
+
+	// 跨 3 个 session 近距离共用 pdf+docx；csv 单独一次（不够 minSessions=3 门槛）
+	for i, sess := range []string{"sess-A", "sess-B", "sess-C"} {
+		userID := "user-" + string(rune('1'+i))
+		for _, msg := range []string{"帮我提取 PDF", "再提取 DOCX"} {
+			st.AppendSessionMessage(ctx, userID, "agent-1", sess, store.SessionMessage{Role: "user", Content: msg})
+		}
+		recordUsageAt(t, st, ctx, userID, "agent-1", sess, 1, "pdf-extract", ts)
+		recordUsageAt(t, st, ctx, userID, "agent-1", sess, 1, "docx-extract", ts)
+	}
+
+	skillDir := filepath.Join(t.TempDir(), "skills")
+	for _, name := range []string{"pdf-extract", "docx-extract"} {
+		dir := filepath.Join(skillDir, name)
+		os.MkdirAll(dir, 0o755)
+		os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(fmt.Sprintf("---\nname: %s\n---\n# %s\n", name, name)), 0o644)
+	}
+
+	prov := &routingProvider{
+		verdictResp: `{"verdict":"related","reason":"都是文档提取"}`,
+		synthResp:   "---\nname: document-extract\ndescription: 类级\n---\n# 通用文档提取\n## PDF\n## DOCX\n",
+	}
+	ev := &skillEvolution{
+		store: st, provider: prov, model: "test", skillDir: skillDir,
+		maxDistance: 10, minSessions: 3,
+	}
+	ids, err := ev.Run(ctx, "agent-1")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("proposals = %d, want 1 (got: %v)", len(ids), ids)
+	}
+	pending, _ := st.ListPendingProposals(ctx, "agent-1")
+	if len(pending) != 1 || pending[0].TargetName != "document-extract" {
+		t.Errorf("pending = %+v", pending)
+	}
+
+	// 二次 Run 应幂等：verdict 已存在，不重复 LLM；但会再产 1 个 proposal
+	// （BuildClusters 仍返回 {pdf,docx}）。补加 IsNotRelated/HasVerdict 防护即可。
+}
+
 func TestParseFrontmatterName(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"---\nname: foo\n---\n# body", "foo"},

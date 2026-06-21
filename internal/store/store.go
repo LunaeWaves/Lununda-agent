@@ -282,6 +282,10 @@ type Store interface {
 	// IsNotRelated reports whether the (order-insensitive) pair has a
 	// "not_related" verdict. Pairs with no verdict or "related" return false.
 	IsNotRelated(ctx context.Context, agentID, skillA, skillB string) bool
+	// HasVerdict reports whether any verdict (related or not_related) exists
+	// for the (order-insensitive) pair. Used by curator orchestrator to
+	// skip already-judged pairs (幂等：不重复烧 LLM).
+	HasVerdict(ctx context.Context, agentID, skillA, skillB string) (bool, error)
 
 	// --- Skill proposals (curator 段 3 → dashboard) ---
 	//

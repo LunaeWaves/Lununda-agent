@@ -186,3 +186,57 @@ const synthesisPrompt = `把以下这些经常被一起使用的窄技能综合�
 %s
 
 直接输出新 SKILL.md 全文（以 --- 开头）。`
+
+type skillEvolution struct {
+	store       store.Store
+	provider    provider.Provider
+	model       string
+	skillDir    string
+	maxDistance int
+	minSessions int
+}
+
+// Run 跑一遍：候选 pair → 段2 裁决 → 图聚类（Plan 3 BuildClusters）→ 段3 综合 → 提案。
+// 幂等：HasVerdict 跳过已裁决 pair，不重复烧 LLM。返回新建 proposal IDs。
+func (e *skillEvolution) Run(ctx context.Context, agentID string) ([]string, error) {
+	if e.maxDistance == 0 {
+		e.maxDistance = 10
+	}
+	if e.minSessions == 0 {
+		e.minSessions = 3
+	}
+	cands, err := e.store.CandidateSkillPairs(ctx, agentID, e.maxDistance, e.minSessions)
+	if err != nil {
+		return nil, fmt.Errorf("candidates: %w", err)
+	}
+	judger := &pairJudger{store: e.store, provider: e.provider, model: e.model}
+	for _, c := range cands {
+		has, _ := e.store.HasVerdict(ctx, agentID, c.SkillA, c.SkillB)
+		if has {
+			continue
+		}
+		if _, _, err := judger.Judge(ctx, agentID, c.SkillA, c.SkillB, e.maxDistance); err != nil {
+			fmt.Printf("skill evolution: judge %s/%s failed: %v\n", c.SkillA, c.SkillB, err)
+			continue
+		}
+	}
+	related, err := e.store.ListRelatedPairs(ctx, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("list related: %w", err)
+	}
+	edges := make([]store.SkillPair, len(related))
+	copy(edges, related)
+	clusters := BuildClusters(edges)
+
+	synth := &clusterSynthesizer{store: e.store, provider: e.provider, model: e.model}
+	var proposalIDs []string
+	for _, cl := range clusters {
+		id, err := synth.Synthesize(ctx, agentID, cl, e.skillDir, "curator run")
+		if err != nil {
+			fmt.Printf("skill evolution: synthesize %v failed: %v\n", cl, err)
+			continue
+		}
+		proposalIDs = append(proposalIDs, id)
+	}
+	return proposalIDs, nil
+}
