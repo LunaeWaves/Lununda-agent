@@ -635,6 +635,15 @@ func (g *Gateway) Run() error {
 			memoryindex.RunLoop(ctx, dbs, interval, perCallDelay)
 		}()
 	}
+	// Stale skill auto-archive: hourly central ticker scans every agent
+	// with curator.enabled, and archives long-unused skills in the
+	// background. Decoupled from chat traffic — idle agents are still
+	// maintained. See runStaleArchiveCycle.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		g.staleArchiveTicker(ctx)
+	}()
 	wg.Wait()
 	if g.taskQueue != nil {
 		g.taskQueue.Stop()

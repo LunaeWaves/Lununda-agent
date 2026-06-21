@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/agent"
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
@@ -47,4 +49,58 @@ func runStaleArchive(ctx context.Context, st store.Store, mb *bus.MessageBus, ag
 		}
 	}
 	return archived, nil
+}
+
+// staleArchiveTicker 是 gateway central ticker：每小时 tick，遍历所有 agent
+// 判断是否到 StaleCheckInterval，到则异步跑 runStaleArchive。独立 goroutine，
+// 不依赖对话/LLM，闲置 agent 也被维护。
+func (g *Gateway) staleArchiveTicker(ctx context.Context) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			g.runStaleArchiveCycle(ctx)
+		}
+	}
+}
+
+// runStaleArchiveCycle 遍历所有 agent，对 curator.enabled 且到 StaleCheckInterval
+// 的异步跑 stale 归档。单 agent 失败不影响其他。panic recover 防 ticker 挂。
+func (g *Gateway) runStaleArchiveCycle(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Warn("stale archive cycle panic", "error", r)
+		}
+	}()
+	homeDir, _ := config.HomeDir()
+	agents, err := g.store.ListAllAgents(ctx)
+	if err != nil {
+		slog.Warn("stale archive: list agents failed", "error", err)
+		return
+	}
+	for _, ar := range agents {
+		var mem config.MemoryCfg
+		if err := scope.SettingInto(ctx, g.store, "memory", ar.UserID, ar.ID, &mem); err != nil {
+			continue
+		}
+		cfg := mem.SkillEvolution
+		if !cfg.Enabled || cfg.StaleCheckInterval <= 0 {
+			continue
+		}
+		last, _ := g.store.GetStaleArchiveLastRun(ctx, ar.ID)
+		if !last.IsZero() && time.Since(last) < cfg.StaleCheckInterval {
+			continue
+		}
+		_ = g.store.SetStaleArchiveLastRun(ctx, ar.ID, time.Now())
+		skillDir := filepath.Join(homeDir, "agents", ar.ID, "agent", "skills")
+		go runStaleArchive(context.Background(), g.store, g.bus, ar.ID, ar.Name, ar.UserID, skillDir, cfg)
+	}
+}
+
+// runStaleArchiveCycleForTest 暴露 cycle 供测试直接调（跳过 ticker 计时）。
+func runStaleArchiveCycleForTest(ctx context.Context, g *Gateway, _ time.Duration) {
+	g.runStaleArchiveCycle(ctx)
 }
