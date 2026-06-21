@@ -274,6 +274,18 @@ type Store interface {
 	// "not_related" verdict. Pairs with no verdict or "related" return false.
 	IsNotRelated(ctx context.Context, agentID, skillA, skillB string) bool
 
+	// --- Skill proposals (curator 段 3 → dashboard) ---
+	//
+	// CreateProposal persists a synthesis proposal and returns its new ID
+	// (auto-generated when p.ID is empty). Status defaults to "pending".
+	CreateProposal(ctx context.Context, p *SkillProposal) (id string, err error)
+	// ListPendingProposals returns proposals with status="pending" for
+	// the dashboard queue, oldest first.
+	ListPendingProposals(ctx context.Context, agentID string) ([]SkillProposal, error)
+	// SetProposalStatus transitions pending → accepted/rejected/applied
+	// and stamps decided_at.
+	SetProposalStatus(ctx context.Context, id, status, decidedAt string) error
+
 	// --- IM owner-identity claim (verification code) ---
 	//
 	// Web-side owner (authenticated) mints a one-time code via
@@ -736,6 +748,22 @@ type SkillPair struct {
 	B       string `json:"b"`
 	Verdict string `json:"verdict"`
 	Reason  string `json:"reason"`
+}
+
+// SkillProposal is a curator-produced synthesis candidate. Sources is the
+// cluster (≥2 skills) the new skill would replace; TargetContent is the
+// full SKILL.md body. Status flows pending → accepted/rejected → applied.
+type SkillProposal struct {
+	ID             string   `json:"id"`
+	AgentID        string   `json:"agentId"`
+	Sources        []string `json:"sources"`
+	TargetName     string   `json:"targetName"`
+	TargetContent  string   `json:"targetContent"`
+	Evidence       string   `json:"evidence"`
+	Recommendation string   `json:"recommendation"`
+	Status         string   `json:"status"` // pending/accepted/rejected/applied
+	CreatedAt      string   `json:"createdAt"`
+	DecidedAt      string   `json:"decidedAt"`
 }
 
 // IMClaimRecord holds a pending IM owner-identity verification code. See

@@ -1751,6 +1751,23 @@ func (d *DBStore) migrationSQL() []string {
 			UNIQUE (agent_id, skill_a, skill_b)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_pair_verdict_agent ON skill_pair_verdict (agent_id, verdict)`,
+		// skill_proposals stores synthesis candidates produced by the
+		// curator (段 3). Status flows pending → accepted/rejected →
+		// applied. Sources is a JSON array so the cluster members
+		// survive round-trip without a join table.
+		`CREATE TABLE IF NOT EXISTS skill_proposals (
+			id             TEXT PRIMARY KEY,
+			agent_id       TEXT NOT NULL,
+			sources        TEXT NOT NULL,
+			target_name    TEXT NOT NULL,
+			target_content TEXT NOT NULL,
+			evidence       TEXT NOT NULL DEFAULT '',
+			recommendation TEXT NOT NULL DEFAULT '',
+			status         TEXT NOT NULL DEFAULT 'pending',
+			created_at     TEXT NOT NULL,
+			decided_at     TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_proposals_agent_status ON skill_proposals (agent_id, status)`,
 		// projects groups sessions that share a workspace folder. PK
 		// matches sessions: a project is "user X's working folder on
 		// agent Y", same private-per-user ownership model. The on-disk
@@ -3465,6 +3482,69 @@ func (d *DBStore) IsNotRelated(ctx context.Context, agentID, skillA, skillB stri
 		return false
 	}
 	return verdict == "not_related"
+}
+
+// CreateProposal persists a synthesis proposal, returning its ID. If p.ID
+// is empty, a 128-bit crypto/rand hex ID is minted (same shape as session
+// share tokens). Status defaults to "pending" when blank.
+func (d *DBStore) CreateProposal(ctx context.Context, p *SkillProposal) (string, error) {
+	if p.ID == "" {
+		var buf [16]byte
+		if _, err := cryptorand.Read(buf[:]); err != nil {
+			return "", fmt.Errorf("create proposal: rand: %w", err)
+		}
+		p.ID = hex.EncodeToString(buf[:])
+	}
+	status := p.Status
+	if status == "" {
+		status = "pending"
+	}
+	srcs, _ := json.Marshal(p.Sources)
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO skill_proposals (id, agent_id, sources, target_name, target_content, evidence, recommendation, status, created_at, decided_at)
+		 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)`,
+		d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5), d.ph(6), d.ph(7), d.ph(8), d.ph(9), d.ph(10)),
+		p.ID, p.AgentID, string(srcs), p.TargetName, p.TargetContent, p.Evidence, p.Recommendation, status, p.CreatedAt, p.DecidedAt)
+	if err != nil {
+		return "", fmt.Errorf("create proposal: %w", err)
+	}
+	return p.ID, nil
+}
+
+// ListPendingProposals returns proposals with status="pending" for the
+// dashboard queue, oldest first.
+func (d *DBStore) ListPendingProposals(ctx context.Context, agentID string) ([]SkillProposal, error) {
+	rows, err := d.db.QueryContext(ctx, fmt.Sprintf(
+		`SELECT id, agent_id, sources, target_name, target_content, evidence, recommendation, status, created_at, decided_at
+		 FROM skill_proposals WHERE agent_id = %s AND status = 'pending' ORDER BY created_at`,
+		d.ph(1)), agentID)
+	if err != nil {
+		return nil, fmt.Errorf("list pending proposals: %w", err)
+	}
+	defer rows.Close()
+	var out []SkillProposal
+	for rows.Next() {
+		var p SkillProposal
+		var srcs string
+		if err := rows.Scan(&p.ID, &p.AgentID, &srcs, &p.TargetName, &p.TargetContent, &p.Evidence, &p.Recommendation, &p.Status, &p.CreatedAt, &p.DecidedAt); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal([]byte(srcs), &p.Sources)
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// SetProposalStatus transitions a proposal between pending/accepted/rejected/
+// applied and stamps decided_at.
+func (d *DBStore) SetProposalStatus(ctx context.Context, id, status, decidedAt string) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`UPDATE skill_proposals SET status = %s, decided_at = %s WHERE id = %s`,
+		d.ph(1), d.ph(2), d.ph(3)), status, decidedAt, id)
+	if err != nil {
+		return fmt.Errorf("set proposal status: %w", err)
+	}
+	return nil
 }
 
 func (d *DBStore) GetDueCronJobs(ctx context.Context, now time.Time) ([]CronJobRecord, error) {

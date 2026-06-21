@@ -49,3 +49,40 @@ func TestPairVerdictUpsertAndQuery(t *testing.T) {
 func pairIs(p SkillPair, a, b string) bool {
 	return (p.A == a && p.B == b) || (p.A == b && p.B == a)
 }
+
+func TestProposalLifecycle(t *testing.T) {
+	d := setupTestDB(t)
+	ctx := context.Background()
+
+	id, err := d.CreateProposal(ctx, &SkillProposal{
+		AgentID: "agent-1", Sources: []string{"docx-extract", "pdf-extract"},
+		TargetName: "document-extract", TargetContent: "---\nname: document-extract\n---\nbody",
+		Evidence: "2 sessions, avg dist 1", Recommendation: "merge",
+		CreatedAt: "2026-06-21T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("CreateProposal: %v", err)
+	}
+	if id == "" {
+		t.Fatal("proposal id 为空")
+	}
+
+	pending, err := d.ListPendingProposals(ctx, "agent-1")
+	if err != nil {
+		t.Fatalf("ListPendingProposals: %v", err)
+	}
+	if len(pending) != 1 || pending[0].TargetName != "document-extract" {
+		t.Errorf("pending = %+v", pending)
+	}
+	if len(pending[0].Sources) != 2 || pending[0].Sources[0] != "docx-extract" {
+		t.Errorf("Sources 反序列化错误： %+v", pending[0].Sources)
+	}
+
+	if err := d.SetProposalStatus(ctx, id, "accepted", "2026-06-21T01:00:00Z"); err != nil {
+		t.Fatalf("SetProposalStatus accepted: %v", err)
+	}
+	pending2, _ := d.ListPendingProposals(ctx, "agent-1")
+	if len(pending2) != 0 {
+		t.Errorf("accepted 后 pending 应空，got %d", len(pending2))
+	}
+}
