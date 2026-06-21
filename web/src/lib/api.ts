@@ -1669,6 +1669,7 @@ export interface SkillEvolutionCfg {
   staleAfter?: number;         // 纳秒；undefined = 默认 90 天
   model?: string;
   notify?: SkillEvolutionNotifyCfg;
+  pinned?: string[];
 }
 
 // assertOk throws on non-2xx with the backend's error body when available,

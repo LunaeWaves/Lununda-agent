@@ -42,6 +42,7 @@ import {
   Upload,
   Files,
   Info,
+  Pin,
 } from "lucide-react";
 import {
   getAgentSkills,
@@ -242,6 +243,9 @@ export default function AgentSkillsPage() {
   const handleArchiveStale = (name: string) =>
     runEvoAction("archive", () => archiveOneSkill(agentId, name));
 
+  const handleTogglePin = (name: string) =>
+    runEvoAction("pin", () => togglePinSkill(agentId, name, !evoCfg.pinned?.includes(name)));
+
   const handleUploadConfirm = async () => {
     if (!uploadFile || !agentId) return;
     setUploading(true);
@@ -345,6 +349,47 @@ export default function AgentSkillsPage() {
           <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
         </label>
         <label className="flex items-center gap-2 text-sm">
+          {t("skills.evolution.interval")}
+          <Input
+            type="number"
+            min={1}
+            className="w-20 h-8"
+            value={evoCfg.interval ? Math.round(evoCfg.interval / 86400000000000) : 7}
+            onChange={(e) => {
+              const days = Math.max(1, Number(e.target.value) || 7);
+              saveEvoCfg({ ...evoCfg, interval: days * 86400000000000 });
+            }}
+            disabled={evoSaving}
+          />
+          <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          {t("skills.evolution.staleAfter")}
+          <Input
+            type="number"
+            min={1}
+            className="w-20 h-8"
+            value={evoCfg.staleAfter ? Math.round(evoCfg.staleAfter / 86400000000000) : 90}
+            onChange={(e) => {
+              const days = Math.max(1, Number(e.target.value) || 90);
+              saveEvoCfg({ ...evoCfg, staleAfter: days * 86400000000000 });
+            }}
+            disabled={evoSaving}
+          />
+          <span className="text-xs text-muted-foreground">{t("skills.evolution.days")}</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          {t("skills.evolution.model")}
+          <Input
+            type="text"
+            className="w-40 h-8"
+            placeholder={t("skills.evolution.modelPlaceholder")}
+            value={evoCfg.model || ""}
+            onChange={(e) => saveEvoCfg({ ...evoCfg, model: e.target.value })}
+            disabled={evoSaving}
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
           {t("skills.evolution.notify")}
           <input
             type="checkbox"
@@ -398,6 +443,25 @@ export default function AgentSkillsPage() {
           </p>
         )}
       </div>
+
+      {(evoCfg.pinned?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-xs text-muted-foreground">{t("skills.evolution.pinned")}:</span>
+          {evoCfg.pinned?.map((name) => (
+            <Badge key={name} variant="outline" className="gap-1 font-mono text-[10px]">
+              {name}
+              <button
+                type="button"
+                className="ml-0.5 hover:text-destructive"
+                title={t("skills.evolution.unpin")}
+                onClick={() => handleTogglePin(name)}
+              >
+                ×
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* 可升级技能提案 */}
       {proposals.length > 0 && (
@@ -488,6 +552,15 @@ export default function AgentSkillsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-7 w-7 ${evoCfg.pinned?.includes(skill.name) ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => handleTogglePin(skill.name)}
+                    title={evoCfg.pinned?.includes(skill.name) ? t("skills.evolution.unpin") : t("skills.evolution.pin")}
+                  >
+                    <Pin className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
