@@ -2,7 +2,10 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -98,6 +101,66 @@ func TestParseVerdict(t *testing.T) {
 		}
 		if v != c.wantV || r != c.wantR {
 			t.Errorf("parseVerdict(%q) = %q/%q, want %q/%q", c.in, v, r, c.wantV, c.wantR)
+		}
+	}
+}
+
+func TestSynthesizeCluster(t *testing.T) {
+	st := newEvolutionTestStore(t)
+	ctx := context.Background()
+
+	skillDir := filepath.Join(t.TempDir(), "skills")
+	for _, name := range []string{"docx-extract", "pdf-extract", "xlsx-extract"} {
+		dir := filepath.Join(skillDir, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		body := fmt.Sprintf("---\nname: %s\n---\n# %s\n提取 %s 文件内容\n", name, name, name)
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(body), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	synthBody := "---\nname: document-extract\ndescription: 类级文档提取\n---\n# 通用流程\n## PDF\n## DOCX\n## XLSX\n"
+	synth := &clusterSynthesizer{store: st, provider: &mockProvider{content: synthBody}, model: "test"}
+	id, err := synth.Synthesize(ctx, "agent-1", []string{"docx-extract", "pdf-extract", "xlsx-extract"}, skillDir, "3 sessions 共用")
+	if err != nil {
+		t.Fatalf("Synthesize: %v", err)
+	}
+	if id == "" {
+		t.Fatal("proposal id 为空")
+	}
+
+	pending, _ := st.ListPendingProposals(ctx, "agent-1")
+	var found *store.SkillProposal
+	for i := range pending {
+		if pending[i].ID == id {
+			found = &pending[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("未找到提案 %s", id)
+	}
+	if found.TargetName != "document-extract" {
+		t.Errorf("TargetName = %q, want document-extract", found.TargetName)
+	}
+	if !strings.Contains(found.TargetContent, "# 通用流程") {
+		t.Errorf("TargetContent 缺少综合正文： %q", found.TargetContent)
+	}
+}
+
+func TestParseFrontmatterName(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"---\nname: foo\n---\n# body", "foo"},
+		{"---\nname:bar\n---\n", "bar"},
+		{"no frontmatter", ""},
+		{"---\ndescription: x\nname: real\n---\n", "real"},
+	}
+	for _, c := range cases {
+		got := parseFrontmatterName(c.in)
+		if got != c.want {
+			t.Errorf("parseFrontmatterName(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

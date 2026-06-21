@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -109,3 +111,78 @@ func parseVerdict(s string) (verdict, reason string, err error) {
 	}
 	return v.Verdict, v.Reason, nil
 }
+
+type clusterSynthesizer struct {
+	store    store.Store
+	provider provider.Provider
+	model    string
+}
+
+// Synthesize 读簇成员 SKILL.md，让 LLM 综合成一个类级新技能，写进提案。
+// 返回 proposal id。
+func (c *clusterSynthesizer) Synthesize(ctx context.Context, agentID string, members []string, skillDir, evidence string) (string, error) {
+	parts, err := readSkillBodies(members, skillDir)
+	if err != nil {
+		return "", err
+	}
+	prompt := fmt.Sprintf(synthesisPrompt, strings.Join(members, "、"), parts)
+	resp, err := c.provider.Chat(ctx, []provider.Message{
+		{Role: "system", Content: "你是技能库维护助手。把多个窄技能综合成一个类级技能，保留每个独特路径为带标签小节，去重共享部分。"},
+		{Role: "user", Content: prompt},
+	}, nil, c.model, 4096, 0)
+	if err != nil {
+		return "", fmt.Errorf("synthesis chat: %w", err)
+	}
+	content := strings.TrimSpace(resp.Content)
+	if content == "" {
+		return "", fmt.Errorf("empty synthesis result")
+	}
+	name := parseFrontmatterName(content)
+	if name == "" {
+		name = members[0] + "-merged"
+	}
+	return c.store.CreateProposal(ctx, &store.SkillProposal{
+		AgentID:        agentID,
+		Sources:        members,
+		TargetName:     name,
+		TargetContent:  content,
+		Evidence:       evidence,
+		Recommendation: "merge",
+		CreatedAt:      time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func readSkillBodies(members []string, skillDir string) (string, error) {
+	var sb strings.Builder
+	for _, name := range members {
+		data, err := os.ReadFile(filepath.Join(skillDir, name, "SKILL.md"))
+		if err != nil {
+			return "", fmt.Errorf("read skill %s: %w", name, err)
+		}
+		fmt.Fprintf(&sb, "### %s\n%s\n\n", name, string(data))
+	}
+	return sb.String(), nil
+}
+
+// parseFrontmatterName 从 "---\nname: xxx\n---" 提取 name；无则空。
+func parseFrontmatterName(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "name:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "name:"))
+		}
+	}
+	return ""
+}
+
+const synthesisPrompt = `把以下这些经常被一起使用的窄技能综合成一个类级技能（%s）。
+
+要求：
+- 产出一个完整的新 SKILL.md（含 frontmatter: name + description）。
+- 共享前言只写一份（去重），每个原技能的独特步骤作为带标签小节（##）保留。
+- 不要丢任何独特内容；description 拓宽到类级。
+
+原技能：
+%s
+
+直接输出新 SKILL.md 全文（以 --- 开头）。`
