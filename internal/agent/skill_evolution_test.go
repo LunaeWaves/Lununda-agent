@@ -215,8 +215,19 @@ func TestRunSkillEvolutionEndToEnd(t *testing.T) {
 		t.Errorf("pending = %+v", pending)
 	}
 
-	// 二次 Run 应幂等：verdict 已存在，不重复 LLM；但会再产 1 个 proposal
-	// （BuildClusters 仍返回 {pdf,docx}）。补加 IsNotRelated/HasVerdict 防护即可。
+	// 二次 Run 应幂等：verdict 已存在跳过 LLM；且 pending 提案已覆盖同一簇，
+	// 不会重复综合——不再产新 proposal。
+	ids2, err := ev.Run(ctx, "agent-1")
+	if err != nil {
+		t.Fatalf("second Run: %v", err)
+	}
+	if len(ids2) != 0 {
+		t.Errorf("second Run proposals = %d, want 0 (duplicate suppressed): %v", len(ids2), ids2)
+	}
+	pending2, _ := st.ListPendingProposals(ctx, "agent-1")
+	if len(pending2) != 1 {
+		t.Errorf("pending after second Run = %d, want 1", len(pending2))
+	}
 }
 
 func TestParseFrontmatterName(t *testing.T) {

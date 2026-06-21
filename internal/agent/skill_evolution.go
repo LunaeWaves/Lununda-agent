@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -230,8 +231,20 @@ func (e *skillEvolution) Run(ctx context.Context, agentID string) ([]string, err
 	clusters := BuildClusters(edges)
 
 	synth := &clusterSynthesizer{store: e.store, provider: e.provider, model: e.model}
+	pending, err := e.store.ListPendingProposals(ctx, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("list pending proposals: %w", err)
+	}
+	have := make(map[string]bool, len(pending))
+	for _, p := range pending {
+		have[clusterKey(p.Sources)] = true
+	}
 	var proposalIDs []string
 	for _, cl := range clusters {
+		if have[clusterKey(cl)] {
+			slog.Info("skill evolution: skip cluster, pending proposal exists", "agent", agentID, "cluster", cl)
+			continue
+		}
 		id, err := synth.Synthesize(ctx, agentID, cl, e.skillDir, "curator run")
 		if err != nil {
 			slog.Warn("skill evolution: synthesize failed", "agent", agentID, "cluster", cl, "error", err)
@@ -240,4 +253,12 @@ func (e *skillEvolution) Run(ctx context.Context, agentID string) ([]string, err
 		proposalIDs = append(proposalIDs, id)
 	}
 	return proposalIDs, nil
+}
+
+// clusterKey 返回簇成员集合的稳定键（排序后 join），用于跨周期提案去重：
+// 成员集合不变则 key 不变，避免每个周期重复综合同一簇、堆积重复 pending 提案。
+func clusterKey(members []string) string {
+	cp := append([]string(nil), members...)
+	sort.Strings(cp)
+	return strings.Join(cp, "|")
 }
