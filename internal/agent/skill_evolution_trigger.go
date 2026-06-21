@@ -9,6 +9,7 @@ import (
 
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
 )
 
 // shouldRunSkillEvolution 是门控纯函数：启用 + 有上次记录 + 已超 interval。
@@ -23,6 +24,21 @@ func shouldRunSkillEvolution(cfg config.SkillEvolutionCfg, lastRun time.Time) bo
 	return time.Since(lastRun) >= cfg.Interval
 }
 
+// loadSkillEvolutionCfg 读 agent scope memory.skillEvolution。NewAgentWithSkillsCfg
+// 不加载 fullCfg.Memory（见 loop.go 注释：memory configs row dead in production），
+// curator 作为 SkillEvolution 唯一消费者直接从 store 读，保证 dashboard 配的
+// enabled/interval/notify 真正生效。
+func (a *Agent) loadSkillEvolutionCfg(ctx context.Context, agentID string) config.SkillEvolutionCfg {
+	cfg := a.memoryCfg.SkillEvolution
+	if a.dataStore != nil {
+		var mem config.MemoryCfg
+		if err := scope.SettingInto(ctx, a.dataStore, "memory", a.ownerUserID, agentID, &mem); err == nil {
+			cfg = mem.SkillEvolution
+		}
+	}
+	return cfg
+}
+
 // maybeSkillEvolution 由 runPostTurn 调用：门控命中则异步跑一遍 curator。
 // Get→检查→Set 非原子（SetSkillEvolutionLastRun 是无条件 UPSERT），用
 // skillEvoMu 串行化临界段，防同一 agent 的并发 turn 双开 curator goroutine。
@@ -31,7 +47,7 @@ func (a *Agent) maybeSkillEvolution(ctx context.Context, agentID string) {
 	if a.dataStore == nil {
 		return
 	}
-	cfg := a.memoryCfg.SkillEvolution
+	cfg := a.loadSkillEvolutionCfg(ctx, agentID)
 	if cfg.Interval <= 0 {
 		cfg.Interval = 7 * 24 * time.Hour
 	}
