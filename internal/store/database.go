@@ -1738,6 +1738,19 @@ func (d *DBStore) migrationSQL() []string {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_skill_usage_agent_skill ON skill_usage (agent_id, skill_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_skill_usage_session ON skill_usage (agent_id, user_id, session_key, seq)`,
+		// skill_pair_verdict stores LLM-judged relevance between two skills
+		// (D2 段 2). (skill_a, skill_b) normalized to a<b at insert time so
+		// UNIQUE(agent,a,b) is stable regardless of caller arg order.
+		`CREATE TABLE IF NOT EXISTS skill_pair_verdict (
+			agent_id TEXT NOT NULL,
+			skill_a  TEXT NOT NULL,
+			skill_b  TEXT NOT NULL,
+			verdict  TEXT NOT NULL,
+			reason   TEXT NOT NULL DEFAULT '',
+			ts       TEXT NOT NULL,
+			UNIQUE (agent_id, skill_a, skill_b)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_pair_verdict_agent ON skill_pair_verdict (agent_id, verdict)`,
 		// projects groups sessions that share a workspace folder. PK
 		// matches sessions: a project is "user X's working folder on
 		// agent Y", same private-per-user ownership model. The on-disk
@@ -3389,6 +3402,69 @@ func (d *DBStore) CandidateSkillPairs(ctx context.Context, agentID string, maxDi
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// normalizePair returns (lo, hi) so the UNIQUE(agent, a, b) key is stable
+// regardless of which order callers pass the two skill ids in.
+func normalizePair(a, b string) (string, string) {
+	if a <= b {
+		return a, b
+	}
+	return b, a
+}
+
+// RecordPairVerdict upserts a relevance verdict. Order-insensitive:
+// (a,b) and (b,a) write the same row. verdict ∈ {"related", "not_related"}.
+// `excluded.X` (SQLite 3.35+, Postgres) avoids re-binding args in ON CONFLICT.
+func (d *DBStore) RecordPairVerdict(ctx context.Context, agentID, skillA, skillB, verdict, reason, ts string) error {
+	a, b := normalizePair(skillA, skillB)
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO skill_pair_verdict (agent_id, skill_a, skill_b, verdict, reason, ts)
+		 VALUES (%s, %s, %s, %s, %s, %s)
+		 ON CONFLICT (agent_id, skill_a, skill_b) DO UPDATE SET
+		   verdict=excluded.verdict, reason=excluded.reason, ts=excluded.ts`,
+		d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5), d.ph(6)),
+		agentID, a, b, verdict, reason, ts)
+	if err != nil {
+		return fmt.Errorf("upsert pair verdict: %w", err)
+	}
+	return nil
+}
+
+// ListRelatedPairs returns pairs judged "related" — the edge set
+// BuildClusters consumes to form skill clusters.
+func (d *DBStore) ListRelatedPairs(ctx context.Context, agentID string) ([]SkillPair, error) {
+	rows, err := d.db.QueryContext(ctx, fmt.Sprintf(
+		`SELECT skill_a, skill_b, reason FROM skill_pair_verdict WHERE agent_id = %s AND verdict = 'related'`,
+		d.ph(1)), agentID)
+	if err != nil {
+		return nil, fmt.Errorf("list related pairs: %w", err)
+	}
+	defer rows.Close()
+	var out []SkillPair
+	for rows.Next() {
+		var p SkillPair
+		if err := rows.Scan(&p.A, &p.B, &p.Reason); err != nil {
+			return nil, err
+		}
+		p.Verdict = "related"
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// IsNotRelated reports whether the (order-insensitive) pair has a
+// "not_related" verdict. Pairs with no row or "related" verdict return false.
+func (d *DBStore) IsNotRelated(ctx context.Context, agentID, skillA, skillB string) bool {
+	a, b := normalizePair(skillA, skillB)
+	var verdict string
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT verdict FROM skill_pair_verdict WHERE agent_id = %s AND skill_a = %s AND skill_b = %s`,
+		d.ph(1), d.ph(2), d.ph(3)), agentID, a, b).Scan(&verdict)
+	if err != nil {
+		return false
+	}
+	return verdict == "not_related"
 }
 
 func (d *DBStore) GetDueCronJobs(ctx context.Context, now time.Time) ([]CronJobRecord, error) {

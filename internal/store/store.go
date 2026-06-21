@@ -260,6 +260,20 @@ type Store interface {
 	// by synthesis likelihood.
 	CandidateSkillPairs(ctx context.Context, agentID string, maxDistance, minSessions int) ([]CandidatePair, error)
 
+	// --- Skill pair verdicts (curator 段 2) ---
+	//
+	// RecordPairVerdict upserts a relevance verdict for a skill pair.
+	// skillA/skillB order is irrelevant — internally normalized to a<b
+	// so the UNIQUE(agent,a,b) key is stable. verdict is "related" or
+	// "not_related".
+	RecordPairVerdict(ctx context.Context, agentID, skillA, skillB, verdict, reason, ts string) error
+	// ListRelatedPairs returns pairs judged "related" — the edge set
+	// BuildClusters consumes to form skill clusters.
+	ListRelatedPairs(ctx context.Context, agentID string) ([]SkillPair, error)
+	// IsNotRelated reports whether the (order-insensitive) pair has a
+	// "not_related" verdict. Pairs with no verdict or "related" return false.
+	IsNotRelated(ctx context.Context, agentID, skillA, skillB string) bool
+
 	// --- IM owner-identity claim (verification code) ---
 	//
 	// Web-side owner (authenticated) mints a one-time code via
@@ -713,6 +727,15 @@ type CandidatePair struct {
 	Sessions int     `json:"sessions"` // 跨多少个不同 session（user+session_key）共用
 	AvgDist  float64 `json:"avgDist"`  // 同 session 内平均 seq 距离
 	Score    float64 `json:"score"`    // Sessions / (1 + AvgDist)
+}
+
+// SkillPair is an unordered pair of skill ids. Stored normalized (A<B) so
+// UNIQUE(agent,A,B) is stable; verdict is "related" inside ListRelatedPairs.
+type SkillPair struct {
+	A       string `json:"a"`
+	B       string `json:"b"`
+	Verdict string `json:"verdict"`
+	Reason  string `json:"reason"`
 }
 
 // IMClaimRecord holds a pending IM owner-identity verification code. See
