@@ -275,10 +275,17 @@ func (s *Server) HandleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	if channel == "" {
 		channel = "api"
 	}
+	// owner uid (not a literal) so isAdmitted passes and per-(agent,owner)
+	// memory/session key correctly — "api-user" was silently dropped,
+	// which is why the API never produced a memory upgrade.
+	ownerUID := ""
+	if ident, ok := auth.FromContext(r.Context()); ok {
+		ownerUID = ident.UserID
+	}
 	msg := bus.InboundMessage{
 		Channel:   channel,
 		ChatID:    sessionKey,
-		UserID:    "api-user",
+		UserID:    ownerUID,
 		Text:      userText,
 		PeerKind:  "dm",
 		Params:    req.Params,

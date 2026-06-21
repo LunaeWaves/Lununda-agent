@@ -474,6 +474,13 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 	if ag.memoryCfg.Review.EveryNTurns == 0 {
 		ag.memoryCfg.Review.EveryNTurns = 10
 	}
+	// Review default-on mirrors AutoTitle above. This production path is
+	// the only one the manager calls, so without it default agents leave
+	// Review.Enabled=false and the background memory review never fires
+	// (记忆升级不生效). rc.Review==nil respects an explicit opt-out.
+	if rc.Review == nil && !ag.memoryCfg.Review.Enabled && ag.memoryCfg.Review.Model == "" {
+		ag.memoryCfg.Review.Enabled = true
+	}
 
 	// message tool — registered HERE (post-Agent) so the closure can read
 	// ag.splitReplies at every send. Per-agent setting can flip at
