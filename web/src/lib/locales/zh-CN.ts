@@ -1078,6 +1078,16 @@ const zhCN: Record<string, string> = {
   "skills.installs": "次安装",
   "skills.installed": "已安装",
   "skills.installing": "安装中…",
+  "skills.evolution.autoUpgrade": "自动迭代升级",
+  "skills.evolution.notify": "新提案提醒",
+  "skills.evolution.notifyChannel": "渠道",
+  "skills.evolution.notifyChatID": "会话 ID",
+  "skills.evolution.proposals": "可升级提案",
+  "skills.evolution.keep": "保留",
+  "skills.evolution.accept": "接受",
+  "skills.evolution.reject": "拒绝",
+  "skills.evolution.archived": "已归档技能",
+  "skills.evolution.permanentDelete": "永久删除归档技能",
 
   // Agent channels page extras
   "channels.channelsTitle": "通道",

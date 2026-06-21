@@ -1078,6 +1078,16 @@ const en: Record<string, string> = {
   "skills.installs": "installs",
   "skills.installed": "Installed",
   "skills.installing": "Installing…",
+  "skills.evolution.autoUpgrade": "Auto upgrade",
+  "skills.evolution.notify": "Notify on proposal",
+  "skills.evolution.notifyChannel": "Channel",
+  "skills.evolution.notifyChatID": "Chat ID",
+  "skills.evolution.proposals": "Upgrade proposals",
+  "skills.evolution.keep": "Keep",
+  "skills.evolution.accept": "Accept",
+  "skills.evolution.reject": "Reject",
+  "skills.evolution.archived": "Archived skills",
+  "skills.evolution.permanentDelete": "Permanently delete archived skill",
 
   // Agent channels page extras
   "channels.channelsTitle": "Channels",

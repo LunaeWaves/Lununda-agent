@@ -43,8 +43,18 @@ import {
   uploadSkill,
   searchSkills,
   getConfig,
+  getAgentMemory,
+  setAgentMemory,
+  getAgentSkillProposals,
+  acceptSkillProposal,
+  rejectSkillProposal,
+  getArchivedSkills,
+  deleteArchivedSkill,
   type SkillInfo,
   type SkillSearchResult,
+  type SkillProposal,
+  type ArchivedSkill,
+  type SkillEvolutionCfg,
 } from "@/lib/api";
 import { ConfigureSkillDialog, type SkillEntryView } from "@/components/configure-skill-dialog";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
@@ -73,14 +83,23 @@ export default function AgentSkillsPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [proposals, setProposals] = useState<SkillProposal[]>([]);
+  const [archived, setArchived] = useState<ArchivedSkill[]>([]);
+  const [evoCfg, setEvoCfg] = useState<SkillEvolutionCfg>({ enabled: false });
+  const [evoSaving, setEvoSaving] = useState(false);
+  const [keepMap, setKeepMap] = useState<Record<string, Record<string, boolean>>>({});
+  const [archiveDelete, setArchiveDelete] = useState<ArchivedSkill | null>(null);
 
   const fetchSkills = useCallback(() => {
     setLoading(true);
     Promise.all([
       getAgentSkills(agentId).catch(() => [] as SkillInfo[]),
       getConfig().catch(() => null),
+      getAgentSkillProposals(agentId).catch(() => [] as SkillProposal[]),
+      getArchivedSkills(agentId).catch(() => [] as ArchivedSkill[]),
+      getAgentMemory(agentId).catch(() => null),
     ])
-      .then(([list, cfg]) => {
+      .then(([list, cfg, props, arch, mem]) => {
         setSkills(list || []);
         // Per-agent override map first (this page edits there); merge
         // global defaults underneath so the "configured" badge still
@@ -98,6 +117,14 @@ export default function AgentSkillsPage() {
           merged[name] = entry;
         }
         setSkillEntries(merged);
+        setProposals(props || []);
+        setArchived(arch || []);
+        setEvoCfg(mem?.memory?.skillEvolution || { enabled: false });
+        const km: Record<string, Record<string, boolean>> = {};
+        for (const p of props || []) {
+          km[p.ID] = Object.fromEntries((p.Sources || []).map((s) => [s, true]));
+        }
+        setKeepMap(km);
       })
       .finally(() => setLoading(false));
   }, [agentId]);
@@ -110,6 +137,38 @@ export default function AgentSkillsPage() {
     if (!deleteTarget) return;
     await deleteAgentSkill(agentId, deleteTarget);
     setDeleteTarget(null);
+    fetchSkills();
+  };
+
+  const saveEvoCfg = async (next: SkillEvolutionCfg) => {
+    setEvoCfg(next);
+    setEvoSaving(true);
+    try {
+      const cur = await getAgentMemory(agentId).catch(() => null);
+      const base = cur?.memory || {};
+      await setAgentMemory(agentId, { ...base, skillEvolution: next });
+    } finally {
+      setEvoSaving(false);
+    }
+  };
+
+  const handleAcceptProposal = async (p: SkillProposal) => {
+    const keep = Object.entries(keepMap[p.ID] || {})
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+    await acceptSkillProposal(agentId, p.ID, keep);
+    fetchSkills();
+  };
+
+  const handleRejectProposal = async (p: SkillProposal) => {
+    await rejectSkillProposal(agentId, p.ID);
+    fetchSkills();
+  };
+
+  const handleArchiveDelete = async () => {
+    if (!archiveDelete) return;
+    await deleteArchivedSkill(agentId, archiveDelete.Name, archiveDelete.ArchivedAt);
+    setArchiveDelete(null);
     fetchSkills();
   };
 
@@ -189,6 +248,88 @@ export default function AgentSkillsPage() {
         </div>
       </div>
 
+      {/* 技能迭代升级控件 */}
+      <div className="rounded-lg border p-4 flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={evoCfg.enabled}
+            onChange={(e) => saveEvoCfg({ ...evoCfg, enabled: e.target.checked })}
+            disabled={evoSaving}
+          />
+          {t("skills.evolution.autoUpgrade")}
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          {t("skills.evolution.notify")}
+          <input
+            type="checkbox"
+            checked={!!evoCfg.notify?.enabled}
+            onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: e.target.checked } })}
+            disabled={evoSaving}
+          />
+        </label>
+        <Input
+          placeholder={t("skills.evolution.notifyChannel")}
+          className="w-32"
+          value={evoCfg.notify?.channel || ""}
+          onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: e.target.value } })}
+          disabled={evoSaving}
+        />
+        <Input
+          placeholder={t("skills.evolution.notifyChatID")}
+          className="w-32"
+          value={evoCfg.notify?.chatID || ""}
+          onChange={(e) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, chatID: e.target.value } })}
+          disabled={evoSaving}
+        />
+        {evoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+      </div>
+
+      {/* 可升级技能提案 */}
+      {proposals.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4" /> {t("skills.evolution.proposals")}
+          </h2>
+          <div className="space-y-3">
+            {proposals.map((p) => (
+              <div key={p.ID} className="rounded-lg border p-3">
+                <div className="mb-2 text-sm">
+                  <span className="font-mono text-xs">{(p.Sources || []).join(" + ")}</span>
+                  <span className="mx-2">→</span>
+                  <span className="font-medium">{p.TargetName}</span>
+                  {p.Evidence && (
+                    <span className="ml-2 text-xs text-muted-foreground">{p.Evidence}</span>
+                  )}
+                </div>
+                <div className="mb-2 flex flex-wrap gap-3">
+                  {(p.Sources || []).map((s) => (
+                    <label key={s} className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={keepMap[p.ID]?.[s] ?? true}
+                        onChange={(e) =>
+                          setKeepMap((m) => ({ ...m, [p.ID]: { ...(m[p.ID] || {}), [s]: e.target.checked } }))
+                        }
+                      />
+                      {t("skills.evolution.keep")} {s}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => handleAcceptProposal(p)}>
+                    <Check className="h-3 w-3 mr-1" /> {t("skills.evolution.accept")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleRejectProposal(p)}>
+                    {t("skills.evolution.reject")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -266,6 +407,44 @@ export default function AgentSkillsPage() {
           ))}
         </div>
       )}
+
+      {/* 已归档技能 */}
+      {archived.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold flex items-center gap-2">
+            <Files className="h-4 w-4" /> {t("skills.evolution.archived")}
+          </h2>
+          <div className="space-y-1">
+            {archived.map((a) => (
+              <div
+                key={a.Name + a.ArchivedAt}
+                className="flex items-center justify-between rounded border px-3 py-1 text-sm"
+              >
+                <span>
+                  <span className="font-mono text-xs">{a.Name}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{a.ArchivedAt}</span>
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => setArchiveDelete(a)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={!!archiveDelete} onOpenChange={(o) => !o && setArchiveDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("skills.evolution.permanentDelete")}</AlertDialogTitle>
+            <AlertDialogDescription>{archiveDelete?.Name}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchiveDelete}>{t("common.delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={uploadOpen} onOpenChange={handleUploadOpenChange}>
         <DialogContent className="sm:max-w-md">

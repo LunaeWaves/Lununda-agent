@@ -1469,6 +1469,7 @@ export interface MemoryConfig {
   reranker?: MemoryRerankerConfig;
   settings?: { enabled?: boolean; reindexIntervalMin?: number };
   summaryModel?: string;
+  skillEvolution?: SkillEvolutionCfg;
 }
 
 export interface AgentMemoryResponse {
