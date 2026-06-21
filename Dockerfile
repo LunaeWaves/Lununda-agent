@@ -1,5 +1,10 @@
 # --- Stage 1: Build web UI ---
-FROM node:22-alpine AS web-builder
+# Build on the native BUILDPLATFORM instead of the emulated target arch.
+# Next.js's SWC is a native binary; under QEMU cross-arch emulation it
+# crashes with SIGILL during `pnpm build`. The web output is a static
+# export (arch-agnostic HTML/JS/CSS), so it copies cleanly into any
+# target-arch stage below.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web-builder
 WORKDIR /src/web
 # Pin pnpm: `latest` started pulling v11, which made
 # pnpm-workspace.yaml's onlyBuiltDependencies allow-list ineffective
@@ -17,7 +22,10 @@ RUN pnpm build
 # flagged 16 called paths in go1.25.4: crypto/tls, crypto/x509, net/http
 # HTTP/2 DoS, archive/tar GNU sparse, etc.). Update in lockstep with
 # go.mod's `go` directive.
-FROM golang:1.25.11-alpine AS go-builder
+# Build Go on BUILDPLATFORM too and cross-compile via GOOS/GOARCH, so
+# the Go toolchain never runs under QEMU (multi-arch builds stay fast
+# and SIGILL-free). CGO disabled → pure-Go cross-compile is safe.
+FROM --platform=$BUILDPLATFORM golang:1.25.11-alpine AS go-builder
 RUN apk add --no-cache git
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -28,13 +36,15 @@ COPY --from=web-builder /src/web/out internal/setup/web
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG DATE=unknown
+ARG TARGETOS=linux
+ARG TARGETARCH
 # Stamp BOTH symbol sets — `main.*` for the legacy `lununda version` CLI
 # consumer and `internal/buildinfo.*` for the agent runtime + the About
 # page in the web UI. Mirrors the Makefile / scripts/release.sh ldflags
 # so a docker-built image identifies itself the same way the released
 # binary does; without the buildinfo line the About page silently shows
 # "dev" on every published image (the symptom that triggered this fix).
-RUN CGO_ENABLED=0 go build \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags "-s -w \
       -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE} \
       -X github.com/LunaeWaves/Lununda-agent/internal/buildinfo.Version=${VERSION} \
