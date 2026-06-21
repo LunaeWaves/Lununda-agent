@@ -116,7 +116,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               placeholder={t("signup.usernamePlaceholder")}
               autoFocus
               autoComplete="username"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <input
               type="email"
@@ -124,7 +124,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               onChange={(e) => setSignupEmail(e.target.value)}
               placeholder={t("signup.emailPlaceholder")}
               autoComplete="email"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <input
               type="password"
@@ -132,7 +132,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t("signup.passwordPlaceholder")}
               autoComplete="new-password"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <input
               type="password"
@@ -140,13 +140,13 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               onChange={(e) => setSignupConfirm(e.target.value)}
               placeholder={t("signup.confirmPlaceholder")}
               autoComplete="new-password"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
             <button
               type="submit"
               disabled={loading || !signupUsername.trim() || !signupEmail.trim() || !password || !signupConfirm}
-              className="w-full rounded-lg bg-violet-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? t("signup.submitting") : t("signup.submit")}
             </button>
@@ -156,7 +156,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             <button
               type="button"
               onClick={() => switchMode("signin")}
-              className="text-violet-400 hover:text-violet-300"
+              className="text-primary hover:text-primary/80"
             >
               Sign in
             </button>
@@ -181,7 +181,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             placeholder={t("login.usernamePlaceholder")}
             autoFocus
             autoComplete="username"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           <input
             type="password"
@@ -189,13 +189,13 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             onChange={(e) => setPassword(e.target.value)}
             placeholder={t("login.passwordPlaceholder")}
             autoComplete="current-password"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"
             disabled={loading || !loginField.trim() || !password}
-            className="w-full rounded-lg bg-violet-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? t("login.submitting") : t("login.submit")}
           </button>
@@ -206,7 +206,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             <button
               type="button"
               onClick={() => switchMode("signup")}
-              className="text-violet-400 hover:text-violet-300"
+              className="text-primary hover:text-primary/80"
             >
               Sign up
             </button>

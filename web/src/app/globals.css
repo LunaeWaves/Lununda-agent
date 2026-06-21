@@ -208,6 +208,18 @@
 .bg-lunar-violet { background-color: #9488D8; }
 .bg-deep-abyss { background-color: #0A1629; }
 
+/* ponytail: 弹窗(对话框/抽屉/警示框)内所有交互元素的强调色统一品牌紫:
+   在容器内把 --primary / --ring 重映射到 --accent,按钮、输入框 focus 环、
+   switch、badge、链接、图标等全部跟随变紫,免逐组件改色。页面主色保持青蓝。
+   升级路径:某控件要单独保留青蓝,在该元素上显式覆盖 --primary/--ring。 */
+[data-slot="dialog-content"],
+[data-slot="sheet-content"],
+[data-slot="alert-dialog-content"] {
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --ring: var(--accent);
+}
+
 /* Theme transition */
 html.theme-transition,
 html.theme-transition *,
