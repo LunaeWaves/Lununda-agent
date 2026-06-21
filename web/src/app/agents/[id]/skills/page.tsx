@@ -352,6 +352,11 @@ export default function AgentSkillsPage() {
             )}
           </SelectContent>
         </Select>
+        {evoCfg.notify?.accountID && (
+          <Badge variant="outline" className="font-mono text-[10px] max-w-[180px] truncate" title={evoCfg.notify.accountID}>
+            {evoCfg.notify.accountID}
+          </Badge>
+        )}
         {evoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
       </div>
 
