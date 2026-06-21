@@ -306,7 +306,7 @@ type Store interface {
 	// ListPendingProposals returns proposals with status="pending" for
 	// the dashboard queue, oldest first.
 	ListPendingProposals(ctx context.Context, agentID string) ([]SkillProposal, error)
-	// SetProposalStatus transitions pending → accepted/rejected/applied
+	// SetProposalStatus transitions pending → rejected/applied
 	// and stamps decided_at.
 	SetProposalStatus(ctx context.Context, id, status, decidedAt string) error
 
@@ -787,7 +787,7 @@ type SkillPair struct {
 
 // SkillProposal is a curator-produced synthesis candidate. Sources is the
 // cluster (≥2 skills) the new skill would replace; TargetContent is the
-// full SKILL.md body. Status flows pending → accepted/rejected → applied.
+// full SKILL.md body. Status flows pending → rejected/applied.
 type SkillProposal struct {
 	ID             string   `json:"id"`
 	AgentID        string   `json:"agentId"`
@@ -796,7 +796,7 @@ type SkillProposal struct {
 	TargetContent  string   `json:"targetContent"`
 	Evidence       string   `json:"evidence"`
 	Recommendation string   `json:"recommendation"`
-	Status         string   `json:"status"` // pending/accepted/rejected/applied
+	Status         string   `json:"status"` // pending/rejected/applied
 	CreatedAt      string   `json:"createdAt"`
 	DecidedAt      string   `json:"decidedAt"`
 }

@@ -161,7 +161,7 @@ curator 生成新提案时，若 `Notify.Enabled` 且选了渠道，通过该 IM
 
 - **`skill_usage` 表**：`(user_id, agent_id, session_key, seq, skill_id, ts)`，`(user_id, agent_id, session_key, seq, skill_id)` 唯一。`seq` = 记录时从 `session_messages` 派生的对话深度。索引 `(agent_id, skill_id)`、`(agent_id, user_id, session_key, seq)`。
 - **`skill_pair_verdict` 表**（pair 相关性裁决）：`(agent_id, skill_a, skill_b, verdict, reason, ts)`，`(agent_id, skill_a, skill_b)` 唯一（归一化 `skill_a < skill_b`）。`verdict`：`related`/`not_related`。
-- **`skill_proposals` 表**：`(id, agent_id, sources JSON, target_name, target_content, evidence JSON, recommendation, status, created_at, decided_at)`。`sources` = 簇成员列表（≥2）。`status`：`pending`/`accepted`/`rejected`/`applied`。
+- **`skill_proposals` 表**：`(id, agent_id, sources JSON, target_name, target_content, evidence JSON, recommendation, status, created_at, decided_at)`。`sources` = 簇成员列表（≥2）。`status`：`pending`/`rejected`/`applied`。
 - **归档目录**：`agents/<id>/agent/skills/.archive/<YYYYMMDD-HHMMSS>/<skill>/`。
 
 ## 组件（新增 / 改动）
@@ -196,7 +196,7 @@ curator 生成新提案时，若 `Notify.Enabled` 且选了渠道，通过该 IM
 | 图聚类 + 簇综合 | 单元 | 段 3：相关 pair 建图 → 连通分量 → 对簇综合 |
 | curator fork 构造 | 单元 | 只读白名单工具集 + 绑 agent |
 | executor 校验 + apply | 单元 | 写 D、归档未保留来源、拒非法提案 |
-| 提案状态机 | 单元 | pending → accepted → applied / rejected |
+| 提案状态机 | 单元 | pending → applied / rejected |
 | 归档 / 恢复 / 永久删除 | 单元 | `os.Rename` 到 .archive、恢复、永久删 |
 | re-target | 单元 + 集成 | 多用户下 `skills/...` 写入落 agent 层（非 chatter 桶） |
 | usage 日志 | 单元 | load_skill 记录 + 候选查询 |

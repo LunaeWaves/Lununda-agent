@@ -1752,8 +1752,8 @@ func (d *DBStore) migrationSQL() []string {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_pair_verdict_agent ON skill_pair_verdict (agent_id, verdict)`,
 		// skill_proposals stores synthesis candidates produced by the
-		// curator (段 3). Status flows pending → accepted/rejected →
-		// applied. Sources is a JSON array so the cluster members
+		// curator (段 3). Status flows pending → rejected/applied.
+		// Sources is a JSON array so the cluster members
 		// survive round-trip without a join table.
 		`CREATE TABLE IF NOT EXISTS skill_proposals (
 			id             TEXT PRIMARY KEY,
@@ -3655,8 +3655,8 @@ func (d *DBStore) GetProposal(ctx context.Context, id string) (*SkillProposal, e
 	return &p, nil
 }
 
-// SetProposalStatus transitions a proposal between pending/accepted/rejected/
-// applied and stamps decided_at.
+// SetProposalStatus transitions a proposal between pending/rejected/applied
+// and stamps decided_at.
 func (d *DBStore) SetProposalStatus(ctx context.Context, id, status, decidedAt string) error {
 	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
 		`UPDATE skill_proposals SET status = %s, decided_at = %s WHERE id = %s`,

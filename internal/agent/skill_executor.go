@@ -24,7 +24,7 @@ func ApplyProposal(ctx context.Context, st store.Store, proposalID string, keepS
 	if err != nil {
 		return fmt.Errorf("get proposal: %w", err)
 	}
-	if p.Status != "pending" && p.Status != "accepted" {
+	if p.Status != "pending" {
 		return fmt.Errorf("proposal not applicable (status=%s)", p.Status)
 	}
 	if !isSafeSkillName(p.TargetName) {

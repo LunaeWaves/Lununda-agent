@@ -78,11 +78,11 @@ func TestProposalLifecycle(t *testing.T) {
 		t.Errorf("Sources 反序列化错误： %+v", pending[0].Sources)
 	}
 
-	if err := d.SetProposalStatus(ctx, id, "accepted", "2026-06-21T01:00:00Z"); err != nil {
-		t.Fatalf("SetProposalStatus accepted: %v", err)
+	if err := d.SetProposalStatus(ctx, id, "rejected", "2026-06-21T01:00:00Z"); err != nil {
+		t.Fatalf("SetProposalStatus rejected: %v", err)
 	}
 	pending2, _ := d.ListPendingProposals(ctx, "agent-1")
 	if len(pending2) != 0 {
-		t.Errorf("accepted 后 pending 应空，got %d", len(pending2))
+		t.Errorf("rejected 后 pending 应空，got %d", len(pending2))
 	}
 }
