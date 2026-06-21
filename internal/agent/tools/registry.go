@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
@@ -73,6 +74,10 @@ type Registry struct {
 	// builder still reads them via the separate small-state Store.
 	workspaceStore workspace.Store
 	agentID        string
+	// skillUsageRecorder, when set, is called by load_skill on every
+	// successful load so the curator can detect co-occurring skills.
+	// Wired by the manager from store.RecordSkillUsage; nil → no-op.
+	skillUsageRecorder SkillUsageRecorder
 
 	// summaryDB is the relational store handle used by memory_search to
 	// query conversation_summaries across sessions. Wired after Agent
@@ -277,6 +282,32 @@ type SystemFileStore interface {
 func (r *Registry) SetWorkspaceStore(ws workspace.Store, agentID string) {
 	r.workspaceStore = ws
 	r.agentID = agentID
+}
+
+// SkillUsageRecorder logs one load_skill invocation. Adapted from
+// store.RecordSkillUsage by the manager so the tools package doesn't
+// reverse-depend on store.
+type SkillUsageRecorder func(ctx context.Context, userID, agentID, sessionKey, skillName, ts string) error
+
+// SetSkillUsageRecorder wires a load_skill usage recorder. nil disables
+// recording (load_skill still works, just doesn't log usage).
+func (r *Registry) SetSkillUsageRecorder(rec SkillUsageRecorder) {
+	r.skillUsageRecorder = rec
+}
+
+// recordSkillUsage is called by load_skill after a successful load. Best-effort:
+// missing recorder / agentID / userID / session all short-circuit silently —
+// usage is an enhancement, never blocks the load.
+func (r *Registry) recordSkillUsage(ctx context.Context, skillName string) {
+	if r.skillUsageRecorder == nil || r.agentID == "" || r.userID == "" {
+		return
+	}
+	sessionKey := r.scopeSessionID()
+	if sessionKey == "" {
+		return
+	}
+	ts := time.Now().UTC().Format(time.RFC3339)
+	_ = r.skillUsageRecorder(ctx, r.userID, r.agentID, sessionKey, skillName, ts)
 }
 
 // SetSystemFileStore installs a durable store for identity files so the

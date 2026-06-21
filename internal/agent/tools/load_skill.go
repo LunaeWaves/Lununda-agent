@@ -24,10 +24,10 @@ func RegisterLoadSkill(r *Registry, skillDirs []string) {
 			},
 		},
 		"required": []string{"name"},
-	}, makeLoadSkill(skillDirs))
+	}, makeLoadSkill(r, skillDirs))
 }
 
-func makeLoadSkill(skillDirs []string) ToolFunc {
+func makeLoadSkill(r *Registry, skillDirs []string) ToolFunc {
 	return func(ctx context.Context, rawArgs json.RawMessage) (string, error) {
 		var args loadSkillArgs
 		if err := json.Unmarshal(rawArgs, &args); err != nil {
@@ -48,6 +48,7 @@ func makeLoadSkill(skillDirs []string) ToolFunc {
 			if err == nil {
 				skillDir, _ := filepath.Abs(filepath.Join(dir, args.Name))
 				content := strings.ReplaceAll(string(data), "{baseDir}", skillDir)
+				r.recordSkillUsage(ctx, args.Name) // best-effort; nil recorder → no-op
 				return wrapSkillContentInternal(args.Name, content), nil
 			}
 		}
