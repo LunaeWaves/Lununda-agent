@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"log/slog"
 	"net/http"
@@ -1716,12 +1715,69 @@ func (s *Server) handleRevokeSessionShare(w http.ResponseWriter, r *http.Request
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleGetSessionShare returns the active share for a session (owner-only).
+// Returns {share: null} when no active share exists. Lets the share dialog
+// show an existing link on open instead of always generating a fresh one.
+func (s *Server) handleGetSessionShare(w http.ResponseWriter, r *http.Request) {
+	agentID := r.PathValue("id")
+	sessionKey := r.PathValue("key")
+	if rec := s.requireAgentOwner(w, r, agentID); rec == nil {
+		return
+	}
+	ag := s.resolveAgent(r, agentID)
+	if ag == nil {
+		jsonResponse(w, http.StatusNotFound, map[string]any{"error": "agent not found"})
+		return
+	}
+	if s.dataStore == nil {
+		jsonResponse(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "error": "store unavailable"})
+		return
+	}
+	share, err := s.dataStore.GetActiveSessionShare(r.Context(), ag.Name(), sessionKey)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if share == nil {
+		jsonResponse(w, http.StatusOK, map[string]any{"share": nil})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"share": map[string]any{
+			"token":     share.Token,
+			"url":       "/share/" + share.Token,
+			"createdAt": share.CreatedAt,
+		},
+	})
+}
+
 // handleViewSharedSession renders a read-only HTML view of the session the
 // share token points to. Public (no auth). A revoked or unknown token 404s.
 // Real-time: reads session_messages at request time, so the owner's continued
 // conversation shows on refresh. Only message role + text content are shown;
 // tool calls / metadata are omitted for the public view.
+//
+// The page itself is served by Next.js at /shared?token=X — this handler
+// validates the token and 302s there. JSON access for the renderer is at
+// GET /api/share/{token} (handleGetSharedSessionJSON).
 func (s *Server) handleViewSharedSession(w http.ResponseWriter, r *http.Request) {
+	tok := r.PathValue("token")
+	if tok == "" || s.dataStore == nil {
+		http.NotFound(w, r)
+		return
+	}
+	rec, err := s.dataStore.GetSessionShare(r.Context(), tok)
+	if err != nil || rec == nil || !rec.RevokedAt.IsZero() {
+		http.NotFound(w, r)
+		return
+	}
+	http.Redirect(w, r, "/shared?token="+tok, http.StatusFound)
+}
+
+// handleGetSharedSessionJSON returns the session messages for a share token
+// as JSON (public, no auth). Drives the /shared client page's chat-style
+// rendering. Revoked or unknown tokens 404.
+func (s *Server) handleGetSharedSessionJSON(w http.ResponseWriter, r *http.Request) {
 	tok := r.PathValue("token")
 	if tok == "" || s.dataStore == nil {
 		http.NotFound(w, r)
@@ -1734,33 +1790,25 @@ func (s *Server) handleViewSharedSession(w http.ResponseWriter, r *http.Request)
 	}
 	msgs, err := s.dataStore.ListSessionMessages(r.Context(), rec.OwnerID, rec.AgentID, rec.SessionKey)
 	if err != nil {
-		http.Error(w, "failed to load session", http.StatusInternalServerError)
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": "failed to load session"})
 		return
 	}
-	renderSharedSessionHTML(w, msgs)
-}
-
-// renderSharedSessionHTML writes a minimal, HTML-escaped read-only chat
-// transcript. All user/assistant content is escaped to prevent XSS from
-// model/user output on the public page. The share record is intentionally
-// NOT rendered — it carries internal owner/agent/session IDs that must not
-// leak on the public page.
-func renderSharedSessionHTML(w http.ResponseWriter, msgs []store.SessionMessage) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	var b strings.Builder
-	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shared session</title><style>body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}.msg{padding:.6rem .8rem;border-radius:8px;margin:.4rem 0;white-space:pre-wrap;word-wrap:break-word}.user{background:#eef}.assistant{background:#f6f6f6}.role{font-weight:600;font-size:.8rem;text-transform:uppercase;opacity:.6;margin-bottom:.2rem}</style></head><body>`)
+	type outMsg struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	out := make([]outMsg, 0, len(msgs))
 	for _, m := range msgs {
 		if strings.TrimSpace(m.Content) == "" {
 			continue
 		}
-		role := "assistant"
-		if m.Role == "user" {
-			role = "user"
-		}
-		fmt.Fprintf(&b, `<div class="msg %s"><div class="role">%s</div>%s</div>`, role, role, html.EscapeString(m.Content))
+		out = append(out, outMsg{Role: m.Role, Content: m.Content})
 	}
-	b.WriteString(`</body></html>`)
-	io.WriteString(w, b.String())
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"token":       rec.Token,
+		"messages":    out,
+		"createdAt":   rec.CreatedAt,
+	})
 }
 
 // handleMoveSessionProject reassigns one chat to a different project

@@ -2885,6 +2885,28 @@ func (d *DBStore) GetSessionShare(ctx context.Context, token string) (*SessionSh
 	return &rec, nil
 }
 
+// GetActiveSessionShare returns the most recently created non-revoked
+// share for (agentID, sessionKey). nil + nil error when no active share.
+func (d *DBStore) GetActiveSessionShare(ctx context.Context, agentID, sessionKey string) (*SessionShareRecord, error) {
+	row := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT token, agent_id, session_key, owner_id, created_at, revoked_at
+		 FROM session_shares
+		 WHERE agent_id = %s AND session_key = %s AND revoked_at IS NULL
+		 ORDER BY created_at DESC LIMIT 1`, d.ph(1), d.ph(2)), agentID, sessionKey)
+	var rec SessionShareRecord
+	var revoked sql.NullTime
+	if err := row.Scan(&rec.Token, &rec.AgentID, &rec.SessionKey, &rec.OwnerID, &rec.CreatedAt, &revoked); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if revoked.Valid {
+		rec.RevokedAt = revoked.Time
+	}
+	return &rec, nil
+}
+
 // RevokeSessionShare marks the token's share revoked. Idempotent — a
 // no-op on already-revoked or unknown tokens.
 func (d *DBStore) RevokeSessionShare(ctx context.Context, token string) error {

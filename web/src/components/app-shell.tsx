@@ -8,12 +8,13 @@ import { SidebarLayout } from "@/components/sidebar";
 // here because hitting it directly while signed out (e.g. from an admin
 // invite link) was leaking the authenticated app chrome — Overview /
 // Agents / Models in the sidebar — to a not-yet-registered visitor.
-const BARE_PATHS = ["/", "/onboard", "/signup"];
+const BARE_PATHS = ["/", "/onboard", "/signup", "/shared"];
 
 function wantsSidebar(pathname: string) {
   if (BARE_PATHS.includes(pathname)) return false;
   if (pathname.startsWith("/onboard/")) return false;
   if (pathname.startsWith("/signup/")) return false;
+  if (pathname.startsWith("/shared")) return false;
   return true;
 }
 

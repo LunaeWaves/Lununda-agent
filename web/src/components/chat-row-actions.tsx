@@ -35,6 +35,7 @@ import { Check, Copy, Link2Icon, MoreHorizontalIcon, PencilIcon, Trash2Icon } fr
 import {
   createSessionShare,
   deleteChatSession,
+  getActiveSessionShare,
   renameChatSession,
   revokeSessionShare,
 } from "@/lib/api";
@@ -286,19 +287,28 @@ function ShareReadOnlyDialog({
   const t = useT();
   const [share, setShare] = React.useState<{ token: string; url: string } | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [loadingExisting, setLoadingExisting] = React.useState(false);
   const [revoked, setRevoked] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Reset state whenever the dialog opens fresh.
+  // On open: fetch the existing active share (if any) so the owner sees
+  // the current link first, not a "generate" button that mints a new
+  // one and revokes the old silently.
   React.useEffect(() => {
-    if (open) {
-      setShare(null);
-      setRevoked(false);
-      setCopied(false);
-      setError(null);
-    }
-  }, [open]);
+    if (!open) return;
+    setShare(null);
+    setRevoked(false);
+    setCopied(false);
+    setError(null);
+    setLoadingExisting(true);
+    getActiveSessionShare(agentId, sessionId)
+      .then((s) => {
+        if (s) setShare({ token: s.token, url: s.url });
+      })
+      .catch(() => {})
+      .finally(() => setLoadingExisting(false));
+  }, [open, agentId, sessionId]);
 
   const generate = async () => {
     setBusy(true);
@@ -357,8 +367,12 @@ function ShareReadOnlyDialog({
         </DialogHeader>
 
         {!share && !revoked && (
-          <Button onClick={generate} disabled={busy}>
-            {busy ? t("sidebar.saving") : t("sidebar.generateShareLink")}
+          <Button onClick={generate} disabled={busy || loadingExisting}>
+            {loadingExisting
+              ? "…"
+              : busy
+                ? t("sidebar.saving")
+                : t("sidebar.generateShareLink")}
           </Button>
         )}
 

@@ -101,23 +101,33 @@ func TestViewSharedSession(t *testing.T) {
 		return rr
 	}
 
-	// Active token -> 200 + both messages, with the XSS payload escaped.
+	// Active token -> 302 redirect to /shared?token=... (the Next.js
+	// page at /shared fetches /api/share/{token} and renders with the
+	// same ChatMarkdown primitive the live chat uses; XSS escaping is
+	// React's job there now, not the backend HTML writer).
 	rr := doRequest(tok)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("active token: status = %d, want %d", rr.Code, http.StatusOK)
+	if rr.Code != http.StatusFound {
+		t.Fatalf("active token: status = %d, want %d (302 redirect to /shared)", rr.Code, http.StatusFound)
 	}
-	body := rr.Body.String()
-	if !strings.Contains(body, "hello world") {
-		t.Errorf("active token: body missing the user message text; body=%q", body)
+	if loc := rr.Header().Get("Location"); loc != "/shared?token="+tok {
+		t.Errorf("active token: Location = %q, want /shared?token=%s", loc, tok)
 	}
-	if !strings.Contains(body, "&lt;script&gt;alert(1)&lt;/script&gt;") {
-		t.Errorf("active token: XSS payload not escaped in body; body=%q", body)
+
+	// The JSON API must round-trip both messages; the React renderer
+	// escapes them so we don't assert on HTML escaping here.
+	jsonReq := httptest.NewRequest(http.MethodGet, "/api/share/"+tok, nil)
+	jsonReq.SetPathValue("token", tok)
+	jsonRR := httptest.NewRecorder()
+	s.handleGetSharedSessionJSON(jsonRR, jsonReq)
+	if jsonRR.Code != http.StatusOK {
+		t.Fatalf("active token JSON: status = %d, want 200", jsonRR.Code)
 	}
-	if strings.Contains(body, "<script>alert(1)</script>") {
-		t.Errorf("active token: unescaped <script> leaked into body; body=%q", body)
+	jsonBody := jsonRR.Body.String()
+	if !strings.Contains(jsonBody, "hello world") {
+		t.Errorf("active token JSON: body missing user message; body=%q", jsonBody)
 	}
-	if ct := rr.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
-		t.Errorf("active token: Content-Type = %q, want text/html", ct)
+	if !strings.Contains(jsonBody, "\\u003cscript\\u003ealert(1)\\u003c/script\\u003e") {
+		t.Errorf("active token JSON: assistant payload missing (JSON escapes <,>); body=%q", jsonBody)
 	}
 
 	// Revoked token -> 404 (existence must not leak).

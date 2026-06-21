@@ -84,6 +84,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
         return;
       }
 
+      // /shared is the public read-only session view (agent privatization
+      // D3). Reachable without auth — the share token in the URL is the
+      // only credential.
+      if (pathname === "/shared" || pathname.startsWith("/shared/")) {
+        setAuthed(true);
+        setChecked(true);
+        return;
+      }
+
       try {
         const me = await getMe();
         if (me.ok && me.user) {

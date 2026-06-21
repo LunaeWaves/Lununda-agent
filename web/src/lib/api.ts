@@ -1064,6 +1064,35 @@ export async function revokeSessionShare(
   );
 }
 
+// Get the active (non-revoked) share for a session, or null. Lets the
+// share dialog open showing an existing link instead of always minting.
+export async function getActiveSessionShare(
+  agentId: string,
+  sessionId: string,
+): Promise<SessionShare | null> {
+  const res = await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/share`,
+  );
+  const data = await res.json();
+  return data.share || null;
+}
+
+// Public read-only view: returns the messages for a share token. No auth.
+export interface SharedMessage {
+  role: string;
+  content: string;
+}
+export interface SharedSession {
+  token: string;
+  messages: SharedMessage[];
+  createdAt?: string;
+}
+export async function getSharedSession(token: string): Promise<SharedSession> {
+  const res = await apiFetch(`/api/share/${encodeURIComponent(token)}`);
+  if (!res.ok) throw new Error(`share not found (HTTP ${res.status})`);
+  return res.json();
+}
+
 // moveChatSessionToProject reassigns a chat to a project (or detaches
 // it back to the loose-chat list when projectId is ""). Backs the
 // sidebar drag-and-drop affordance. Returns { ok } on success;

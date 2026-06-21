@@ -374,6 +374,9 @@ type Store interface {
 	// revoke API knows (agent, session), not the token.
 	CreateSessionShare(ctx context.Context, agentID, sessionKey, ownerID string) (string, error)
 	GetSessionShare(ctx context.Context, token string) (*SessionShareRecord, error)
+	// GetActiveSessionShare returns the most recently created non-revoked
+	// share for (agentID, sessionKey), or (nil, nil) when none is active.
+	GetActiveSessionShare(ctx context.Context, agentID, sessionKey string) (*SessionShareRecord, error)
 	RevokeSessionShare(ctx context.Context, token string) error
 	RevokeSessionShareBySession(ctx context.Context, agentID, sessionKey string) error
 

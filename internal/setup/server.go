@@ -262,6 +262,7 @@ func (s *Server) Run(ctx context.Context) error {
 	// a token for /share/{token}; DELETE revokes the active share.
 	mux.HandleFunc("POST /api/agents/{id}/sessions/{key}/share", auth(s.handleCreateSessionShare))
 	mux.HandleFunc("DELETE /api/agents/{id}/sessions/{key}/share", auth(s.handleRevokeSessionShare))
+	mux.HandleFunc("GET /api/agents/{id}/sessions/{key}/share", auth(s.handleGetSessionShare))
 	// Long-lived SSE subscription so cron-fired (and other async)
 	// messages reach the open chat panel without a manual refresh.
 	mux.HandleFunc("GET /api/chat/subscribe", auth(s.handleChatSubscribe))
@@ -482,6 +483,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	// Public read-only session share viewer (no auth). Must be before the "/" SPA catch-all.
 	mux.HandleFunc("GET /share/{token}", s.handleViewSharedSession)
+	mux.HandleFunc("GET /api/share/{token}", s.handleGetSharedSessionJSON)
 	mux.Handle("/", spaHandler{fs: webRoot})
 
 	var addr string
