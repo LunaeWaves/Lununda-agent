@@ -3388,6 +3388,22 @@ func (d *DBStore) RecordSkillUsage(ctx context.Context, userID, agentID, session
 	return nil
 }
 
+// LastSkillUse returns the most recent ts from skill_usage for this
+// (agent, skill). ok=false when no row exists (skill never loaded).
+func (d *DBStore) LastSkillUse(ctx context.Context, agentID, skillName string) (string, bool, error) {
+	var ts string
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT MAX(ts) FROM skill_usage WHERE agent_id = %s AND skill_id = %s`,
+		d.ph(1), d.ph(2)), agentID, skillName).Scan(&ts)
+	if err == sql.ErrNoRows || ts == "" {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return ts, true, nil
+}
+
 // SampleCoUsage returns one session where skillA and skillB co-occur
 // within maxDistance seq steps, plus the seqs they were loaded at.
 // ok=false if no such session. Pair args are normalized internally.

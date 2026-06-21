@@ -108,3 +108,19 @@ func ListArchived(skillDir string) ([]ArchivedSkill, error) {
 func DeleteArchivedSkill(skillDir, archivedAt, name string) error {
 	return os.RemoveAll(filepath.Join(skillDir, ".archive", archivedAt, name))
 }
+
+// ArchiveSkill moves a single skill dir into .archive/<ts>/<name>/ for
+// later restore or manual cleanup. Powers stale-skill archival and the
+// manual "archive" button. Idempotent: missing source is a no-op.
+func ArchiveSkill(skillDir, name string) error {
+	src := filepath.Join(skillDir, name)
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return nil
+	}
+	ts := time.Now().UTC().Format("20060102-150405")
+	dst := filepath.Join(skillDir, ".archive", ts, name)
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("mkdir archive: %w", err)
+	}
+	return os.Rename(src, dst)
+}

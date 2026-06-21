@@ -258,6 +258,9 @@ type Store interface {
 	// Duplicate (user,agent,session,seq,skill) is ignored via
 	// ON CONFLICT DO NOTHING.
 	RecordSkillUsage(ctx context.Context, userID, agentID, sessionKey, skillName, ts string) error
+	// LastSkillUse returns the most recent load timestamp for a skill on
+	// this agent. ok=false when no usage row exists (never loaded).
+	LastSkillUse(ctx context.Context, agentID, skillName string) (ts string, ok bool, err error)
 	// CandidateSkillPairs returns skill pairs that co-occur in the same
 	// session within maxDistance seq steps, recurring across at least
 	// minSessions distinct sessions (each session counted once), ranked
