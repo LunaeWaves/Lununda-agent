@@ -74,9 +74,14 @@ func convoText(msgs []store.SessionMessage) string {
 		if m.Role == "system" || m.Role == "tool" {
 			continue
 		}
-		c := m.Content
-		if len(c) > 300 {
-			c = c[:300] + "..."
+		// 按 rune 截断控制 prompt 长度，避免字节截断 CJK 多字节字符产生乱码。
+		// relevanceBuffer=5 轮窗口已提供足够上下文；若长上下文判断质量下降再放大此值。
+		runes := []rune(m.Content)
+		var c string
+		if len(runes) > 300 {
+			c = string(runes[:300]) + "..."
+		} else {
+			c = m.Content
 		}
 		fmt.Fprintf(&sb, "[%s] %s\n", m.Role, c)
 	}
@@ -166,12 +171,21 @@ func readSkillBodies(members []string, skillDir string) (string, error) {
 	return sb.String(), nil
 }
 
-// parseFrontmatterName 从 "---\nname: xxx\n---" 提取 name；无则空。
+// parseFrontmatterName 从 frontmatter（首对 --- 之间）提取 name；无则空。
+// 只在 frontmatter 块内匹配，避免正文里恰好出现 "name: foo" 被误当技能名。
 func parseFrontmatterName(content string) string {
+	inFM := false
 	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "name:") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "name:"))
+		trim := strings.TrimSpace(line)
+		if trim == "---" {
+			if inFM {
+				return "" // 闭合 frontmatter 前未找到 name
+			}
+			inFM = true
+			continue
+		}
+		if inFM && strings.HasPrefix(trim, "name:") {
+			return strings.TrimSpace(strings.TrimPrefix(trim, "name:"))
 		}
 	}
 	return ""

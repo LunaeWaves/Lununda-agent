@@ -1106,6 +1106,7 @@ const en: Record<string, string> = {
   "skills.evolution.stale": "Stale skills",
   "skills.evolution.pin": "Pin",
   "skills.evolution.actionFailed": "Action failed",
+  "skills.evolution.archiveAction": "Archive",
 
   // Agent channels page extras
   "channels.channelsTitle": "Channels",

@@ -236,6 +236,7 @@ func TestParseFrontmatterName(t *testing.T) {
 		{"---\nname:bar\n---\n", "bar"},
 		{"no frontmatter", ""},
 		{"---\ndescription: x\nname: real\n---\n", "real"},
+		{"# body\nname: not frontmatter", ""}, // 无 frontmatter：正文 name: 不应匹配
 	}
 	for _, c := range cases {
 		got := parseFrontmatterName(c.in)

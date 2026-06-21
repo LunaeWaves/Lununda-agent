@@ -1106,6 +1106,7 @@ const zhCN: Record<string, string> = {
   "skills.evolution.stale": "陈旧技能",
   "skills.evolution.pin": "保留",
   "skills.evolution.actionFailed": "操作失败",
+  "skills.evolution.archiveAction": "归档",
 
   // Agent channels page extras
   "channels.channelsTitle": "通道",

@@ -524,7 +524,7 @@ export default function AgentSkillsPage() {
                   <Button size="sm" variant="ghost" onClick={() => handlePinStale(name)}>
                     {t("skills.evolution.pin")}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleArchiveStale(name)}>
+                  <Button size="sm" variant="ghost" aria-label={t("skills.evolution.archiveAction")} onClick={() => handleArchiveStale(name)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
@@ -550,7 +550,7 @@ export default function AgentSkillsPage() {
                   <span className="font-mono text-xs">{a.Name}</span>
                   <span className="ml-2 text-xs text-muted-foreground">{a.ArchivedAt}</span>
                 </span>
-                <Button size="sm" variant="ghost" onClick={() => setArchiveDelete(a)}>
+                <Button size="sm" variant="ghost" aria-label={t("skills.evolution.permanentDelete")} onClick={() => setArchiveDelete(a)}>
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
