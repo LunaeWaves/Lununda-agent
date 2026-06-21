@@ -1576,6 +1576,72 @@ export async function deleteAgentSkill(agentId: string, name: string) {
   return res.json();
 }
 
+// ---- 技能演进（curator）----
+
+export interface SkillProposal {
+  ID: string;
+  AgentID: string;
+  Sources: string[];
+  TargetName: string;
+  TargetContent: string;
+  Evidence: string;
+  Recommendation: string;
+  Status: string;
+  CreatedAt: string;
+}
+
+export interface ArchivedSkill {
+  Name: string;
+  ArchivedAt: string;
+  Path: string;
+}
+
+export interface SkillEvolutionNotifyCfg {
+  enabled: boolean;
+  channel?: string;
+  chatID?: string;
+  accountID?: string;
+}
+export interface SkillEvolutionCfg {
+  enabled: boolean;
+  interval?: number;
+  model?: string;
+  notify?: SkillEvolutionNotifyCfg;
+}
+
+export async function getAgentSkillProposals(agentId: string): Promise<SkillProposal[]> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals`);
+  const data = await res.json();
+  return data.proposals || [];
+}
+
+export async function acceptSkillProposal(agentId: string, pid: string, keep: string[]): Promise<void> {
+  await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals/${encodeURIComponent(pid)}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ keep }),
+  });
+}
+
+export async function rejectSkillProposal(agentId: string, pid: string): Promise<void> {
+  await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals/${encodeURIComponent(pid)}/reject`, {
+    method: "POST",
+  });
+}
+
+export async function getArchivedSkills(agentId: string): Promise<ArchivedSkill[]> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skills/archived`);
+  const data = await res.json();
+  return data.archived || [];
+}
+
+export async function deleteArchivedSkill(agentId: string, name: string, at: string): Promise<void> {
+  await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/skills/archived/${encodeURIComponent(name)}?at=${encodeURIComponent(at)}`,
+    { method: "DELETE" },
+  );
+}
+
 // Search results use skills.sh's shape; clawhub has a different shape but the
 // admin UI only wires skills.sh (primary registry). Callers that want clawhub
 // go through installSkill with source="clawhub".
