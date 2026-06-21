@@ -22,6 +22,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/auth"
 	"github.com/LunaeWaves/Lununda-agent/internal/buildinfo"
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
+	"github.com/LunaeWaves/Lununda-agent/internal/channels"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
 	"github.com/LunaeWaves/Lununda-agent/internal/scope"
@@ -1799,10 +1800,21 @@ func (s *Server) handleGetSharedSessionJSON(w http.ResponseWriter, r *http.Reque
 	}
 	out := make([]outMsg, 0, len(msgs))
 	for _, m := range msgs {
-		if strings.TrimSpace(m.Content) == "" {
+		// Drop tool-role messages (tool calls / tool results are agent-
+		// internal protocol — they don't belong on a public transcript).
+		// Assistant turns with empty content (pure tool_calls) are also
+		// skipped; the LLM's actual reply turn carries the content.
+		if m.Role == "tool" {
 			continue
 		}
-		out = append(out, outMsg{Role: m.Role, Content: m.Content})
+		content := strings.TrimSpace(m.Content)
+		if content == "" {
+			continue
+		}
+		// Strip the multi-bubble split marker — it's an on-the-wire control
+		// token, not user-visible text. Collapse to a paragraph break.
+		content = strings.ReplaceAll(content, channels.SplitMessageMarker, "\n\n")
+		out = append(out, outMsg{Role: m.Role, Content: content})
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"token":       rec.Token,

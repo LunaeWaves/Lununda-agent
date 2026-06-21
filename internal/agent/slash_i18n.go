@@ -110,7 +110,6 @@ var slashEnglish = map[string]string{
 	"claim_wrong_channel": "`/claim` is for IM channels (Discord/Telegram/…). Web/API already know who you are.",
 	"intro":               "👋 Hi! I'm {name}, your AI assistant.\n\nJust send me a message to chat. Use /help to see available commands.",
 	"version":             "⚡ Lununda Agent\nAgent: {name}\nModel: {model}",
-	"whoami":              "Channel: `{channel}`\nYour user ID: `{user_id}`\nSender name: `{sender_name}`\n\n(Add this ID to `admins.{channel}` in the agent config to grant write-slash access.)",
 	"help":                `⚡ Lununda Agent Commands
 
 Conversation
@@ -141,12 +140,7 @@ Plan
 
 Info
   /help           — Show this help
-  /version        — Show version
-  /whoami         — Show your platform user ID
-
-🔒 Write commands (/new /reset /undo /retry /compact /model /personality)
-   in IM channels are restricted to the agent owner + admins listed in
-   agent.json's "admins" field. Use /whoami to find your ID.`,
+  /version        — Show version`,
 	"status":    "⚡ Lununda Agent Status\n─────────────────\nAgent:       {name}\nModel:       {model}\nPersonality: {soul}\nMax Tokens:  {max_tokens}\nTemperature: {temperature}\nMax Iter:    {max_iter}\nSession Msgs:{session_msgs}\nMemory:      {mem_lines} lines\nWorkspace:   {workspace}",
 	"usage":     "📊 Session Usage\nUser turns:      {user_turns}\nAssistant turns: {asst_turns}\nTool calls:      {tool_turns}\nTotal messages:  {total_msgs}{cost}",
 	"cost_line": "\n─────────────────\nCost:            {cost}\nInput tokens:    {input_tokens}\nOutput tokens:   {output_tokens}\nAPI duration:    {api_duration}\nTool duration:   {tool_duration}",
@@ -180,7 +174,6 @@ var slashChinese = map[string]string{
 	"claim_wrong_channel":  "`/claim` 用于 IM 渠道（Discord/Telegram 等）。Web/API 无需认领。",
 	"intro":                "👋 你好！我是 {name}，你的 AI 助手。\n\n直接发消息就能聊天。输入 /help 查看可用命令。",
 	"version":              "⚡ Lununda Agent\nAgent：{name}\n模型：{model}",
-	"whoami":               "渠道：`{channel}`\n你的用户 ID：`{user_id}`\n发送者名称：`{sender_name}`\n\n（把这个 ID 加进 agent 配置的 `admins.{channel}` 即可获得写斜杠命令的权限。）",
 	"help": `⚡ Lununda Agent 命令
 
 对话
@@ -211,12 +204,7 @@ var slashChinese = map[string]string{
 
 信息
   /help        — 显示此帮助
-  /version     — 显示版本
-  /whoami      — 显示你的平台用户 ID
-
-🔒 写命令（/new /reset /undo /retry /compact /model /personality）
-   在 IM 渠道仅限 agent owner + agent.json "admins" 字段列出的管理员使用。
-   用 /whoami 查你的 ID。`,
+  /version     — 显示版本`,
 	"status":           "⚡ Lununda Agent 状态\n─────────────────\nAgent：      {name}\n模型：       {model}\n人设：       {soul}\n最大 Token： {max_tokens}\n温度：       {temperature}\n最大迭代：   {max_iter}\n会话消息：   {session_msgs}\n记忆：       {mem_lines} 行\n工作区：     {workspace}",
 	"usage":            "📊 会话用量\n用户轮次：    {user_turns}\n助手轮次：    {asst_turns}\n工具调用：    {tool_turns}\n总消息数：    {total_msgs}{cost}",
 	"cost_line":        "\n─────────────────\n费用：        {cost}\n输入 Token：  {input_tokens}\n输出 Token：  {output_tokens}\nAPI 耗时：    {api_duration}\n工具耗时：    {tool_duration}",

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { getSharedSession, type SharedMessage } from "@/lib/api";
+import { localizeSlashReply } from "@/lib/slash-reply";
+import { useT } from "@/lib/i18n";
 import { Sparkles } from "lucide-react";
 
 // /shared?token=X is the public read-only view of a session share.
@@ -16,6 +18,7 @@ import { Sparkles } from "lucide-react";
 export default function SharedSessionPage() {
   const params = useSearchParams();
   const token = params.get("token") || "";
+  const t = useT();
   const [msgs, setMsgs] = React.useState<SharedMessage[] | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
 
@@ -51,7 +54,7 @@ export default function SharedSessionPage() {
           </div>
         )}
         {msgs?.map((m, i) => (
-          <MessageBubble key={i} msg={m} />
+          <MessageBubble key={i} msg={m} t={t} />
         ))}
         {msgs && msgs.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-12">
@@ -69,8 +72,17 @@ export default function SharedSessionPage() {
   );
 }
 
-function MessageBubble({ msg }: { msg: SharedMessage }) {
+function MessageBubble({
+  msg,
+  t,
+}: {
+  msg: SharedMessage;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
   const isUser = msg.role === "user";
+  // Expand __SLASH:<code>:<args>__ sentinels the same way the live chat
+  // does — via the i18n t() function. Non-sentinel content passes through.
+  const content = isUser ? msg.content : localizeSlashReply(msg.content, t);
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
@@ -87,9 +99,9 @@ function MessageBubble({ msg }: { msg: SharedMessage }) {
         )}
         <div className={isUser ? "text-[15px] leading-relaxed whitespace-pre-wrap break-words" : ""}>
           {isUser ? (
-            msg.content
+            content
           ) : (
-            <ChatMarkdown text={msg.content} />
+            <ChatMarkdown text={content} />
           )}
         </div>
       </div>

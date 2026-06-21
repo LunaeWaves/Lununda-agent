@@ -1891,8 +1891,8 @@ func (a *Agent) flushLeftoverSteer(sess *session.Session) {
 // HandleMessage processes an inbound message through the ReAct loop.
 func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) string {
 	// Agent is owner-private: drop non-owner messages silently — no
-	// session, no memory, no reply. /claim and /whoami bypass so the
-	// owner can bind their IM identity before being recognized.
+	// session, no memory, no reply. /claim bypasses so the owner can
+	// bind their IM identity before being recognized.
 	if !a.isAdmitted(msg) {
 		return ""
 	}

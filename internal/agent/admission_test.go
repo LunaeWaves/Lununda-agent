@@ -40,13 +40,6 @@ func TestIsAdmittedClaimBypass(t *testing.T) {
 	}
 }
 
-func TestIsAdmittedWhoamiBypass(t *testing.T) {
-	a := &Agent{ownerUserID: "owner-1"}
-	if !a.isAdmitted(bus.InboundMessage{Channel: "telegram", UserID: "anyone", Text: "/whoami"}) {
-		t.Fatal("/whoami must bypass admission")
-	}
-}
-
 func TestIsAdmittedClaimPrefixNotLeaked(t *testing.T) {
 	a := &Agent{ownerUserID: "owner-1"}
 	if a.isAdmitted(bus.InboundMessage{Channel: "telegram", UserID: "stranger", Text: "/claimable thing"}) {

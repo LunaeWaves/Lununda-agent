@@ -51,7 +51,7 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 	args := parts[1:]
 
 	// Owner-only gate for write commands. Read-only inspections (/status,
-	// /usage, /insights, /help, /version, /start, /whoami) stay open so
+	// /usage, /insights, /help, /version, /start) stay open so
 	// any group member can self-serve info. Mutators that change the
 	// agent's runtime state (model, personality) or the session history
 	// (new/reset/undo/retry/compact) are restricted to the agent owner
@@ -61,7 +61,7 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 	if writeSlashCommands[cmd] && !a.isAdminChatter(msg) {
 		return slashResult{
 			handled: true,
-			reply:   fmt.Sprintf("🔒 `%s` 只有 agent owner / admin 能用。让 owner 把你的 platform 用户 ID 加进 agent.json 的 `admins.%s` 里(用 `/whoami` 查自己的 ID)。", cmd, msg.Channel),
+			reply:   fmt.Sprintf("🔒 `%s` 只能由 agent owner 使用。", cmd),
 		}
 	}
 
@@ -175,16 +175,6 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 
 	case "/version":
 		return slashResult{handled: true, reply: slashReply("version", map[string]any{"name": a.name, "model": a.model})}
-
-	case "/whoami":
-		return slashResult{
-			handled: true,
-			reply: slashReply("whoami", map[string]any{
-				"channel":     msg.Channel,
-				"user_id":     msg.UserID,
-				"sender_name": msg.SenderName,
-			}),
-		}
 
 	case "/yes":
 		return a.slashAuthReply(msg, true)
@@ -607,11 +597,7 @@ Plan
 Info
   /help           — Show this help
   /version        — Show version
-  /whoami         — Show your platform user ID
-
-🔒 Write commands (/new /reset /undo /retry /compact /model /personality)
-   in IM channels are restricted to the agent owner + admins listed in
-   agent.json's "admins" field. Use /whoami to find your ID.`
+`
 }
 
 // slashPlan handles `/plan <task>`: republish the rest of the message
