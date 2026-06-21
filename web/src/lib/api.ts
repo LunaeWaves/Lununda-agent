@@ -1669,6 +1669,19 @@ export interface SkillEvolutionCfg {
   notify?: SkillEvolutionNotifyCfg;
 }
 
+// assertOk throws on non-2xx with the backend's error body when available,
+// so write actions surface failures instead of resolving silently.
+async function assertOk(resp: Response, action: string): Promise<void> {
+  if (resp.ok) return;
+  let detail = "";
+  try {
+    detail = await resp.text();
+  } catch {
+    // body already consumed or empty — keep detail blank
+  }
+  throw new Error(`${action} failed (${resp.status})${detail ? `: ${detail}` : ""}`);
+}
+
 export async function getAgentSkillProposals(agentId: string): Promise<SkillProposal[]> {
   const res = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals`);
   const data = await res.json();
@@ -1676,17 +1689,19 @@ export async function getAgentSkillProposals(agentId: string): Promise<SkillProp
 }
 
 export async function acceptSkillProposal(agentId: string, pid: string, keep: string[]): Promise<void> {
-  await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals/${encodeURIComponent(pid)}/accept`, {
+  const resp = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals/${encodeURIComponent(pid)}/accept`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ keep }),
   });
+  await assertOk(resp, "accept proposal");
 }
 
 export async function rejectSkillProposal(agentId: string, pid: string): Promise<void> {
-  await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals/${encodeURIComponent(pid)}/reject`, {
+  const resp = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/skill-proposals/${encodeURIComponent(pid)}/reject`, {
     method: "POST",
   });
+  await assertOk(resp, "reject proposal");
 }
 
 export async function getArchivedSkills(agentId: string): Promise<ArchivedSkill[]> {
@@ -1696,10 +1711,11 @@ export async function getArchivedSkills(agentId: string): Promise<ArchivedSkill[
 }
 
 export async function deleteArchivedSkill(agentId: string, name: string, at: string): Promise<void> {
-  await apiFetch(
+  const resp = await apiFetch(
     `/api/agents/${encodeURIComponent(agentId)}/skills/archived/${encodeURIComponent(name)}?at=${encodeURIComponent(at)}`,
     { method: "DELETE" },
   );
+  await assertOk(resp, "delete archived skill");
 }
 
 export async function getStaleSkills(agentId: string): Promise<string[]> {
@@ -1709,14 +1725,15 @@ export async function getStaleSkills(agentId: string): Promise<string[]> {
 }
 
 export async function archiveOneSkill(agentId: string, name: string): Promise<void> {
-  await apiFetch(
+  const resp = await apiFetch(
     `/api/agents/${encodeURIComponent(agentId)}/skills/${encodeURIComponent(name)}/archive`,
     { method: "POST" },
   );
+  await assertOk(resp, "archive skill");
 }
 
 export async function togglePinSkill(agentId: string, name: string, pinned: boolean): Promise<void> {
-  await apiFetch(
+  const resp = await apiFetch(
     `/api/agents/${encodeURIComponent(agentId)}/skills/${encodeURIComponent(name)}/pin`,
     {
       method: "POST",
@@ -1724,6 +1741,7 @@ export async function togglePinSkill(agentId: string, name: string, pinned: bool
       body: JSON.stringify({ pinned }),
     },
   );
+  await assertOk(resp, pinned ? "pin skill" : "unpin skill");
 }
 
 // Skill-evolution notify: default chatID/accountID from the agent's most

@@ -104,6 +104,7 @@ export default function AgentSkillsPage() {
   const [archiveDelete, setArchiveDelete] = useState<ArchivedSkill | null>(null);
   const [stale, setStale] = useState<string[]>([]);
   const [agentChannels, setAgentChannels] = useState<AgentChannel[]>([]);
+  const [evoError, setEvoError] = useState<string | null>(null);
 
   const fetchSkills = useCallback(() => {
     setLoading(true);
@@ -167,7 +168,7 @@ export default function AgentSkillsPage() {
           ...evoCfg,
           notify: {
             ...evoCfg.notify,
-            enabled: true,
+            enabled: evoCfg.notify?.enabled ?? false,
             chatID: s.chatId,
             accountID: s.accountId || evoCfg.notify?.accountID || "",
           },
@@ -201,34 +202,38 @@ export default function AgentSkillsPage() {
     }
   };
 
-  const handleAcceptProposal = async (p: SkillProposal) => {
-    const keep = Object.entries(keepMap[p.ID] || {})
-      .filter(([, v]) => v)
-      .map(([k]) => k);
-    await acceptSkillProposal(agentId, p.ID, keep);
-    fetchSkills();
+  const runEvoAction = async (label: string, fn: () => Promise<void>) => {
+    setEvoError(null);
+    try {
+      await fn();
+      fetchSkills();
+    } catch (e) {
+      setEvoError(`${t("skills.evolution.actionFailed")}: ${e instanceof Error ? e.message : label}`);
+    }
   };
 
-  const handleRejectProposal = async (p: SkillProposal) => {
-    await rejectSkillProposal(agentId, p.ID);
-    fetchSkills();
-  };
+  const handleAcceptProposal = (p: SkillProposal) =>
+    runEvoAction("accept", async () => {
+      const keep = Object.entries(keepMap[p.ID] || {})
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      await acceptSkillProposal(agentId, p.ID, keep);
+    });
 
-  const handleArchiveDelete = async () => {
-    if (!archiveDelete) return;
-    await deleteArchivedSkill(agentId, archiveDelete.Name, archiveDelete.ArchivedAt);
-    setArchiveDelete(null);
-    fetchSkills();
-  };
+  const handleRejectProposal = (p: SkillProposal) =>
+    runEvoAction("reject", () => rejectSkillProposal(agentId, p.ID));
 
-  const handlePinStale = async (name: string) => {
-    await togglePinSkill(agentId, name, true);
-    fetchSkills();
-  };
-  const handleArchiveStale = async (name: string) => {
-    await archiveOneSkill(agentId, name);
-    fetchSkills();
-  };
+  const handleArchiveDelete = () =>
+    runEvoAction("delete", async () => {
+      if (!archiveDelete) return;
+      await deleteArchivedSkill(agentId, archiveDelete.Name, archiveDelete.ArchivedAt);
+      setArchiveDelete(null);
+    });
+
+  const handlePinStale = (name: string) =>
+    runEvoAction("pin", () => togglePinSkill(agentId, name, true));
+  const handleArchiveStale = (name: string) =>
+    runEvoAction("archive", () => archiveOneSkill(agentId, name));
 
   const handleUploadConfirm = async () => {
     if (!uploadFile || !agentId) return;
@@ -365,6 +370,11 @@ export default function AgentSkillsPage() {
           </div>
         )}
         {evoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+        {evoError && (
+          <p className="w-full rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive break-words">
+            {evoError}
+          </p>
+        )}
       </div>
 
       {/* 可升级技能提案 */}
