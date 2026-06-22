@@ -39,8 +39,6 @@ type AutoQueryCfg struct {
 	// Custom indicator texts. {count} and {query} are replaced.
 	IndicatorFound    string
 	IndicatorNotFound string
-	// WikiSearchMode controls wiki page search: "" (SQL) or "cache" (Redis).
-	WikiSearchMode string
 }
 
 // AutoQueryHook returns a function suitable for use as a BeforeModelCall
@@ -118,7 +116,7 @@ func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) fu
 			cfg.EmptyAction = "llm"
 		}
 
-		results, err := store.Search(ctx, agentID, query, maxResults, cfg.WikiSearchMode, 0)
+		results, err := store.Search(ctx, agentID, query, maxResults, 0)
 		slog.Info("kb auto-query search", "agent", agentID, "query", query, "results", len(results), "err", err)
 
 		if err != nil {
@@ -162,7 +160,6 @@ func AutoQueryHook(store *KBStore, agentID string, cfgFn func() AutoQueryCfg) fu
 	}
 }
 
-
 func buildToolResultSummary(results []KBResult) string {
 	var sb strings.Builder
 	for i, r := range results {
@@ -176,7 +173,6 @@ func buildToolResultSummary(results []KBResult) string {
 	}
 	return strings.TrimSpace(sb.String())
 }
-
 
 func isWikiSourceID(id string) bool {
 	return strings.Contains(id, ":")

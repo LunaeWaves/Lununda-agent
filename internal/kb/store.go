@@ -12,8 +12,8 @@ import (
 )
 
 type KBStore struct {
-	db       *sql.DB
-	dialect  string
+	db      *sql.DB
+	dialect string
 }
 
 func NewKBStore(db *sql.DB, dialect string) *KBStore {
@@ -74,9 +74,8 @@ func (s *KBStore) IngestText(ctx context.Context, agentID, title, content, sourc
 }
 
 // Search searches both kb_entries (FTS5/LIKE) and wiki_pages (bigram scorer).
-// wikiSearchMode: "cache" (Redis) or "sql" (default).
 // preFilterLimit: number of SQL candidates for wiki search (default 30).
-func (s *KBStore) Search(ctx context.Context, agentID, query string, limit int, wikiSearchMode string, preFilterLimit int) ([]KBResult, error) {
+func (s *KBStore) Search(ctx context.Context, agentID, query string, limit int, preFilterLimit int) ([]KBResult, error) {
 	if limit <= 0 {
 		limit = 5
 	}
@@ -91,7 +90,7 @@ func (s *KBStore) Search(ctx context.Context, agentID, query string, limit int, 
 	}
 
 	// L2: wiki_pages — bigram scorer with Redis cache or SQL pre-filter.
-	wikiResults := s.searchWiki(ctx, agentID, query, limit, wikiSearchMode, preFilterLimit)
+	wikiResults := s.searchWiki(ctx, agentID, query, limit, preFilterLimit)
 	entries = append(entries, wikiResults...)
 	if len(entries) > limit {
 		entries = entries[:limit]
@@ -99,11 +98,10 @@ func (s *KBStore) Search(ctx context.Context, agentID, query string, limit int, 
 	return entries, nil
 }
 
-func (s *KBStore) searchWiki(ctx context.Context, agentID, query string, limit int, mode string, preFilterLimit int) []KBResult {
+func (s *KBStore) searchWiki(ctx context.Context, agentID, query string, limit int, preFilterLimit int) []KBResult {
 	if preFilterLimit <= 0 {
 		preFilterLimit = 30
 	}
-
 
 	// SQL pre-filter: LIKE on title/body to get candidates, then bigram re-rank.
 	candidates := s.searchWikiPrefilter(ctx, agentID, query, preFilterLimit)
@@ -158,8 +156,6 @@ func (s *KBStore) searchWikiPrefilter(ctx context.Context, agentID, query string
 	}
 	return pages
 }
-
-
 
 func scoredToResults(scored []scoredPage) []KBResult {
 	results := make([]KBResult, len(scored))
