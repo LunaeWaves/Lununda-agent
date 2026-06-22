@@ -77,6 +77,10 @@ fastclaw-patched
 cookies.txt
 onboard-welcome.png
 
+# Local-only
+.claude/
+docs/
+
 # Runtime logs
 /lununda.log
 /lununda.*.log
