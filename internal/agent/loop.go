@@ -340,6 +340,7 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 	// at send time. The registerBuiltins pass inside NewRegistry already
 	// stamped a placeholder; tools.RegisterMessage replaces it.
 	tools.RegisterMemorySearch(registry, rc.Home)
+	tools.RegisterFetchMessages(registry)
 	tools.RegisterWebFetch(registry)
 
 	// Load skills with OpenClaw compatibility. We can't hydrate from OSS
