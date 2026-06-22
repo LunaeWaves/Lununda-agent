@@ -38,9 +38,6 @@ type GenerateResult struct {
 	PageIDs      []string `json:"page_ids"`
 }
 
-func (r *GenerateResult) Ok() bool {
-	return r.Error == "" && (r.PagesCreated+r.PagesUpdated) > 0
-}
 
 // Generate runs the two-step pipeline for one KB source.
 func (g *Generator) Generate(ctx context.Context, agentID, sourceID string) *GenerateResult {

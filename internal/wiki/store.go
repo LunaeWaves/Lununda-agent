@@ -262,12 +262,3 @@ func (s *WikiStore) DeletePage(ctx context.Context, id string) error {
 	return tx.Commit()
 }
 
-func (s *WikiStore) DeleteAllByAgent(ctx context.Context, agentID string) error {
-	// Delete links first (references pages)
-	linkQ := `DELETE FROM wiki_links WHERE src_page_id IN (SELECT id FROM wiki_pages WHERE agent_id = ` + s.ph(1) + `)`
-	if _, err := s.db.ExecContext(ctx, linkQ, agentID); err != nil {
-		return fmt.Errorf("delete wiki links: %w", err)
-	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM wiki_pages WHERE agent_id = `+s.ph(1), agentID)
-	return err
-}
