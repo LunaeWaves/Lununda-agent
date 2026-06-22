@@ -1068,6 +1068,15 @@ func (r *userSpaceRegistry) getOrLoad(ctx context.Context, userID string) (*User
 	if err != nil {
 		return nil, err
 	}
+	// Wire spawn_subagent: spawner dispatches back into this UserSpace
+	// (same user — no cross-tenant agent invocation). Restores the
+	// 9ca9f5f-refactor-removed wiring so spawn_subagent registers.
+	spawner := &gatewaySubAgentSpawner{users: r, userID: userID}
+	for _, ag := range sp.Agents.All() {
+		ag.SetSubAgentSpawner(spawner)
+	}
+	r.spaces[userID] = &userSpaceEntry{space: sp, lastUsed: time.Now()}
+	r.spaces[userID] = &userSpaceEntry{space: sp, lastUsed: time.Now()}
 	r.spaces[userID] = &userSpaceEntry{space: sp, lastUsed: time.Now()}
 	return sp, nil
 }

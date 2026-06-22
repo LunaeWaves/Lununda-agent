@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/agent"
+	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
@@ -497,3 +498,27 @@ func (h *webhookAgentHandler) HandleMessage(ctx context.Context, agentID string,
 	}
 	return ag.HandleMessage(ctx, msg), nil
 }
+
+// gatewaySubAgentSpawner implements tools.SubAgentSpawner for the
+// multi-user model. Sub-agents always run inside the *same* user's
+// agent manager — there's no cross-tenant agent invocation. The
+// 9ca9f5f refactor pulled this out of gateway startup; restored here
+// so spawn_subagent actually registers on each agent.
+type gatewaySubAgentSpawner struct {
+	users  *userSpaceRegistry
+	userID string
+}
+
+func (s *gatewaySubAgentSpawner) SpawnSubAgent(ctx context.Context, agentID string, msg bus.InboundMessage) string {
+	sp, err := s.users.getOrLoad(ctx, s.userID)
+	if err != nil {
+		return fmt.Sprintf("Error: load user space: %v", err)
+	}
+	ag := sp.Agents.AgentByID(agentID)
+	if ag == nil {
+		return fmt.Sprintf("Error: agent %q not found", agentID)
+	}
+	return ag.HandleMessage(ctx, msg)
+}
+
+var _ tools.SubAgentSpawner = (*gatewaySubAgentSpawner)(nil)
