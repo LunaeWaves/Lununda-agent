@@ -252,27 +252,6 @@ func (r *Resolver) ResolveBearer(ctx context.Context, token string) (Identity, e
 	}, nil
 }
 
-// SwitchToAppUser rebinds ident to the app_user associated with
-// (ident.APIKeyID, externalID), minting that row the first time it's
-// seen. APIKeyID + APIKeyAgents are preserved — only UserID and Role
-// flip — so the apikey's agent ACL still gates access. Pass through
-// empty externalID untouched. Only valid for AuthMethod=="apikey";
-// session callers stay as-is.
-func (r *Resolver) SwitchToAppUser(ctx context.Context, ident Identity, externalID string) (Identity, error) {
-	if externalID == "" {
-		return ident, nil
-	}
-	if ident.AuthMethod != "apikey" || ident.APIKeyID == "" {
-		return ident, errors.New("auth.SwitchToAppUser: api_key auth required")
-	}
-	acc, err := r.accounts.EnsureAppUser(ctx, ident.APIKeyID, externalID, "")
-	if err != nil {
-		return ident, err
-	}
-	ident.UserID = acc.ID
-	ident.Role = acc.Role
-	return ident, nil
-}
 
 // EndUserHeader is the per-request header that names the calling app's
 // end-user. When set on an api_key authenticated request, the auth
@@ -399,42 +378,13 @@ done:
 	// X-Lununda-End-User used to trigger lazy app_user minting here.
 	// Agent privatization (D1) deprecated the app_user multi-tenant path —
 	// every API call now resolves to the agent-scoped apikey owner, and
-	// the header is ignored. The SwitchToAppUser function is kept around
-	// (see spec boundary: "code retained, entries closed") but no longer
-	// reachable from the request path.
+	// the header is ignored.
 	return ident, nil
 }
 
-// RequireSuperAdmin returns a middleware that 403s any non-super-admin
-// caller. Wraps another middleware (typically the auth Middleware).
-//
-// This is the strictest gate: it requires the live caller's identity to
-// be super_admin regardless of how they authenticated. A super_admin
-// using a type=user apikey is rejected — that's the deliberate downgrade
-// the user signed up for when they issued the narrower key. For routes
-// that should accept either path (admin session OR type=admin apikey),
-// use RequirePlatformAdmin instead.
-func RequireSuperAdmin(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ident, ok := FromContext(req.Context())
-		if !ok || ident.Role != users.RoleSuperAdmin {
-			writeForbidden(w, "super_admin required")
-			return
-		}
-		// Apikey callers must additionally hold a type=admin key — a
-		// super_admin's type=user key is intentionally narrower.
-		if ident.AuthMethod == "apikey" && ident.APIKeyType != users.APIKeyTypeAdmin {
-			writeForbidden(w, "admin apikey required")
-			return
-		}
-		next(w, req)
-	}
-}
 
 // RequirePlatformAdmin gates handlers that should accept any platform
-// admin — session super_admin OR type=admin apikey. Same authority as
-// RequireSuperAdmin in terms of what's allowed; just doesn't require the
-// session path.
+// admin — session super_admin OR type=admin apikey.
 func RequirePlatformAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ident, ok := FromContext(req.Context())
@@ -446,22 +396,6 @@ func RequirePlatformAdmin(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// RequireWritable rejects requests where Identity.ReadOnly() (i.e. the
-// caller is acting as another user). Wrap mutating handlers.
-func RequireWritable(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ident, ok := FromContext(req.Context())
-		if !ok {
-			writeUnauthorized(w)
-			return
-		}
-		if ident.ReadOnly() {
-			writeForbidden(w, "read-only: cannot mutate while acting as another user")
-			return
-		}
-		next(w, req)
-	}
-}
 
 func writeUnauthorized(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
