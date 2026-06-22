@@ -19,10 +19,10 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 	"github.com/LunaeWaves/Lununda-agent/internal/channels"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
+	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
 	"github.com/LunaeWaves/Lununda-agent/internal/mcp"
 	"github.com/LunaeWaves/Lununda-agent/internal/privacy"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
-	"github.com/LunaeWaves/Lununda-agent/internal/embedding"
 	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
 	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
 	"github.com/LunaeWaves/Lununda-agent/internal/scope"
@@ -55,11 +55,11 @@ type Agent struct {
 	// even after the operator explicitly chose chatbot/customize.
 	// PromptMode also drives the per-turn tool filter via
 	// builtinAllowForMode below.
-	promptMode string
-	homePath        string // agent's home: SOUL.md, sessions, memory, skills
-	workspacePath   string // working dir where agent creates user files
-	homeDir         string // Lununda Agent root, ~/.lununda
-	ownerUserID     string // the user that owns this agent (for hook namespacing)
+	promptMode    string
+	homePath      string // agent's home: SOUL.md, sessions, memory, skills
+	workspacePath string // working dir where agent creates user files
+	homeDir       string // Lununda Agent root, ~/.lununda
+	ownerUserID   string // the user that owns this agent (for hook namespacing)
 	// authGate enforces the session-scoped write authorization policy
 	// (ask/auto/yolo + allowlist). Built once per agent from agentRoot +
 	// workspace; the session mode is read live at check time.
@@ -71,11 +71,11 @@ type Agent struct {
 	// Distinct from ownerImIds: admins = trusted delegates, ownerImIds
 	// = who the owner is. See isAdminChatter for the owner-or-delegate
 	// check (fail-closed when both are empty for a channel).
-	admins          map[string][]string
+	admins map[string][]string
 	// ownerImIds is the agent owner's claimed IM platform IDs per
 	// channel, established via the web verification-code claim flow
 	// (/claim <code>). See config.AgentFileConfig.OwnerImIds.
-	ownerImIds      map[string][]string
+	ownerImIds map[string][]string
 	// locale is the IM slash-reply language for this agent ("" | "en" |
 	// "zh-CN"). Drives expandSlashSentinel on IM channels; web uses the
 	// viewer's browser locale instead. See config.AgentFileConfig.Locale.
@@ -83,17 +83,16 @@ type Agent struct {
 	skillsCfg       config.SkillsConfig
 	globalSkillsCfg config.SkillsCfg
 	messageBus      *bus.MessageBus
-	eventHub         *EventHub
+	eventHub        *EventHub
 	subAgentSpawner tools.SubAgentSpawner
-	ftsStore        *store.FTSStore
 	piiScrubEnabled bool
 	memoryCfg       config.MemoryCfg
 	// skillEvoMu guards maybeSkillEvolution's Get→check→Set gate so two
 	// concurrent turns on the same agent can't both launch the async
 	// curator. SQLite's single-conn pool already serializes this; the
 	// mutex also covers Postgres' pooled connections in-process.
-	skillEvoMu      sync.Mutex
-	autoTitleCfg    config.AutoTitleCfg
+	skillEvoMu   sync.Mutex
+	autoTitleCfg config.AutoTitleCfg
 	// splitReplies is the per-agent multi-bubble toggle. Gates the
 	// per-turn system-prompt hint that advertises SplitMessageMarker
 	// to the LLM (see renderChannelHints) AND stamps
@@ -254,8 +253,6 @@ func (a *Agent) bindSession(ctx context.Context, channel, sessionID, projectID, 
 	a.registry.SetExecutor(ex)
 }
 
-
-
 // NewAgentWithSkillsCfg creates a new Agent with global skills config for env injection.
 func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bus.MessageBus, homeDir string, globalSkillsCfg config.SkillsCfg) *Agent {
 	workspace := rc.Workspace
@@ -331,17 +328,17 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 		maxParallelToolCalls: rc.MaxParallelToolCalls,
 		thinking:             rc.Thinking,
 		promptMode:           rc.PromptMode,
-		homePath:        rc.Home,
-		workspacePath:   workspace,
-		homeDir:         homeDir,
-		admins:          rc.Admins,
-		ownerImIds:      rc.OwnerImIds,
-		locale:          rc.Locale,
-		skillsCfg:       rc.Skills,
-		globalSkillsCfg: globalSkillsCfg,
-		messageBus:      mb,
-		engine:          eng,
-		costTracker:     eng.costTracker,
+		homePath:             rc.Home,
+		workspacePath:        workspace,
+		homeDir:              homeDir,
+		admins:               rc.Admins,
+		ownerImIds:           rc.OwnerImIds,
+		locale:               rc.Locale,
+		skillsCfg:            rc.Skills,
+		globalSkillsCfg:      globalSkillsCfg,
+		messageBus:           mb,
+		engine:               eng,
+		costTracker:          eng.costTracker,
 	}
 
 	// Multi-bubble split-replies: per-agent only — system-level toggle
@@ -2232,9 +2229,9 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			emitEvent(ctx, ChatEvent{Type: "done"})
 			a.runPostTurn(ctx, msg, messages, totalToolCalls, chatterMem)
 			if kbIndicator != "" && len(replyParts) > 0 {
-		replyParts[0] = kbIndicator + "\n\n" + replyParts[0]
-	}
-	return joinReplyParts(replyParts)
+				replyParts[0] = kbIndicator + "\n\n" + replyParts[0]
+			}
+			return joinReplyParts(replyParts)
 		}
 
 		// Emit assistant content before tool calls if present
@@ -2442,11 +2439,6 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 				// One call in this round produced a real result —
 				// the round as a whole isn't "all failed".
 				roundAllFailed = false
-			}
-
-			// Index in FTS if available
-			if a.ftsStore != nil {
-				_ = a.ftsStore.Index(a.name, msg.ChatID, "tool:"+r.toolName, resultContent, time.Now())
 			}
 
 			// Check for MEDIA: protocol in tool output
@@ -2660,20 +2652,6 @@ func (a *Agent) runPostTurn(ctx context.Context, msg bus.InboundMessage, message
 		chatterMem = a.memory
 	}
 	a.turnCount++
-
-	// Index user/assistant messages in FTS. Skip runtime-injected
-	// messages (e.g. goal_context continuations) — they're synthetic
-	// audit prompts, not searchable conversation content.
-	if a.ftsStore != nil {
-		for _, m := range messages {
-			if m.Origin != provider.OriginUser {
-				continue
-			}
-			if m.Role == "user" || m.Role == "assistant" {
-				_ = a.ftsStore.Index(a.name, "", m.Role, m.Content, time.Now())
-			}
-		}
-	}
 
 	// Fire PostTurn hooks
 	a.hooks.Run(ctx, &HookContext{
@@ -3754,7 +3732,7 @@ func (a *Agent) drainApprovedPending(ctx context.Context, sess *session.Session,
 
 	// Synthesize a fresh tool_calls assistant message + per-call tool
 	// results, so the pair is well-formed regardless of the original IDs.
- synthID := "authrun-" + fmt.Sprintf("%d", time.Now().UnixNano())
+	synthID := "authrun-" + fmt.Sprintf("%d", time.Now().UnixNano())
 	var tcs []provider.ToolCall
 	for i, tc := range calls {
 		id := fmt.Sprintf("%s-%d", synthID, i)
@@ -3765,9 +3743,9 @@ func (a *Agent) drainApprovedPending(ctx context.Context, sess *session.Session,
 	// field to round-trip on every assistant message or the next call 400s
 	// with "The reasoning_content in the thinking mode must be passed back".
 	rawAsst := struct {
-		Role             string                   `json:"role"`
-		ReasoningContent string                   `json:"reasoning_content"`
-		ToolCalls        []provider.ToolCall      `json:"tool_calls,omitempty"`
+		Role             string              `json:"role"`
+		ReasoningContent string              `json:"reasoning_content"`
+		ToolCalls        []provider.ToolCall `json:"tool_calls,omitempty"`
 	}{Role: "assistant", ReasoningContent: " ", ToolCalls: tcs}
 	rawJSON, _ := json.Marshal(rawAsst)
 	asstMsg := provider.Message{Role: "assistant", ToolCalls: tcs, RawAssistant: rawJSON}

@@ -803,7 +803,6 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 		agent.WithSessionStore(session.NewStoreAdapter(st, userID)),
 		agent.WithMemoryStore(agent.NewMemoryStoreAdapter(st)),
 		agent.WithDataStore(st),
-		
 	}
 	if ws != nil {
 		managerOpts = append(managerOpts, agent.WithWorkspaceStore(ws))
@@ -859,8 +858,8 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 		Agents:         agentMgr,
 		SandboxPool:    pool,
 		PluginMgr:      pluginMgr,
-		ctx:             spaceCtx,
-		cancel:          spaceCancel,
+		ctx:            spaceCtx,
+		cancel:         spaceCancel,
 		ProjectRuntime: projectRuntime,
 	}, nil
 }
@@ -1075,8 +1074,6 @@ func (r *userSpaceRegistry) getOrLoad(ctx context.Context, userID string) (*User
 	for _, ag := range sp.Agents.All() {
 		ag.SetSubAgentSpawner(spawner)
 	}
-	r.spaces[userID] = &userSpaceEntry{space: sp, lastUsed: time.Now()}
-	r.spaces[userID] = &userSpaceEntry{space: sp, lastUsed: time.Now()}
 	r.spaces[userID] = &userSpaceEntry{space: sp, lastUsed: time.Now()}
 	return sp, nil
 }

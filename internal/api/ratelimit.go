@@ -52,8 +52,6 @@ func (rl *rateLimiter) allow(userID string) bool {
 	return true
 }
 
-// cleanup periodically purges stale entries. Call in a goroutine.
-
 // rateLimitMiddleware wraps a handler and returns 429 when a user exceeds
 // the configured RPM.
 func rateLimitMiddleware(rl *rateLimiter, getUserID func(r *http.Request) string, next http.HandlerFunc) http.HandlerFunc {

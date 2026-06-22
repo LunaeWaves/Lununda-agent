@@ -44,10 +44,6 @@ func UserIDFromContext(ctx context.Context) string {
 	return ""
 }
 
-// MustUserIDFromContext returns the resolved user_id or an error. Use this
-// at handler boundaries where missing identity is a 500-level bug rather
-// than a normal flow.
-
 // MCPServerConfig holds configuration for a single MCP server.
 type MCPServerConfig struct {
 	Type    string            `json:"type"`
@@ -236,16 +232,15 @@ type RateLimitCfg struct {
 }
 
 type MemoryCfg struct {
-	Review ReviewCfg    `json:"autoPersist,omitempty"`
+	Review ReviewCfg `json:"autoPersist,omitempty"`
 	// SkillEvolution drives the background curator: candidate pairs → LLM
 	// verdicts → cluster synthesis → proposals (Plan 2-4). Disabled by
 	// default — synthesis burns tokens, owner opts in.
 	SkillEvolution SkillEvolutionCfg `json:"skillEvolution,omitempty"`
-	AutoTitle   AutoTitleCfg      `json:"autoTitle,omitempty"`
-	FTS         FTSCfg            `json:"fts,omitempty"`
-	Embedding   EmbeddingCfg      `json:"embedding,omitempty"`
-	Reranker    RerankerCfg       `json:"reranker,omitempty"`
-	Settings    MemorySettingsCfg `json:"settings,omitempty"`
+	AutoTitle      AutoTitleCfg      `json:"autoTitle,omitempty"`
+	Embedding      EmbeddingCfg      `json:"embedding,omitempty"`
+	Reranker       RerankerCfg       `json:"reranker,omitempty"`
+	Settings       MemorySettingsCfg `json:"settings,omitempty"`
 	// SummaryModel overrides the model used to distill conversation
 	// summaries (defaults to the agent's primary model when empty). Pick
 	// a cheaper/faster model id from the SAME provider as the primary
@@ -291,13 +286,13 @@ type ReviewCfg struct {
 // the LLM if they're related, synthesize related clusters into a single
 // class-level skill proposal. Disabled by default — burns tokens.
 type SkillEvolutionCfg struct {
-	Enabled    bool          `json:"enabled"`
-	Interval   time.Duration `json:"interval,omitempty"`           // 升级懒触发间隔，默认 7*24h
+	Enabled            bool          `json:"enabled"`
+	Interval           time.Duration `json:"interval,omitempty"`           // 升级懒触发间隔，默认 7*24h
 	StaleCheckInterval time.Duration `json:"staleCheckInterval,omitempty"` // stale 自动归档间隔，默认 30*24h；0 = 禁用 stale cron
-	Model      string        `json:"model,omitempty"`              // empty = agent primary model
-	Notify     NotifyCfg     `json:"notify,omitempty"`
-	StaleAfter time.Duration `json:"staleAfter,omitempty"`         // 默认 90*24h；0 = 禁用 stale 检测
-	Pinned     []string      `json:"pinned,omitempty"`             // skill names never marked stale
+	Model              string        `json:"model,omitempty"`              // empty = agent primary model
+	Notify             NotifyCfg     `json:"notify,omitempty"`
+	StaleAfter         time.Duration `json:"staleAfter,omitempty"` // 默认 90*24h；0 = 禁用 stale 检测
+	Pinned             []string      `json:"pinned,omitempty"`     // skill names never marked stale
 }
 
 // NotifyCfg routes the "new proposal ready" ping to one specific chat.
@@ -329,11 +324,6 @@ type AutoTitleCfg struct {
 	// Each retry is cheap (one DB lookup of sessions.title; the LLM
 	// call only happens when the title is still empty).
 	MaxTries int `json:"maxTries,omitempty"`
-}
-
-type FTSCfg struct {
-	Enabled bool   `json:"enabled"`
-	DBPath  string `json:"dbPath,omitempty"`
 }
 
 type PrivacyCfg struct {
@@ -438,9 +428,9 @@ type AgentDefaults struct {
 	// naturally serializes. 0 = unlimited (no cap, current behavior).
 	// Useful when downstream APIs (Brave free tier 1RPS, etc.) can't
 	// take a parallel burst.
-	MaxParallelToolCalls int     `json:"maxParallelToolCalls,omitempty"`
-	Thinking             string  `json:"thinking,omitempty"`
-	PolicyPreset         string  `json:"policy,omitempty"`
+	MaxParallelToolCalls int    `json:"maxParallelToolCalls,omitempty"`
+	Thinking             string `json:"thinking,omitempty"`
+	PolicyPreset         string `json:"policy,omitempty"`
 	// PromptMode lives here so the agent-scope `agents.defaults`
 	// config row (written by CLI and dashboard) round-trips into
 	// ResolvedAgent at userspace assembly time — see
@@ -485,8 +475,8 @@ type AgentDefaults struct {
 // configs table at scope=agent and are merged in via scope.SettingInto
 // during userspace load.
 type AgentEntry struct {
-	ID                   string                     `json:"id"`
-	UserID               string                     `json:"userId,omitempty"`
+	ID     string `json:"id"`
+	UserID string `json:"userId,omitempty"`
 	// Name mirrors agents.name (the operator-given display name) and is
 	// carried through to ResolvedAgent.DisplayName so the system prompt
 	// can stamp a fallback identity line when IDENTITY.md is empty.
@@ -496,12 +486,12 @@ type AgentEntry struct {
 	Temperature          float64                    `json:"temperature,omitempty"`
 	MaxToolIterations    int                        `json:"maxToolIterations,omitempty"`
 	MaxParallelToolCalls int                        `json:"maxParallelToolCalls,omitempty"`
-	Skills            []string                   `json:"skills,omitempty"`
-	MCPServers        map[string]MCPServerConfig `json:"mcpServers,omitempty"`
-	AlwaysLoadSkills  []string                   `json:"alwaysLoadSkills,omitempty"`
-	Thinking          string                     `json:"thinking,omitempty"`
-	Sandbox           SandboxCfg                 `json:"sandbox,omitempty"`
-	PolicyPreset      string                     `json:"policy,omitempty"`
+	Skills               []string                   `json:"skills,omitempty"`
+	MCPServers           map[string]MCPServerConfig `json:"mcpServers,omitempty"`
+	AlwaysLoadSkills     []string                   `json:"alwaysLoadSkills,omitempty"`
+	Thinking             string                     `json:"thinking,omitempty"`
+	Sandbox              SandboxCfg                 `json:"sandbox,omitempty"`
+	PolicyPreset         string                     `json:"policy,omitempty"`
 	// PromptMode selects how heavily the framework system prompt
 	// participates AND which built-in tools the LLM sees. Empty =
 	// "agent" (current default) for backward compatibility. See
@@ -633,12 +623,12 @@ type AgentFileConfig struct {
 	Temperature          float64                    `json:"temperature,omitempty"`
 	MaxToolIterations    int                        `json:"maxToolIterations,omitempty"`
 	MaxParallelToolCalls int                        `json:"maxParallelToolCalls,omitempty"`
-	Workspace         string                     `json:"workspace,omitempty"`
-	Skills            SkillsConfig               `json:"skills,omitempty"`
-	MCPServers        map[string]MCPServerConfig `json:"mcpServers,omitempty"`
-	ToolProviders     map[string]ToolProviderCfg `json:"toolProviders,omitempty"`
-	Tools             map[string]ToolCategoryCfg `json:"tools,omitempty"`
-	Providers         map[string]ProviderConfig  `json:"providers,omitempty"`
+	Workspace            string                     `json:"workspace,omitempty"`
+	Skills               SkillsConfig               `json:"skills,omitempty"`
+	MCPServers           map[string]MCPServerConfig `json:"mcpServers,omitempty"`
+	ToolProviders        map[string]ToolProviderCfg `json:"toolProviders,omitempty"`
+	Tools                map[string]ToolCategoryCfg `json:"tools,omitempty"`
+	Providers            map[string]ProviderConfig  `json:"providers,omitempty"`
 	// PromptMode mirrors AgentEntry.PromptMode at the file-config layer.
 	// Non-empty values override the entry-level setting.
 	PromptMode string `json:"promptMode,omitempty"`
@@ -732,13 +722,13 @@ type ResolvedAgent struct {
 	MaxToolIterations    int
 	MaxParallelToolCalls int
 	Thinking             string
-	Skills            SkillsConfig
-	MCPServers        map[string]MCPServerConfig
-	Sandbox           SandboxCfg
-	PolicyPreset      string
-	ToolProviders     map[string]ToolProviderCfg
-	Tools             map[string]ToolCategoryCfg
-	Providers         map[string]ProviderConfig
+	Skills               SkillsConfig
+	MCPServers           map[string]MCPServerConfig
+	Sandbox              SandboxCfg
+	PolicyPreset         string
+	ToolProviders        map[string]ToolProviderCfg
+	Tools                map[string]ToolCategoryCfg
+	Providers            map[string]ProviderConfig
 	// Admins is the per-channel admin allowlist for write-mode slash
 	// commands. See AgentFileConfig.Admins for semantics + default.
 	Admins map[string][]string
@@ -1161,5 +1151,3 @@ func ResolveAgents(cfg *Config, entries []AgentEntry) []ResolvedAgent {
 	}
 	return out
 }
-
-// LoadTeam reads a team.json file from the FS skills bundle.

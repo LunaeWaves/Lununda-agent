@@ -169,7 +169,6 @@ func (s *Server) handleRuntimeStop(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-
 func (s *Server) handleRuntimeLogs(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	pid := r.PathValue("pid")
@@ -190,10 +189,3 @@ func (s *Server) handleRuntimeLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{"logs": out})
 }
-
-// handleScopePreview returns the live preview for the CURRENT chat scope,
-// addressed by query params (sessionId for a loose chat, projectId for a
-// project) rather than a path-bound pid. The web UI uses it to surface an
-// "open preview" entry next to the workspace files. Always 200 with a
-// status so the client can render conditionally — "none" when the runtime
-// isn't enabled or no app has been started for this scope yet.

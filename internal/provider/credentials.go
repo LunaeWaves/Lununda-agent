@@ -25,11 +25,11 @@ type CredentialEntry struct {
 
 // CredentialManager handles secure credential storage and retrieval.
 type CredentialManager struct {
-	masterKey     []byte
-	entries       map[string]*CredentialEntry
-	storePath     string
+	masterKey      []byte
+	entries        map[string]*CredentialEntry
+	storePath      string
 	needsReencrypt bool // true after legacy-key fallback decrypt
-	mu            sync.RWMutex
+	mu             sync.RWMutex
 }
 
 // NewCredentialManagerForUser creates a credential manager scoped to a specific
@@ -93,8 +93,6 @@ func (cm *CredentialManager) Set(name, key, value string) error {
 	entry.Keys[key] = value
 	return cm.save()
 }
-
-// Get retrieves a credential value.
 
 // List returns all credential entries.
 func (cm *CredentialManager) List() []CredentialEntry {
@@ -170,8 +168,6 @@ func (cm *CredentialManager) Discover() []CredentialEntry {
 
 	return discovered
 }
-
-// InjectEnv returns environment variables suitable for injecting into a sandbox.
 
 func (cm *CredentialManager) save() error {
 	data, err := json.Marshal(cm.entries)

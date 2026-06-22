@@ -159,19 +159,18 @@ plan and the final deliverable.
 conversational replies. todo.md is for plans the user wants to track,
 not chat overhead.`
 
-
 // GroupContext holds information about the group chat environment for system prompt injection.
 type GroupContext struct {
 	BotUsername string   // this agent's bot username
-	Teammates  []string // other agent names in the group
+	Teammates   []string // other agent names in the group
 }
 
 // ContextBuilder assembles the system prompt and runtime context.
 type ContextBuilder struct {
-	home           string // agent's home: SOUL.md, IDENTITY.md, memory, sessions
-	workspace      string // working dir where agent creates user-facing files
-	memory         *Memory
-	skillsSummary  string
+	home          string // agent's home: SOUL.md, IDENTITY.md, memory, sessions
+	workspace     string // working dir where agent creates user-facing files
+	memory        *Memory
+	skillsSummary string
 	// displayName is the operator-given name from agents.name. Used as
 	// a fallback identity line when IDENTITY.md is empty so the model
 	// doesn't introduce itself as "Claude" / its base-model name.
@@ -187,9 +186,9 @@ type ContextBuilder struct {
 	// products (task delegation, todo tracking, tool-use discipline,
 	// workspace self-update, scheduling).
 	promptMode string
-	store   MemoryStore
-	userID  string
-	agentID string
+	store      MemoryStore
+	userID     string
+	agentID    string
 	// tzResolver maps a chatterUID to their effective *time.Location
 	// (chatter pref → agent default → system default, resolved through
 	// scope prefs). Wired by the manager when a relational store is
@@ -197,10 +196,6 @@ type ContextBuilder struct {
 	// which preserves the legacy single-tenant behavior.
 	tzResolver func(chatterUID string) *time.Location
 }
-
-// ctx returns a context tagged with this builder's user, used when reading
-// identity files (SOUL/IDENTITY/USER/...) from a store-backed setup so the
-// SQL row scope matches per-(user, agent).
 
 // cloneForReview 返回绑到 chatterUID 的浅拷贝，供后台审查的
 // runSubagentLoopWith 用 —— BuildSystemPrompt 会读该 chatter 的 USER/MEMORY
@@ -955,7 +950,6 @@ Before responding to each message, %s your approach internally. Consider:
 - Are there any risks or trade-offs to consider?
 Structure your reasoning before acting. Think before you respond.`, depth)
 }
-
 
 // loadFileForUser reads a workspace file under an explicit userID.
 // Store rows are keyed by (agentID, userID). USER.md is per-chatter

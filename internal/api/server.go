@@ -38,10 +38,10 @@ type UserSpaceView struct {
 
 // Server handles the OpenAI-compatible API and WebSocket gateway.
 type Server struct {
-	resolver   UserResolver
+	resolver     UserResolver
 	authResolver *auth.Resolver
-	gatewayCfg *config.GatewayCfg
-	limiter    *rateLimiter
+	gatewayCfg   *config.GatewayCfg
+	limiter      *rateLimiter
 }
 
 // NewServer creates a new API server. authResolver is mandatory — there is
@@ -82,8 +82,6 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/users",
 		s.authMiddleware(rateLimitMiddleware(s.limiter, getUserID, s.HandleProvisionAppUser)))
 }
-
-// RegisterAdminRoutes is kept as a no-op for callers that still call it
 
 func (s *Server) handleCORS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")

@@ -54,9 +54,6 @@ func (g *Gateway) ReloadAgents() error {
 	return nil
 }
 
-// reloadAgentForUser is a finer-grained invalidate used by setup handlers
-// after a single user mutates their own agents.
-
 // RegisterChannelFromConfig hot-starts a channel adapter for a freshly-
 // saved configs row without restarting the process. Called by the
 // dashboard's per-agent channel handlers after a successful save so a
