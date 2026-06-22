@@ -806,38 +806,5 @@ func expandPath(path string) string {
 	return path
 }
 
-func firstLine(s string) string {
-	if idx := strings.IndexByte(s, '\n'); idx >= 0 {
-		return s[:idx]
-	}
-	if len(s) > 120 {
-		return s[:120] + "..."
-	}
-	return s
-}
 
 // FindSkillForPath returns the skill name if the given path is within a skill directory.
-func FindSkillForPath(path string, skillDirs []string) string {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return ""
-	}
-	for _, dir := range skillDirs {
-		absDir, err := filepath.Abs(dir)
-		if err != nil {
-			continue
-		}
-		if strings.HasPrefix(absPath, absDir+string(filepath.Separator)) {
-			// Extract skill name (first component after the skills dir)
-			rel, err := filepath.Rel(absDir, absPath)
-			if err != nil {
-				continue
-			}
-			parts := strings.SplitN(rel, string(filepath.Separator), 2)
-			if len(parts) > 0 {
-				return parts[0]
-			}
-		}
-	}
-	return ""
-}

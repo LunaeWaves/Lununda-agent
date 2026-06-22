@@ -201,12 +201,6 @@ type ContextBuilder struct {
 // ctx returns a context tagged with this builder's user, used when reading
 // identity files (SOUL/IDENTITY/USER/...) from a store-backed setup so the
 // SQL row scope matches per-(user, agent).
-func (cb *ContextBuilder) ctx() context.Context {
-	if cb.userID == "" {
-		return context.Background()
-	}
-	return config.WithUserID(context.Background(), cb.userID)
-}
 
 // cloneForReview 返回绑到 chatterUID 的浅拷贝，供后台审查的
 // runSubagentLoopWith 用 —— BuildSystemPrompt 会读该 chatter 的 USER/MEMORY
@@ -962,9 +956,6 @@ Before responding to each message, %s your approach internally. Consider:
 Structure your reasoning before acting. Think before you respond.`, depth)
 }
 
-func (cb *ContextBuilder) loadFile(name string) string {
-	return cb.loadFileForUser(name, cb.userID)
-}
 
 // loadFileForUser reads a workspace file under an explicit userID.
 // Store rows are keyed by (agentID, userID). USER.md is per-chatter

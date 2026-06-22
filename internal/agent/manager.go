@@ -115,12 +115,6 @@ func WithEventHub(h *EventHub) ManagerOption {
 	return func(o *managerOpts) { o.eventHub = h }
 }
 
-func firstNonEmpty(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}
 
 // Manager loads and manages all agent instances.
 type Manager struct {

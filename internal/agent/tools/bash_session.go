@@ -289,12 +289,3 @@ func (m *shellManager) Close() {
 
 // list returns a snapshot of all current sessions, sorted by id.
 // Currently used only by tests; exposed for future list_shells tool.
-func (m *shellManager) list() []*bashSession {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	out := make([]*bashSession, 0, len(m.shells))
-	for _, s := range m.shells {
-		out = append(out, s)
-	}
-	return out
-}

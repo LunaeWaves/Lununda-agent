@@ -565,40 +565,6 @@ func (a *Agent) loadSoulName() string {
 	return "default"
 }
 
-func (a *Agent) slashHelp() string {
-	return `⚡ Lununda Agent Commands
-
-Conversation
-  /new, /reset    — Clear session history
-  /retry          — Re-run last message
-  /undo           — Undo last turn
-
-Context
-  /compact        — Compress context window
-  /status         — Agent status & memory info
-  /usage          — Session token/turn stats
-  /insights [N]   — Activity insights (last N days, default 7)
-
-Personality & Model
-  /personality        — List available personalities
-  /personality <name> — Switch personality (SOUL-<name>.md)
-  /model <name>       — Switch LLM model
-
-Goal (persistent multi-turn objective)
-  /goal <objective> — Create a goal; agent self-continues until done
-  /goal             — Show current goal status
-  /goal pause       — Pause continuation
-  /goal resume      — Resume a paused goal
-  /goal clear       — Delete the goal
-
-Plan
-  /plan <task>      — Run <task> in plan mode: emit a numbered plan, no tool calls
-
-Info
-  /help           — Show this help
-  /version        — Show version
-`
-}
 
 // slashPlan handles `/plan <task>`: republish the rest of the message
 // onto bus.Inbound with planMode=true so the regular HandleMessage path

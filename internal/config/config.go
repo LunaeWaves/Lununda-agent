@@ -47,13 +47,6 @@ func UserIDFromContext(ctx context.Context) string {
 // MustUserIDFromContext returns the resolved user_id or an error. Use this
 // at handler boundaries where missing identity is a 500-level bug rather
 // than a normal flow.
-func MustUserIDFromContext(ctx context.Context) (string, error) {
-	uid := UserIDFromContext(ctx)
-	if uid == "" {
-		return "", errors.New("config: request context has no user_id (auth middleware bug)")
-	}
-	return uid, nil
-}
 
 // MCPServerConfig holds configuration for a single MCP server.
 type MCPServerConfig struct {
@@ -1170,14 +1163,3 @@ func ResolveAgents(cfg *Config, entries []AgentEntry) []ResolvedAgent {
 }
 
 // LoadTeam reads a team.json file from the FS skills bundle.
-func LoadTeam(path string) (*TeamConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var tc TeamConfig
-	if err := json.Unmarshal(data, &tc); err != nil {
-		return nil, err
-	}
-	return &tc, nil
-}

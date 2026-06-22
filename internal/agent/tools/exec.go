@@ -96,9 +96,6 @@ func registerExecFull(r *Registry, sbCfg *SandboxConfig, envProvider SkillEnvPro
 	}, makeExecToolFull(r, sbCfg, envProvider, skillDirs))
 }
 
-func makeExecTool(sbCfg *SandboxConfig) ToolFunc {
-	return makeExecToolFull(nil, sbCfg, nil, nil)
-}
 
 // makeExecToolFull captures the registry pointer so it can consult the
 // runtime `sandboxRequired` flag at call time — that's the contract
