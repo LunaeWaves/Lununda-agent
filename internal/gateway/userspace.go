@@ -317,6 +317,13 @@ type UserSpace struct {
 	// when no runtime is configured.
 	ProjectRuntime *coderuntime.Manager
 
+	// ctx spans the UserSpace lifecycle, decoupled from the
+	// request ctx that triggered loadUserSpace. Heartbeat goroutines
+	// and other long-lived background work bind to this; cancel fires
+	// when evictIdle drops the space.
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	mu sync.Mutex
 }
 
@@ -835,6 +842,14 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 		}
 	}
 
+	// Restore per-agent heartbeat ticks. cfg.Heartbeat is read at user
+	// scope (assembleConfig ran with agentID=""), so every agent in this
+	// UserSpace shares the same interval — matches the pre-multi-user
+	// gateway behavior.
+	spaceCtx, spaceCancel := context.WithCancel(context.Background())
+	heartbeatInterval := time.Duration(cfg.Heartbeat.IntervalMinutes) * time.Minute
+	agentMgr.StartHeartbeats(spaceCtx, mb, heartbeatInterval)
+
 	slog.Info("loaded user space", "user", userID, "agents", agentMgr.Names())
 
 	return &UserSpace{
@@ -844,6 +859,8 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 		Agents:         agentMgr,
 		SandboxPool:    pool,
 		PluginMgr:      pluginMgr,
+		ctx:             spaceCtx,
+		cancel:          spaceCancel,
 		ProjectRuntime: projectRuntime,
 	}, nil
 }
@@ -1060,6 +1077,9 @@ func (r *userSpaceRegistry) getOrLoad(ctx context.Context, userID string) (*User
 // in-memory copy doesn't lag behind the DB.
 func (r *userSpaceRegistry) invalidate(userID string) {
 	r.mu.Lock()
+	if e, ok := r.spaces[userID]; ok && e.space != nil && e.space.cancel != nil {
+		e.space.cancel()
+	}
 	delete(r.spaces, userID)
 	r.mu.Unlock()
 }
@@ -1084,6 +1104,9 @@ func (r *userSpaceRegistry) evictIdle() int {
 	evicted := 0
 	for uid, e := range r.spaces {
 		if e.lastUsed.Before(cutoff) {
+			if e.space.cancel != nil {
+				e.space.cancel()
+			}
 			delete(r.spaces, uid)
 			evicted++
 			slog.Info("evicted idle user space", "user", uid,

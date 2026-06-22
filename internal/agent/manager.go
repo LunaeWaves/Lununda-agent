@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
@@ -377,6 +378,25 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 	return ag
 }
 
+
+// StartHeartbeats launches a per-agent heartbeat goroutine for every
+// agent in this Manager. interval<=0 falls back to DefaultHeartbeatInterval;
+// each goroutine exits when ctx is cancelled.
+//
+// Restores the heartbeat tick that the multi-user refactor removed from
+// gateway startup: without it HEARTBEAT.md conditional self-checks
+// (still described in every agent's system prompt) never fire.
+func (m *Manager) StartHeartbeats(ctx context.Context, mb *bus.MessageBus, interval time.Duration) {
+	if mb == nil {
+		return
+	}
+	if interval <= 0 {
+		interval = DefaultHeartbeatInterval
+	}
+	for _, ag := range m.agents {
+		go NewHeartbeat(ag, mb, interval).Start(ctx)
+	}
+}
 // AddAgent creates and registers a new agent dynamically (for hot-reload).
 func (m *Manager) AddAgent(rc config.ResolvedAgent, prov provider.Provider, mb *bus.MessageBus) error {
 	if _, exists := m.agents[rc.ID]; exists {
