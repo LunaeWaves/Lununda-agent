@@ -36,6 +36,27 @@ func (rl *rateLimiter) allow(userID string) bool {
 	now := time.Now()
 	cutoff := now.Add(-rl.window)
 
+	// Lazy sweep: once the user map grows past maxMapSize, purge
+	// fully-expired keys inline so inactive users don't accumulate
+	// forever. No dedicated cleanup goroutine — the sweep runs on the
+	// request that crosses the threshold. ponytail: inline O(n) sweep
+	// under the lock; replace with a periodic cleanup goroutine if this
+	// shows up in profiles or active users routinely exceed the cap.
+	const maxMapSize = 4096
+	if len(rl.windows) > maxMapSize {
+		for uid, st := range rl.windows {
+			i := 0
+			for i < len(st) && st[i].Before(cutoff) {
+				i++
+			}
+			if i == len(st) {
+				delete(rl.windows, uid)
+			} else {
+				rl.windows[uid] = st[i:]
+			}
+		}
+	}
+
 	// Prune expired entries.
 	ts := rl.windows[userID]
 	start := 0
