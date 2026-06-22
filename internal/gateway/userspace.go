@@ -327,7 +327,7 @@ type UserSpace struct {
 	mu sync.Mutex
 }
 
-// readUserScopeAgentDefaults reads the (user=X, agent='') agents.defaults
+// readUserScopeAgentDefaults reads the (user=X, agent=”) agents.defaults
 // row raw — distinct from assembleConfig, which merges system + user and
 // can't tell apart "user explicitly chose the system value" from "no
 // user-scope row at all". EnsureAgent uses this to detect a chatter's
@@ -641,7 +641,7 @@ func (sp *UserSpace) EnsureAgent(ctx context.Context, st store.Store, mb *bus.Me
 // by the resulting UserSpace. Pass nil when sandbox is disabled at
 // system scope; agents will run with path-only file roots in that
 // case.
-func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager, projectRuntime *coderuntime.Manager, eventHub *agent.EventHub) (*UserSpace, error) {
+func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st store.Store, ws workspace.Store, meter usage.Meter, systemSandboxPool sandbox.ExecutorPool, pluginMgr *plugin.Manager, projectRuntime *coderuntime.Manager, eventHub *agent.EventHub, rootCtx context.Context) (*UserSpace, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("loadUserSpace: userID required")
 	}
@@ -845,7 +845,11 @@ func loadUserSpace(ctx context.Context, userID string, mb *bus.MessageBus, st st
 	// scope (assembleConfig ran with agentID=""), so every agent in this
 	// UserSpace shares the same interval — matches the pre-multi-user
 	// gateway behavior.
-	spaceCtx, spaceCancel := context.WithCancel(context.Background())
+	spaceParent := rootCtx
+	if spaceParent == nil {
+		spaceParent = context.Background()
+	}
+	spaceCtx, spaceCancel := context.WithCancel(spaceParent)
 	heartbeatInterval := time.Duration(cfg.Heartbeat.IntervalMinutes) * time.Minute
 	agentMgr.StartHeartbeats(spaceCtx, mb, heartbeatInterval)
 
@@ -1002,6 +1006,10 @@ type userSpaceRegistry struct {
 	// (auto-title, auto-persist) read this to publish live updates
 	// back to subscribed dashboards without holding the request ctx.
 	eventHub *agent.EventHub
+	// rootCtx is the gateway's root context, set post-construction
+	// via setRootCtx (called from Gateway.Run). Per-UserSpace
+	// heartbeat ctxs derive from it so SIGINT/SIGTERM cancels them.
+	rootCtx context.Context
 }
 
 // setProjectRuntime records the manager so subsequent loadUserSpace calls
@@ -1019,6 +1027,15 @@ func (r *userSpaceRegistry) setProjectRuntime(m *coderuntime.Manager) {
 func (r *userSpaceRegistry) setEventHub(h *agent.EventHub) {
 	r.mu.Lock()
 	r.eventHub = h
+	r.mu.Unlock()
+}
+
+// setRootCtx records the gateway root ctx so per-UserSpace heartbeat
+// ctxs derive from it and cancel on SIGINT/SIGTERM. Called once from
+// Gateway.Run; nil (tests / pre-Run) falls back to context.Background.
+func (r *userSpaceRegistry) setRootCtx(ctx context.Context) {
+	r.mu.Lock()
+	r.rootCtx = ctx
 	r.mu.Unlock()
 }
 
@@ -1063,7 +1080,7 @@ func (r *userSpaceRegistry) getOrLoad(ctx context.Context, userID string) (*User
 		e.lastUsed = time.Now()
 		return e.space, nil
 	}
-	sp, err := loadUserSpace(ctx, userID, r.bus, r.store, r.workspace, r.meter, r.systemSandboxPool, r.pluginMgr, r.projectRuntime, r.eventHub)
+	sp, err := loadUserSpace(ctx, userID, r.bus, r.store, r.workspace, r.meter, r.systemSandboxPool, r.pluginMgr, r.projectRuntime, r.eventHub, r.rootCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -1151,7 +1168,7 @@ func (r *userSpaceRegistry) startEvictor(ctx context.Context) {
 // per Account.
 //
 // Pulls rows from three ownership corners this user can route:
-//   - (user_id='', agent_id=Y): the agent's "official" rows for any
+//   - (user_id=”, agent_id=Y): the agent's "official" rows for any
 //     agent Y the user owns (legacy / pre-refactor data)
 //   - (user_id=userID, agent_id=Y) where user owns Y: this user's
 //     bindings on their own agent (the normal post-refactor pattern)

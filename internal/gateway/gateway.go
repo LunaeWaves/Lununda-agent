@@ -28,6 +28,7 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/channels"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/cron"
+	"github.com/LunaeWaves/Lununda-agent/internal/memoryindex"
 	"github.com/LunaeWaves/Lununda-agent/internal/plugin"
 	coderuntime "github.com/LunaeWaves/Lununda-agent/internal/runtime"
 	"github.com/LunaeWaves/Lununda-agent/internal/sandbox"
@@ -39,7 +40,6 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders/tts"
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders/webfetch"
 	"github.com/LunaeWaves/Lununda-agent/internal/toolproviders/websearch"
-	"github.com/LunaeWaves/Lununda-agent/internal/memoryindex"
 	"github.com/LunaeWaves/Lununda-agent/internal/usage"
 	"github.com/LunaeWaves/Lununda-agent/internal/users"
 	"github.com/LunaeWaves/Lununda-agent/internal/webhook"
@@ -220,7 +220,6 @@ func (g *Gateway) SetChatEvents(h *agent.EventHub) {
 		g.users.setEventHub(h)
 	}
 }
-
 
 // WebChannel returns the in-process fan-out for web SSE subscribers.
 // Used by the setup server to register chat-stream subscribers so cron-
@@ -557,6 +556,7 @@ func (g *Gateway) IsCloudMode() bool { return true }
 func (g *Gateway) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	g.users.setRootCtx(ctx)
 
 	stopCh := make(chan os.Signal, 1)
 	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
