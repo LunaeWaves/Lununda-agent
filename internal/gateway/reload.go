@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 
@@ -57,9 +56,6 @@ func (g *Gateway) ReloadAgents() error {
 
 // reloadAgentForUser is a finer-grained invalidate used by setup handlers
 // after a single user mutates their own agents.
-func (g *Gateway) reloadAgentForUser(_ context.Context, userID string) {
-	g.InvalidateUser(userID)
-}
 
 // RegisterChannelFromConfig hot-starts a channel adapter for a freshly-
 // saved configs row without restarting the process. Called by the

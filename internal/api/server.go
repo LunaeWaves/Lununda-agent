@@ -84,9 +84,6 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 }
 
 // RegisterAdminRoutes is kept as a no-op for callers that still call it
-// during gateway boot. Admin user/apikey CRUD now lives under /api/admin
-// in the setup server, which has proper cookie-session auth.
-func (s *Server) RegisterAdminRoutes(mux *http.ServeMux) {}
 
 func (s *Server) handleCORS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")

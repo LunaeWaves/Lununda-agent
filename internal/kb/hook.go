@@ -177,18 +177,6 @@ func buildToolResultSummary(results []KBResult) string {
 	return strings.TrimSpace(sb.String())
 }
 
-func formatIndicatorFound(cfg AutoQueryCfg, count int, query string) string {
-	if !cfg.ShowIndicator {
-		return ""
-	}
-	indicator := cfg.IndicatorFound
-	if indicator == "" {
-		indicator = "[KB] 已引用 {count} 条相关知识"
-	}
-	indicator = strings.ReplaceAll(indicator, "{count}", fmt.Sprintf("%d", count))
-	indicator = strings.ReplaceAll(indicator, "{query}", query)
-	return indicator
-}
 
 func isWikiSourceID(id string) bool {
 	return strings.Contains(id, ":")

@@ -169,27 +169,6 @@ func (s *Server) handleRuntimeStop(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-func (s *Server) handleRuntimePreview(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	pid := r.PathValue("pid")
-	uid, ok := s.runtimeReady(w, r, id, false)
-	if !ok {
-		return
-	}
-	rec, err := s.runtimeMgr.Get(r.Context(), uid, id, pid, "")
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			jsonResponse(w, http.StatusNotFound, map[string]any{"error": "no runtime for this project"})
-			return
-		}
-		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"previewUrl": rec.PreviewURL,
-		"status":     rec.Status,
-	})
-}
 
 func (s *Server) handleRuntimeLogs(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -218,30 +197,3 @@ func (s *Server) handleRuntimeLogs(w http.ResponseWriter, r *http.Request) {
 // "open preview" entry next to the workspace files. Always 200 with a
 // status so the client can render conditionally — "none" when the runtime
 // isn't enabled or no app has been started for this scope yet.
-func (s *Server) handleScopePreview(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if s.runtimeMgr == nil {
-		jsonResponse(w, http.StatusOK, map[string]any{"status": "none"})
-		return
-	}
-	if !s.requireAgentReadable(w, r, id) {
-		return
-	}
-	uid := s.effectiveUserID(r)
-	if uid == "" {
-		jsonResponse(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
-		return
-	}
-	rec, err := s.runtimeMgr.Get(r.Context(), uid, id,
-		r.URL.Query().Get("projectId"), r.URL.Query().Get("sessionId"))
-	if err != nil {
-		// ErrNotFound (no app yet) or a bad/empty scope both mean "nothing
-		// to preview" from the UI's perspective.
-		jsonResponse(w, http.StatusOK, map[string]any{"status": "none"})
-		return
-	}
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"previewUrl": rec.PreviewURL,
-		"status":     rec.Status,
-	})
-}

@@ -2047,20 +2047,6 @@ func maskSkillEntry(v config.SkillEntryCfg) config.SkillEntryCfg {
 	return out
 }
 
-func mergeSkillEntry(existing, in config.SkillEntryCfg) config.SkillEntryCfg {
-	out := config.SkillEntryCfg{Enabled: in.Enabled, APIKey: in.APIKey, Env: in.Env}
-	if isMaskedSecret(out.APIKey) {
-		out.APIKey = existing.APIKey
-	}
-	if out.Env != nil {
-		for k, v := range out.Env {
-			if isMaskedSecret(v) {
-				out.Env[k] = existing.Env[k]
-			}
-		}
-	}
-	return out
-}
 
 func newRandID() (string, error) {
 	var buf [10]byte
@@ -2070,14 +2056,4 @@ func newRandID() (string, error) {
 	return hex.EncodeToString(buf[:]), nil
 }
 
-func generateRandomToken(length int) string {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return "lununda-default-token"
-	}
-	return hex.EncodeToString(b)
-}
 
-// debugLog is used from various handlers for diagnostic events; kept as a
-// thin wrapper so handler files don't import slog directly.
-func debugLog(msg string, kv ...any) { slog.Debug(msg, kv...) }

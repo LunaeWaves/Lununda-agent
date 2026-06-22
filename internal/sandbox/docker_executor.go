@@ -27,13 +27,6 @@ type DockerExecutor struct {
 // NewDockerExecutor creates a sandbox Executor backed by a Docker container.
 // workspace is the host-side directory to mount (e.g. the user's workspace
 // synced from S3, or a tmpdir for ephemeral use).
-func NewDockerExecutor(image, workspace string, policy *Policy) (*DockerExecutor, error) {
-	sb := NewDockerSandbox(image, workspace, policy)
-	if err := sb.Create(); err != nil {
-		return nil, fmt.Errorf("create docker sandbox: %w", err)
-	}
-	return &DockerExecutor{sb: sb}, nil
-}
 
 func (d *DockerExecutor) Exec(ctx context.Context, command string, timeout time.Duration) (string, error) {
 	execCtx := ctx

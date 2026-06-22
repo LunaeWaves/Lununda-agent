@@ -95,26 +95,6 @@ func (s *Server) resolveChannelBindingScope(w http.ResponseWriter, r *http.Reque
 // the returned uid is the caller's, not the owner's — that matters for
 // per-caller flows like the WeChat QR session whose poll-side equality
 // check needs to match the start-side that stored it.
-func (s *Server) ownsAgent(r *http.Request, agentID string) (string, bool) {
-	if agentID == "" {
-		return "", false
-	}
-	uid := s.effectiveUserID(r)
-	if uid == "" {
-		return "", false
-	}
-	rec, err := s.dataStore.GetAgent(r.Context(), agentID)
-	if err != nil || rec == nil {
-		return "", false
-	}
-	if rec.UserID == uid {
-		return uid, true
-	}
-	if ident, ok := auth.FromContext(r.Context()); ok && ident.CanAdminPlatform() {
-		return uid, true
-	}
-	return "", false
-}
 
 func (s *Server) handleListAgentChannels(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -158,11 +138,6 @@ func (s *Server) handleListAgentChannels(w http.ResponseWriter, r *http.Request)
 // without an extra arg.
 type accountFilter func(channelType, accountID string) bool
 
-func filterAccounts(allow map[[2]string]bool) accountFilter {
-	return func(channelType, accountID string) bool {
-		return allow[[2]string{channelType, accountID}]
-	}
-}
 
 func flattenChannelRows(rows []store.ConfigRecord, source string, _, _ string, filters ...accountFilter) []channelOut {
 	out := make([]channelOut, 0, len(rows))

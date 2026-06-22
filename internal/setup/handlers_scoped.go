@@ -133,10 +133,6 @@ func (s *Server) listConfigsByScope(ctx context.Context, kind, sc, scopeID strin
 }
 
 // getConfigByNameScope is the GetConfigByName variant of the same bridge.
-func (s *Server) getConfigByNameScope(ctx context.Context, kind, sc, scopeID, name string) (*store.ConfigRecord, error) {
-	uid, aid := scope.OwnershipFromScope(sc, scopeID)
-	return s.dataStore.GetConfigByName(ctx, kind, uid, aid, name)
-}
 
 // scopeFromQuery reads the scope/scopeId query parameters with sensible
 // defaults: missing scope falls through to the caller's user scope so a

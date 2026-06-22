@@ -53,34 +53,6 @@ func (rl *rateLimiter) allow(userID string) bool {
 }
 
 // cleanup periodically purges stale entries. Call in a goroutine.
-func (rl *rateLimiter) cleanup(interval time.Duration, done <-chan struct{}) {
-	if rl.rpm <= 0 {
-		return
-	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-done:
-			return
-		case <-t.C:
-			rl.mu.Lock()
-			cutoff := time.Now().Add(-rl.window)
-			for uid, ts := range rl.windows {
-				start := 0
-				for start < len(ts) && ts[start].Before(cutoff) {
-					start++
-				}
-				if start == len(ts) {
-					delete(rl.windows, uid)
-				} else {
-					rl.windows[uid] = ts[start:]
-				}
-			}
-			rl.mu.Unlock()
-		}
-	}
-}
 
 // rateLimitMiddleware wraps a handler and returns 429 when a user exceeds
 // the configured RPM.

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/agent"
-	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/bus"
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
@@ -477,27 +476,6 @@ func (g *Gateway) accountIDForAgent(space *UserSpace, agentID, channel string) s
 	return ""
 }
 
-// gatewaySubAgentSpawner implements tools.SubAgentSpawner. Sub-agents
-// always run inside the *same* user's agent manager — there's no cross-
-// tenant agent invocation.
-type gatewaySubAgentSpawner struct {
-	gateway *Gateway
-	userID  string
-}
-
-func (s *gatewaySubAgentSpawner) SpawnSubAgent(ctx context.Context, agentID string, msg bus.InboundMessage) string {
-	space, err := s.gateway.users.getOrLoad(ctx, s.userID)
-	if err != nil {
-		return fmt.Sprintf("Error: load user space: %v", err)
-	}
-	ag := space.Agents.AgentByID(agentID)
-	if ag == nil {
-		return fmt.Sprintf("Error: agent %q not found", agentID)
-	}
-	return ag.HandleMessage(ctx, msg)
-}
-
-var _ tools.SubAgentSpawner = (*gatewaySubAgentSpawner)(nil)
 
 // webhookAgentHandler routes a webhook payload to the named agent within
 // the resolved user's space.

@@ -5,7 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"path"
-	"strings"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/workspace"
 )
@@ -65,7 +64,3 @@ const defaultSandboxRoot = "/workspace"
 // sanitizeSandboxPath strips leading slashes / `..` segments so hydrated
 // keys can't escape /workspace even if the store somehow holds a malicious
 // path. Mirror of internal/workspace.LocalFS.resolvePath's logic.
-func sanitizeSandboxPath(p string) string {
-	clean := path.Clean("/" + p)
-	return strings.TrimPrefix(clean, "/")
-}

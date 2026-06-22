@@ -1581,12 +1581,6 @@ func (s *Server) handleAgentFileUpload(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "files": saved})
 }
 
-func defaultIfEmpty(v, fallback string) string {
-	if v == "" {
-		return fallback
-	}
-	return v
-}
 
 // invalidateUser drops the user's lazy-loaded UserSpace so the next
 // access reloads it from the DB. The gateway implements InvalidateUser
@@ -1619,18 +1613,6 @@ func (s *Server) invalidateAgent(agentID string) {
 
 // requireOwnerOrSuperAdmin guards endpoints that mutate another user's
 // resources.
-func (s *Server) requireOwnerOrSuperAdmin(w http.ResponseWriter, r *http.Request, ownerID string) bool {
-	ident, ok := auth.FromContext(r.Context())
-	if !ok {
-		jsonResponse(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
-		return false
-	}
-	if ident.UserID == ownerID || ident.Role == users.RoleSuperAdmin {
-		return true
-	}
-	jsonResponse(w, http.StatusForbidden, map[string]any{"error": "forbidden"})
-	return false
-}
 
 var _ workspace.Store = (workspace.Store)(nil)
 

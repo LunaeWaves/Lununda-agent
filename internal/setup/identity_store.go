@@ -2,11 +2,9 @@ package setup
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
@@ -55,15 +53,5 @@ func (s *Server) saveAgentFileConfig(r *http.Request, agentID string, cfg *confi
 }
 
 // isStoreNotFound recognises the "not found" signal across backends.
-func isStoreNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, store.ErrNotFound) {
-		return true
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "no rows in result set") || strings.Contains(msg, "not found")
-}
 
 var _ = context.Background

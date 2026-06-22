@@ -169,13 +169,3 @@ type pageTokens struct {
 }
 
 // scoreFromTokens scores a pre-tokenized page against query tokens.
-func scoreFromTokens(pt *pageTokens, qTokens map[string]bool) float64 {
-	score := 4.0*float64(intersectCount(qTokens, pt.Title)) +
-		2.0*float64(intersectCount(qTokens, pt.Summary)) +
-		3.0*float64(intersectCount(qTokens, pt.Tags))
-
-	if pt.Slug != "" && qTokens[pt.Slug] {
-		score += 5.0
-	}
-	return score
-}

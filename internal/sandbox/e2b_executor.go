@@ -394,9 +394,6 @@ func (b *tarBundle) close() error {
 }
 
 // isSandboxGone checks if the error indicates the sandbox was destroyed.
-func isSandboxGone(statusCode int) bool {
-	return statusCode == 502 || statusCode == 404
-}
 
 // connectEnvelope wraps JSON payload in Connect protocol envelope framing.
 // Format: [1 byte flags][4 bytes big-endian length][payload]
