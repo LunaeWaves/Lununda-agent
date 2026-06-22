@@ -14,11 +14,10 @@ import (
 type KBStore struct {
 	db       *sql.DB
 	dialect  string
-	cache    *WikiCache
 }
 
-func NewKBStore(db *sql.DB, dialect string, cache *WikiCache) *KBStore {
-	return &KBStore{db: db, dialect: dialect, cache: cache}
+func NewKBStore(db *sql.DB, dialect string) *KBStore {
+	return &KBStore{db: db, dialect: dialect}
 }
 
 func (s *KBStore) ph(n int) string {
@@ -105,19 +104,6 @@ func (s *KBStore) searchWiki(ctx context.Context, agentID, query string, limit i
 		preFilterLimit = 30
 	}
 
-	// Try Redis cache path first.
-	if mode == "cache" && s.cache != nil {
-		if scored := s.cache.SearchCached(ctx, agentID, query, limit); len(scored) > 0 {
-			return scoredToResults(scored)
-		}
-		// Cache miss — load from DB, populate cache, then score.
-		if pages := s.loadAllWikiPages(ctx, agentID); len(pages) > 0 {
-			s.cacheAndScore(ctx, agentID, pages)
-			if scored := s.cache.SearchCached(ctx, agentID, query, limit); len(scored) > 0 {
-				return scoredToResults(scored)
-			}
-		}
-	}
 
 	// SQL pre-filter: LIKE on title/body to get candidates, then bigram re-rank.
 	candidates := s.searchWikiPrefilter(ctx, agentID, query, preFilterLimit)
@@ -173,45 +159,7 @@ func (s *KBStore) searchWikiPrefilter(ctx context.Context, agentID, query string
 	return pages
 }
 
-func (s *KBStore) loadAllWikiPages(ctx context.Context, agentID string) []wikiPageRow {
-	rows, err := s.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT id, title, summary, body, page_type, slug, tags
-			FROM wiki_pages WHERE agent_id = %s`, s.ph(1)),
-		agentID)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
 
-	var pages []wikiPageRow
-	for rows.Next() {
-		var p wikiPageRow
-		if err := rows.Scan(&p.ID, &p.Title, &p.Summary, &p.Body, &p.PageType, &p.Slug, &p.Tags); err != nil {
-			continue
-		}
-		pages = append(pages, p)
-	}
-	return pages
-}
-
-func (s *KBStore) cacheAndScore(ctx context.Context, agentID string, pages []wikiPageRow) {
-	var pts []*pageTokens
-	for _, p := range pages {
-		pts = append(pts, &pageTokens{
-			ID:          p.ID,
-			Title:       tokenizeSet(p.Title),
-			Summary:     tokenizeSet(p.Summary),
-			Tags:        tokenizeSet(p.Tags),
-			Slug:        strings.ToLower(p.Slug),
-			Body:        p.Body,
-			TitleText:   p.Title,
-			SummaryText: p.Summary,
-		})
-	}
-	if err := s.cache.StoreAll(ctx, agentID, pts); err != nil {
-		slog.Debug("wiki cache store failed", "agent", agentID, "err", err)
-	}
-}
 
 func scoredToResults(scored []scoredPage) []KBResult {
 	results := make([]KBResult, len(scored))

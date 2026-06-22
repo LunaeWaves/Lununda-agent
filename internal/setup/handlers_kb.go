@@ -238,7 +238,7 @@ func (s *Server) kbStoreFor(agentID string) *kb.KBStore {
 		return nil
 	}
 	if dbs, ok := s.dataStore.(*store.DBStore); ok {
-		return kb.NewKBStore(dbs.DB(), dbs.Dialect(), s.wikiCache)
+		return kb.NewKBStore(dbs.DB(), dbs.Dialect())
 	}
 	return nil
 }

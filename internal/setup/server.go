@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/agent"
-	"github.com/LunaeWaves/Lununda-agent/internal/kb"
 	"github.com/LunaeWaves/Lununda-agent/internal/agent/tools"
 	"github.com/LunaeWaves/Lununda-agent/internal/api"
 	"github.com/LunaeWaves/Lununda-agent/internal/auth"
@@ -86,7 +85,6 @@ type Server struct {
 	chatEvents *agent.EventHub
 	usage      usage.Meter
 	startedAt  time.Time
-	wikiCache  *kb.WikiCache
 	// runtimeMgr powers the coding-agent project runtime (live dev server
 	// + preview URL for the /runtime endpoints). Nil when unused — the
 	// handlers 503 instead of nil-panicking. Set via SetRuntimeManager.
@@ -161,9 +159,6 @@ func (s *Server) SetWebChannel(wc *channels.WebChannel) {
 	s.webChan = wc
 }
 
-func (s *Server) SetWikiCache(c *kb.WikiCache) {
-	s.wikiCache = c
-}
 
 // chatEventHub returns the lazy-initialized hub. Centralized so every
 // chat handler reaches the same instance — without this, the streaming

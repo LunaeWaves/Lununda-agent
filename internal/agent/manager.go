@@ -54,8 +54,6 @@ type managerOpts struct {
 	meter           usage.Meter
 	userID          string
 	globalSkillsCfg  config.SkillsCfg
-	wikiCache        *kb.WikiCache
-	kbWikiSearchMode string
 	eventHub         *EventHub
 }
 
@@ -108,13 +106,7 @@ func WithGlobalSkillsCfg(cfg config.SkillsCfg) ManagerOption {
 	return func(o *managerOpts) { o.globalSkillsCfg = cfg }
 }
 
-func WithWikiCache(c *kb.WikiCache) ManagerOption {
-	return func(o *managerOpts) { o.wikiCache = c }
-}
 
-func WithKBWikiSearchMode(mode string) ManagerOption {
-	return func(o *managerOpts) { o.kbWikiSearchMode = mode }
-}
 
 // WithEventHub wires the process-wide event hub so background tasks
 // (auto-title, auto-persist) can publish live updates back to the
@@ -262,7 +254,7 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 		if rc.KB != nil && rc.KB.Enabled {
 			var kbStore *kb.KBStore
 			if dbs, ok := m.opts.dataStore.(*store.DBStore); ok {
-				kbStore = kb.NewKBStore(dbs.DB(), dbs.Dialect(), m.opts.wikiCache)
+				kbStore = kb.NewKBStore(dbs.DB(), dbs.Dialect())
 			}
 			kbCfg := rc.KB
 			hookFn := kb.AutoQueryHook(kbStore, rc.ID, func() kb.AutoQueryCfg {
