@@ -38,13 +38,6 @@ type Manager struct {
 	rootCtx context.Context
 }
 
-// NewManager creates a new channel manager with no cross-process
-// singleton support — all singleton-marked channels reduce to plain
-// channels (Start on every replica). Use NewManagerWithLeaser when
-// running multi-instance to gate polling adapters.
-func NewManager(mb *bus.MessageBus) *Manager {
-	return NewManagerWithLeaser(mb, NopLeaser{}, "")
-}
 
 // NewManagerWithLeaser wires a cross-process Leaser. `holderID` must be
 // unique per process (typically a UUID minted at boot) and stable for

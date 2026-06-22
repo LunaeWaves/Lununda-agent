@@ -254,71 +254,7 @@ func (a *Agent) bindSession(ctx context.Context, channel, sessionID, projectID, 
 	a.registry.SetExecutor(ex)
 }
 
-// NewAgent creates a new Agent from a resolved config.
-func NewAgent(rc config.ResolvedAgent, prov provider.Provider, mb *bus.MessageBus, homeDir string) *Agent {
-	return NewAgentWithSkillsCfg(rc, prov, mb, homeDir, config.SkillsCfg{})
-}
 
-// NewAgentWithFullCfg creates a new Agent with full config support (memory, privacy, skills learner).
-func NewAgentWithFullCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bus.MessageBus, homeDir string, fullCfg *config.Config) *Agent {
-	ag := NewAgentWithSkillsCfg(rc, prov, mb, homeDir, fullCfg.Skills)
-	ag.memoryCfg = fullCfg.Memory
-	ag.piiScrubEnabled = fullCfg.Privacy.PIIScrubbing.Enabled
-	// splitReplies is plumbed inside NewAgentWithSkillsCfg so foreign-
-	// attached agents also pick up the toggle; don't re-stamp here.
-
-	// Set up FTS store if configured
-	if fullCfg.Memory.FTS.Enabled {
-		dbPath := fullCfg.Memory.FTS.DBPath
-		if dbPath == "" {
-			dbPath = rc.Home + "/memory/fts.db"
-		}
-		if fts, err := store.NewFTSStore(dbPath); err == nil {
-			if err := fts.Init(); err == nil {
-				ag.ftsStore = fts
-				slog.Info("FTS5 search enabled", "agent", rc.ID, "db", dbPath)
-			} else {
-				slog.Warn("FTS5 init failed, falling back to file scan", "error", err)
-			}
-		} else {
-			slog.Warn("FTS5 store open failed, falling back to file scan", "error", err)
-		}
-	}
-
-	// Set background-review defaults: 默认开 every-10（解决"不更新"痛点）。
-	// 零值（未配置）→ Enabled=true/EveryNTurns=10；显式 enabled:false 尊重。
-	if ag.memoryCfg.Review.EveryNTurns == 0 {
-		ag.memoryCfg.Review.EveryNTurns = 10
-	}
-	if !ag.memoryCfg.Review.Enabled && ag.memoryCfg.Review.Model == "" {
-		ag.memoryCfg.Review.Enabled = true
-	}
-
-	// Auto-title: default-on at the third user turn. ResolvedAgent
-	// carries the value (filled from agents.defaults / agent config),
-	// but if a caller skipped the resolver we still want the feature
-	// on by default — the dashboard opt-out expects to disable it, not
-	// enable it. AfterRounds=0 is the "unset" sentinel; we map it to
-	// 3 here. MaxChars=0 → 30 (fits the sidebar without ellipsis).
-	ag.autoTitleCfg = ag.memoryCfg.AutoTitle
-	if ag.autoTitleCfg.AfterRounds == 0 {
-		ag.autoTitleCfg.AfterRounds = 3
-	}
-	if ag.autoTitleCfg.MaxChars == 0 {
-		ag.autoTitleCfg.MaxChars = 30
-	}
-	// Enabled defaults to true. We can't tell "false was set" from
-	// "field was zero-valued" without a pointer, so the only way to
-	// turn it off is an explicit enabled:false in the config — which
-	// lands here as Enabled=false and skips the gate. The zero-value
-	// path (no config) leaves Enabled=false, so flip it on now and
-	// let a later explicit false override through the resolver.
-	if !ag.autoTitleCfg.Enabled && ag.memoryCfg.AutoTitle.AfterRounds == 0 && ag.memoryCfg.AutoTitle.Model == "" {
-		ag.autoTitleCfg.Enabled = true
-	}
-
-	return ag
-}
 
 // NewAgentWithSkillsCfg creates a new Agent with global skills config for env injection.
 func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *bus.MessageBus, homeDir string, globalSkillsCfg config.SkillsCfg) *Agent {

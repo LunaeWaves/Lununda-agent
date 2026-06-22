@@ -2,10 +2,8 @@ package cron
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -123,14 +121,6 @@ func (s *Scheduler) SetChannelChecker(c ChannelChecker) {
 	s.channels = c
 }
 
-// NewScheduler creates a scheduler from config.
-func NewScheduler(jobs []Job, mb *bus.MessageBus) *Scheduler {
-	return &Scheduler{
-		jobs:       jobs,
-		bus:        mb,
-		instanceID: "default",
-	}
-}
 
 // NewSchedulerFromStore returns a scheduler that polls the DB for due
 // jobs on every tick — no in-memory job list. Each fired job carries its
@@ -150,23 +140,6 @@ func (s *Scheduler) SetStore(st StoreInterface) {
 	s.store = st
 }
 
-// LoadJobs reads cron jobs from a JSON file.
-func LoadJobs(path string) ([]Job, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read cron config: %w", err)
-	}
-
-	var cfg CronConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parse cron config: %w", err)
-	}
-
-	return cfg.Jobs, nil
-}
 
 // Start begins the scheduler. It blocks until ctx is cancelled.
 func (s *Scheduler) Start(ctx context.Context) {
