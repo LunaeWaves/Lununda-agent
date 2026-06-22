@@ -80,3 +80,12 @@ var (
 	ErrSignedURLUnsupported    = errors.New("workspace: signed URLs not supported by this backend")
 	ErrMoveDestinationExists   = errors.New("workspace: move destination already exists")
 )
+
+// LocalScoper is implemented by stores whose objects live on the
+// local filesystem (LocalFS today). A store that returns ok=true
+// commits to: "this path is on the same disk as the daemon and
+// safe to hand to `open`/`xdg-open`/`explorer`". Cloud stores
+// (S3, R2) return ok=false — there's no host-side path to reveal.
+type LocalScoper interface {
+	LocalScopeDir(agentID, projectID, sessionID string) (string, bool)
+}
