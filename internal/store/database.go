@@ -155,6 +155,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateKBSourcesAddWikiGeneratedAt(ctx); err != nil {
 		return fmt.Errorf("migrate kb_sources.wiki_generated_at: %w", err)
 	}
+	if err := d.migrateKBEntriesAddUUID(ctx); err != nil {
+		return fmt.Errorf("migrate kb_entries.uuid: %w", err)
+	}
 	if err := d.migrateConversationSummaries(ctx); err != nil {
 		return fmt.Errorf("migrate conversation_summaries: %w", err)
 	}
@@ -1924,6 +1927,7 @@ func (d *DBStore) migrationSQL() []string {
 		`CREATE INDEX IF NOT EXISTS idx_kb_sources_agent ON kb_sources (agent_id)`,
 		`CREATE TABLE IF NOT EXISTS kb_entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid TEXT,
 			source_id TEXT NOT NULL,
 			chunk_index INTEGER NOT NULL DEFAULT 0,
 			content TEXT NOT NULL,
@@ -4399,4 +4403,16 @@ func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID,
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+func (d *DBStore) migrateKBEntriesAddUUID(ctx context.Context) error {
+	has, err := d.tableHasColumn(ctx, "kb_entries", "uuid")
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	_, err = d.db.ExecContext(ctx, "ALTER TABLE kb_entries ADD COLUMN uuid TEXT")
+	return err
 }
