@@ -52,17 +52,16 @@ func (s *KBStore) IngestText(ctx context.Context, agentID, title, content, sourc
 	}
 
 	stmt, err := tx.PrepareContext(ctx,
-		fmt.Sprintf(`INSERT INTO kb_entries (uuid, agent_id, source_id, chunk_index, content)
-			VALUES (%s, %s, %s, %s, %s)`,
-			s.ph(1), s.ph(2), s.ph(3), s.ph(4), s.ph(5)))
+		fmt.Sprintf(`INSERT INTO kb_entries (agent_id, source_id, chunk_index, content)
+			VALUES (%s, %s, %s, %s)`,
+			s.ph(1), s.ph(2), s.ph(3), s.ph(4)))
 	if err != nil {
 		return "", fmt.Errorf("prepare entry: %w", err)
 	}
 	defer stmt.Close()
 
 	for _, c := range chunks {
-		entryUUID := uuid.New().String()
-		if _, err := stmt.ExecContext(ctx, entryUUID, agentID, sourceID, c.Index, c.Content); err != nil {
+		if _, err := stmt.ExecContext(ctx, agentID, sourceID, c.Index, c.Content); err != nil {
 			return "", fmt.Errorf("insert entry: %w", err)
 		}
 	}
