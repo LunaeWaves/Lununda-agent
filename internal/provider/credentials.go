@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/config"
@@ -96,22 +95,6 @@ func (cm *CredentialManager) Set(name, key, value string) error {
 }
 
 // Get retrieves a credential value.
-func (cm *CredentialManager) Get(name, key string) (string, error) {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	entry, ok := cm.entries[name]
-	if !ok {
-		return "", fmt.Errorf("credential %q not found", name)
-	}
-
-	val, ok := entry.Keys[key]
-	if !ok {
-		return "", fmt.Errorf("key %q not found in credential %q", key, name)
-	}
-
-	return val, nil
-}
 
 // List returns all credential entries.
 func (cm *CredentialManager) List() []CredentialEntry {
@@ -189,35 +172,6 @@ func (cm *CredentialManager) Discover() []CredentialEntry {
 }
 
 // InjectEnv returns environment variables suitable for injecting into a sandbox.
-func (cm *CredentialManager) InjectEnv() map[string]string {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	env := make(map[string]string)
-
-	for name, entry := range cm.entries {
-		if apiKey, ok := entry.Keys["apiKey"]; ok {
-			// Map back to env var name
-			envVars, known := knownEnvVars[name]
-			if known && len(envVars) > 0 {
-				env[envVars[0]] = apiKey
-			} else {
-				env[strings.ToUpper(name)+"_API_KEY"] = apiKey
-			}
-		}
-	}
-
-	// Also include any env-discovered credentials
-	for _, envVars := range knownEnvVars {
-		for _, envVar := range envVars {
-			if val := os.Getenv(envVar); val != "" {
-				env[envVar] = val
-			}
-		}
-	}
-
-	return env
-}
 
 func (cm *CredentialManager) save() error {
 	data, err := json.Marshal(cm.entries)

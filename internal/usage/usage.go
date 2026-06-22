@@ -288,12 +288,6 @@ func NewSQLMeter(db *sql.DB, dialect string) *SQLMeter {
 func (s *SQLMeter) Close() error { return nil } // pool owned by store
 
 // placeholders generates $1,$2,… for postgres and ?,?,… for sqlite.
-func (s *SQLMeter) ph(i int) string {
-	if s.dialect == "postgres" {
-		return fmt.Sprintf("$%d", i)
-	}
-	return "?"
-}
 
 // rebind rewrites a query written with ? placeholders to $1..$N when
 // running on postgres. Keeps query strings readable.

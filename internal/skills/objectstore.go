@@ -324,30 +324,3 @@ func HydrateSkillsDown(ctx context.Context, ws workspace.Store, owner, rootDir s
 // ListRemoteSkillNames returns the unique skill folder names present in
 // the object store under <owner>/skills/. Used so the admin UI can show
 // all skills the agent owns even if this pod hasn't hydrated them yet.
-func ListRemoteSkillNames(ctx context.Context, ws workspace.Store, owner string) ([]string, error) {
-	if ws == nil {
-		return nil, nil
-	}
-	objs, err := ws.List(ctx, owner, "", "")
-	if err != nil {
-		return nil, err
-	}
-	prefix := skillsKeyPrefix + "/"
-	seen := make(map[string]bool)
-	for _, o := range objs {
-		if !strings.HasPrefix(o.Path, prefix) {
-			continue
-		}
-		rest := strings.TrimPrefix(o.Path, prefix)
-		slash := strings.IndexByte(rest, '/')
-		if slash <= 0 {
-			continue
-		}
-		seen[rest[:slash]] = true
-	}
-	out := make([]string, 0, len(seen))
-	for name := range seen {
-		out = append(out, name)
-	}
-	return out, nil
-}

@@ -244,9 +244,6 @@ func (k *APIKeys) LookupByToken(ctx context.Context, token string) (*Resolved, e
 }
 
 // CanAccessAgent answers "may this apikey operate on agentID?"
-func (k *APIKeys) CanAccessAgent(ctx context.Context, apikeyID, agentID string) (bool, error) {
-	return k.store.APIKeyCanAccessAgent(ctx, apikeyID, agentID)
-}
 
 func toAPIKey(rec *store.APIKeyRecord) *APIKey {
 	if rec == nil {

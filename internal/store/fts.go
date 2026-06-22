@@ -22,18 +22,6 @@ type FTSResult struct {
 }
 
 // NewFTSStore opens (or creates) a SQLite database at dbPath and returns an FTSStore.
-func NewFTSStore(dbPath string) (*FTSStore, error) {
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open fts db: %w", err)
-	}
-	db.SetMaxOpenConns(1) // SQLite single-writer
-	if err := db.Ping(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("ping fts db: %w", err)
-	}
-	return &FTSStore{db: db}, nil
-}
 
 // Init creates the FTS5 virtual table and the shadow content table if they don't exist.
 func (f *FTSStore) Init() error {

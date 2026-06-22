@@ -55,9 +55,6 @@ func ScrubMessages(messages []provider.Message) []provider.Message {
 }
 
 // ContainsPII returns true if the text contains any detectable PII patterns.
-func ContainsPII(text string) bool {
-	return Scrub(text) != text
-}
 
 // Suppress unused import warning.
 var _ = strings.TrimSpace
