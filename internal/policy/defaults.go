@@ -1,5 +1,8 @@
 package policy
 
+import "strings"
+
+
 // DefaultPolicy returns a permissive policy that allows everything.
 func DefaultPolicy() *Policy {
 	return &Policy{
@@ -57,5 +60,17 @@ func StandardPolicy() *Policy {
 			MaxMemory:   "512m",
 			ExecTimeout: 60,
 		},
+	}
+}
+
+// LoadPreset returns a named preset policy.
+func LoadPreset(name string) *Policy {
+	switch strings.ToLower(name) {
+	case "restricted":
+		return RestrictedPolicy()
+	case "standard":
+		return StandardPolicy()
+	default:
+		return DefaultPolicy()
 	}
 }
