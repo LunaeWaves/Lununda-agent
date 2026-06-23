@@ -208,5 +208,5 @@ func embedderForAgent(ctx context.Context, db *store.DBStore, ownerUserID, agent
 		return nil
 	}
 	ec := mem.Embedding
-	return embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim)
+	return embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim, ec.DimEnabled)
 }

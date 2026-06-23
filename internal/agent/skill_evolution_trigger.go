@@ -103,26 +103,35 @@ func (a *Agent) runSkillEvolution(ctx context.Context, agentID string, cfg confi
 		return
 	}
 	if len(ids) > 0 && cfg.Notify.Enabled {
-		a.notifySkillEvolution(cfg.Notify, a.name, len(ids))
+		a.notifySkillEvolution(ctx, cfg.Notify, a.name, len(ids))
 	}
 }
 
 // notifySkillEvolution 发一条 IM 提醒（只提醒，不 review）。
-func (a *Agent) notifySkillEvolution(n config.NotifyCfg, agentName string, nProposals int) {
+func (a *Agent) notifySkillEvolution(ctx context.Context, n config.NotifyCfg, agentName string, nProposals int) {
 	if a.messageBus == nil {
 		slog.Debug("skill evolution notify: no messageBus", "agent", a.name)
 		return
 	}
-	if n.Channel == "" || n.ChatID == "" {
-		slog.Debug("skill evolution notify: missing channel/chatID", "agent", a.name, "channel", n.Channel)
+	if n.Channel == "" {
+		slog.Debug("skill evolution notify: missing channel", "agent", a.name)
 		return
 	}
-	slog.Info("skill evolution notify", "agent", a.name, "channel", n.Channel, "chatID", n.ChatID, "proposals", nProposals)
+	sess, err := a.dataStore.LastSessionByChannel(ctx, a.agentID, n.Channel)
+	if err != nil {
+		slog.Warn("skill evolution notify: lookup last session failed", "agent", a.name, "error", err)
+		return
+	}
+	if sess == nil || sess.ChatID == "" {
+		slog.Debug("skill evolution notify: no recent session on channel", "agent", a.name, "channel", n.Channel)
+		return
+	}
+	slog.Info("skill evolution notify", "agent", a.name, "channel", n.Channel, "chatID", sess.ChatID, "proposals", nProposals)
 	a.messageBus.Outbound <- bus.OutboundMessage{
 		AgentID:   a.agentID,
 		Channel:   n.Channel,
-		ChatID:    n.ChatID,
-		AccountID: n.AccountID,
+		ChatID:    sess.ChatID,
+		AccountID: sess.AccountID,
 		Text:      fmt.Sprintf("💡 %s 有 %d 个技能升级待审，去后台看看", agentName, nProposals),
 	}
 }

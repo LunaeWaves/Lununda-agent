@@ -104,7 +104,14 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 			}
 		}
 		if msg.Channel == "web" {
-			// For web channel, don't delete the session file — frontend handles new session creation
+			// Freeze the old session so it can't be accidentally resumed —
+			// /new means "start fresh". The UI offers a thaw action to
+			// resume a frozen thread on demand.
+			if a.dataStore != nil && oldKey != "" {
+				if err := a.dataStore.SetSessionFrozen(context.Background(), a.ownerUserID, a.agentID, oldKey, true); err != nil {
+					slog.Warn("slash /new: freeze old session failed", "agent", a.agentID, "session", oldKey, "error", err)
+				}
+			}
 			return slashResult{handled: true, reply: "__NEW_SESSION__"}
 		}
 		// Mint a fresh session under the same (channel, account, chat)

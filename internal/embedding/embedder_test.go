@@ -36,7 +36,7 @@ func TestOpenAICompatEmbedder(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	e := NewOpenAICompatEmbedder(srv.URL, "test-key", "test-model", 1024)
+	e := NewOpenAICompatEmbedder(srv.URL, "test-key", "test-model", 1024, true)
 	if !e.Available() {
 		t.Fatal("should be available")
 	}
@@ -53,6 +53,27 @@ func TestOpenAICompatEmbedder(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatEmbedder_NoDimensions(t *testing.T) {
+	var got openAIEmbedRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&got)
+		json.NewEncoder(w).Encode(openAIEmbedResponse{
+			Data: []struct {
+				Embedding []float32 `json:"embedding"`
+			}{{Embedding: []float32{0.1}}},
+		})
+	}))
+	defer srv.Close()
+
+	e := NewOpenAICompatEmbedder(srv.URL, "k", "m", 1024, false)
+	if _, err := e.Embed(context.Background(), []string{"x"}); err != nil {
+		t.Fatalf("embed: %v", err)
+	}
+	if got.Dimensions != 0 {
+		t.Errorf("expected dimensions omitted, got %d", got.Dimensions)
+	}
+}
+
 func TestNilEmbedder(t *testing.T) {
 	var e Embedder = nilEmbedder{}
 	if e.Available() {
@@ -65,7 +86,7 @@ func TestNilEmbedder(t *testing.T) {
 }
 
 func TestOpenAICompatEmbedder_NotAvailable(t *testing.T) {
-	e := NewOpenAICompatEmbedder("", "", "", 0)
+	e := NewOpenAICompatEmbedder("", "", "", 0, false)
 	if e.Available() {
 		t.Fatal("should not be available with empty config")
 	}

@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -133,4 +134,16 @@ func hooksDir(agentID string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, "agents", agentID, "hooks"), nil
+}
+
+// regexHookArgs marshals the matched text into a JSON object so the
+// synthetic regex-hook tool_call carries valid-JSON arguments. A bare
+// string here 500s/empties the reply when OpenAI-compatible APIs
+// (e.g. longcat) replay the history on later turns.
+func regexHookArgs(text string) string {
+	b, err := json.Marshal(map[string]string{"text": text})
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }

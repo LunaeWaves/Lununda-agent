@@ -340,7 +340,7 @@ func (m *Manager) buildAgent(rc config.ResolvedAgent, prov provider.Provider, mb
 			if mem.Embedding.Enabled {
 				ec := mem.Embedding
 				emb := embedding.ProbeEmbedder(context.Background(),
-					embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim))
+					embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim, ec.DimEnabled))
 				ag.embedder = emb
 				ag.registry.SetEmbedder(emb)
 			}

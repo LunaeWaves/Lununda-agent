@@ -38,13 +38,20 @@ func runStaleArchive(ctx context.Context, st store.Store, mb *bus.MessageBus, ag
 	}
 	if archived > 0 {
 		slog.Info("stale archive done", "agent", agentID, "archived", archived)
-		if cfg.Notify.Enabled && mb != nil && cfg.Notify.Channel != "" && cfg.Notify.ChatID != "" {
-			mb.Outbound <- bus.OutboundMessage{
-				AgentID:   agentID,
-				Channel:   cfg.Notify.Channel,
-				ChatID:    cfg.Notify.ChatID,
-				AccountID: cfg.Notify.AccountID,
-				Text:      fmt.Sprintf("🧹 %s 归档了 %d 个久未使用的技能（.archive 可恢复）", agentName, archived),
+		if cfg.Notify.Enabled && mb != nil && cfg.Notify.Channel != "" {
+			sess, lsErr := st.LastSessionByChannel(ctx, agentID, cfg.Notify.Channel)
+			if lsErr != nil {
+				slog.Warn("stale archive notify: lookup last session failed", "agent", agentID, "error", lsErr)
+			} else if sess != nil && sess.ChatID != "" {
+				mb.Outbound <- bus.OutboundMessage{
+					AgentID:   agentID,
+					Channel:   cfg.Notify.Channel,
+					ChatID:    sess.ChatID,
+					AccountID: sess.AccountID,
+					Text:      fmt.Sprintf("🧹 %s 归档了 %d 个久未使用的技能（.archive 可恢复）", agentName, archived),
+				}
+			} else {
+				slog.Debug("stale archive notify: no recent session on channel", "agent", agentID, "channel", cfg.Notify.Channel)
 			}
 		}
 	}

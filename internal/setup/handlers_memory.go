@@ -21,10 +21,11 @@ import (
 // a hung endpoint from wedging the call.
 
 type testEmbeddingRequest struct {
-	APIBase string `json:"apiBase"`
-	APIKey  string `json:"apiKey"`
-	Model   string `json:"model"`
-	Dim     int    `json:"dim"`
+	APIBase    string `json:"apiBase"`
+	APIKey     string `json:"apiKey"`
+	Model      string `json:"model"`
+	Dim        int    `json:"dim"`
+	DimEnabled bool   `json:"dimEnabled"`
 }
 
 type testRerankerRequest struct {
@@ -39,7 +40,7 @@ func (s *Server) handleTestEmbedding(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid request"})
 		return
 	}
-	emb := embedding.NewOpenAICompatEmbedder(req.APIBase, req.APIKey, req.Model, req.Dim)
+	emb := embedding.NewOpenAICompatEmbedder(req.APIBase, req.APIKey, req.Model, req.Dim, req.DimEnabled)
 	if !emb.Available() {
 		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": "apiBase and apiKey are required"})
 		return
@@ -112,7 +113,7 @@ func (s *Server) handleReindexAgentMemory(w http.ResponseWriter, r *http.Request
 		return
 	}
 	ec := mem.Embedding
-	emb := embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim)
+	emb := embedding.NewOpenAICompatEmbedder(ec.APIBase, ec.APIKey, ec.Model, ec.Dim, ec.DimEnabled)
 	if !emb.Available() {
 		jsonResponse(w, http.StatusOK, map[string]any{"ok": false, "error": "apiBase and apiKey are required"})
 		return

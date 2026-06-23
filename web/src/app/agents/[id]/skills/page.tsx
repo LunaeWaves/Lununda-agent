@@ -64,7 +64,6 @@ import {
   archiveOneSkill,
   togglePinSkill,
   listAgentChannels,
-  getLastSessionByChannel,
   listProviders,
   type SkillInfo,
   type SkillSearchResult,
@@ -223,35 +222,8 @@ export default function AgentSkillsPage() {
     fetchSkills();
   }, [fetchSkills]);
 
-  // Auto-fill chatID/accountID from the agent's most recent session on
-  // the selected channel. Fires on channel change + once channels load.
-  // Skips when chatID is already set (user override or saved value).
   const notifyChannel = evoCfg.notify?.channel || "";
-  useEffect(() => {
-    if (!agentId || !notifyChannel) return;
-    if (evoCfg.notify?.chatID) return;
-    let cancelled = false;
-    getLastSessionByChannel(agentId, notifyChannel)
-      .then((s) => {
-        if (cancelled || !s) return;
-        const next = {
-          ...evoCfg,
-          notify: {
-            ...evoCfg.notify,
-            enabled: evoCfg.notify?.enabled ?? false,
-            chatID: s.chatId,
-            accountID: s.accountId || evoCfg.notify?.accountID || "",
-          },
-        };
-        setEvoCfg(next);
-        void saveEvoCfg(next);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, notifyChannel, evoCfg.notify?.chatID]);
+  const notifyBot = agentChannels.find((c) => c.type === notifyChannel)?.botUsername;
 
   // Curator model dropdown options — same dedupe + scope-order logic
   // as the models page's allModelOptions: iterate agent > user > system,
@@ -522,12 +494,12 @@ export default function AgentSkillsPage() {
               disabled={evoSaving || !evoCfg.enabled}
             />
           </div>
-          <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
               <label className="text-sm text-muted-foreground">{t("skills.evolution.notifyChannel")}</label>
               <Select
                 value={evoCfg.notify?.channel || ""}
-                onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "" } })}
+                onValueChange={(v) => saveEvoCfg({ ...evoCfg, notify: { ...evoCfg.notify, enabled: true, channel: v ?? "", chatID: "", accountID: "" } })}
                 disabled={evoSaving || !evoCfg.enabled}
               >
                 <SelectTrigger className="w-32 h-8">
@@ -545,21 +517,10 @@ export default function AgentSkillsPage() {
                 </SelectContent>
               </Select>
             </div>
-            {evoCfg.notify?.chatID && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm text-muted-foreground">{t("skills.evolution.notifyChatID")}</span>
-                <Badge variant="outline" className="font-mono text-[10px] max-w-[200px] truncate" title={evoCfg.notify.chatID}>
-                  {evoCfg.notify.chatID}
-                </Badge>
-              </div>
-            )}
-            {evoCfg.notify?.accountID && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm text-muted-foreground">{t("skills.evolution.notifyAccountID")}</span>
-                <Badge variant="outline" className="font-mono text-[10px] max-w-[180px] truncate" title={evoCfg.notify.accountID}>
-                  {evoCfg.notify.accountID}
-                </Badge>
-              </div>
+            {notifyBot && (
+              <Badge variant="outline" className="font-mono text-[10px]">
+                bot · {notifyBot}
+              </Badge>
             )}
           </div>
         </div>

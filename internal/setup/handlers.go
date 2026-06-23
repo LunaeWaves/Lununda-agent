@@ -1123,6 +1123,13 @@ func (s *Server) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
 		return
 	}
+	// Frozen session (/new locked it): reject before the SSE stream opens.
+	if req.SessionID != "" {
+		if sess, ferr := s.dataStore.GetSession(r.Context(), uid, ag.Name(), req.SessionID); ferr == nil && sess != nil && sess.Frozen {
+			jsonResponse(w, http.StatusForbidden, map[string]any{"error": "session is frozen"})
+			return
+		}
+	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -1602,6 +1609,9 @@ func (s *Server) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 			if seq, err := s.dataStore.LatestSessionEventSeq(r.Context(), uid, ag.Name(), sessionID); err == nil {
 				resp["latestEventSeq"] = seq
 			}
+			if sess, err := s.dataStore.GetSession(r.Context(), uid, ag.Name(), sessionID); err == nil && sess != nil && sess.Frozen {
+				resp["frozen"] = true
+			}
 		}
 	}
 	jsonResponse(w, http.StatusOK, resp)
@@ -1642,6 +1652,35 @@ func (s *Server) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := ag.RenameWebChatSession(r.PathValue("key"), req.Title); err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleSetSessionFrozen(w http.ResponseWriter, r *http.Request) {
+	uid := s.effectiveUserID(r)
+	if uid == "" {
+		jsonResponse(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
+		return
+	}
+	agentID := r.URL.Query().Get("agentId")
+	var req struct {
+		AgentID string `json:"agentId"`
+		Frozen  bool   `json:"frozen"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	if agentID == "" {
+		agentID = req.AgentID
+	}
+	if agentID == "" {
+		jsonResponse(w, http.StatusBadRequest, map[string]any{"error": "agentId required"})
+		return
+	}
+	if err := s.dataStore.SetSessionFrozen(r.Context(), uid, agentID, r.PathValue("key"), req.Frozen); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}

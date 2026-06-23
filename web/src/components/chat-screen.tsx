@@ -5,10 +5,12 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { fileUrl, getAgent, getChatHistoryWithCursor, getChatSessions, getChatTodo, getMe, listAgentFiles, listProjects, renameChatSession, revealAgentWorkspace, sendChatStream, steerChat, uploadAgentFiles, getSkills, type ChatHistoryMessage, type ChatStreamEvent, type SkillInfo, type TodoItem, type ToolResultMetadata, type WorkspaceFile } from "@/lib/api";
-import { Bot, Send, Copy, Check, Pencil, Wrench, Brain, BookOpen, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal, Zap } from "lucide-react";
+import { fileUrl, getAgent, getChatHistoryWithCursor, getChatSessions, getChatTodo, getMe, listAgentFiles, listProjects, renameChatSession, setSessionFrozen as setSessionFrozenApi, revealAgentWorkspace, sendChatStream, steerChat, uploadAgentFiles, getSkills, type ChatHistoryMessage, type ChatStreamEvent, type SkillInfo, type TodoItem, type ToolResultMetadata, type WorkspaceFile } from "@/lib/api";
+import { Bot, Send, Copy, Check, Pencil, Wrench, Brain, BookOpen, ChevronDown, ChevronRight, Download, X, File, FileText, FolderSearch, Image as ImageIcon, FileCode, Film, Music, Puzzle, SlidersHorizontal, ShieldCheck, Paperclip, Square, FolderOpen, RefreshCw, Eye, Code2, RotateCcw, ListChecks, Terminal, Zap, Globe, Unlock } from "lucide-react";
 import Link from "next/link";
 import { ChatMarkdown } from "@/components/chat-markdown";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AgentSkillsPage from "@/app/agents/[id]/skills/page";
 import { useT, useLocale } from "@/lib/i18n";
 import { localizeSlashReply } from "@/lib/slash-reply";
 
@@ -174,7 +176,7 @@ type SlashItem =
 
 interface ChatMessage {
   id: string;
-  role: "user" | "agent" | "tool-group" | "auth-prompt";
+  role: "user" | "agent" | "tool-group" | "auth-prompt" | "notice";
   content: string;
   timestamp: number;
   // auth-prompt role: the authorization request bubble with tappable options.
@@ -585,6 +587,7 @@ export function ChatScreen() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filesSheetOpen, setFilesSheetOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState<string>("");
+  const [sessionFrozen, setSessionFrozen] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   // Lightbox for clicking either an attachment thumbnail (compose box)
   // or an inline image in a sent message bubble. `null` = closed.
@@ -684,6 +687,7 @@ export function ChatScreen() {
     setMessages([]);
     setSessions([]);
     setSessionTitle("");
+    setSessionFrozen(false);
     setAgentName("");
     setAttachments([]);
   }, [selectedAgent]);
@@ -839,6 +843,8 @@ export function ChatScreen() {
           // session_title fields (auto-title background pass)
           sessionKey?: string;
           title?: string;
+          // background_review field — memory was auto-updated (render notice).
+          updated?: boolean;
         };
       };
       try {
@@ -947,6 +953,24 @@ export function ChatScreen() {
             }
             break;
           }
+          case "background_review": {
+            claim();
+            if (data.data?.updated) {
+              setMessages((prev) => [
+                ...prev,
+                { id: `br-${Date.now()}`, role: "notice", content: t("chatScreen.memoryUpdated"), timestamp: Date.now() },
+              ]);
+            }
+            break;
+          }
+          case "session_notice": {
+            claim();
+            setMessages((prev) => [
+              ...prev,
+              { id: `sn-${Date.now()}`, role: "notice", content: t("chatScreen.sessionFrozen"), timestamp: Date.now() },
+            ]);
+            break;
+          }
           case "session_title": {
             // Auto-title background pass landed. Update the sidebar
             // (sessions list) and the in-memory current title so the
@@ -1004,7 +1028,8 @@ export function ChatScreen() {
             if (transientBubbleIdRef.current) {
               transientBubbleIdRef.current = null;
               getChatHistoryWithCursor(selectedAgent, sessionId)
-                .then(({ history, latestEventSeq }) => {
+                .then(({ history, latestEventSeq, frozen }) => {
+                  setSessionFrozen(!!frozen);
                   if (latestEventSeq > maxSeqRef.current) maxSeqRef.current = latestEventSeq;
                   subscribeSinceRef.current = latestEventSeq;
                   setMessages(buildChatMessages(history));
@@ -1196,8 +1221,9 @@ export function ChatScreen() {
       .then((todo) => { if (!aborted) setTodoItems(todo.items); })
       .catch(() => { if (!aborted) setTodoItems([]); });
     getChatHistoryWithCursor(selectedAgent, sessionId)
-      .then(async ({ history, latestEventSeq }) => {
+      .then(async ({ history, latestEventSeq, frozen }) => {
         if (aborted) return;
+        setSessionFrozen(!!frozen);
         if (latestEventSeq > maxSeqRef.current) maxSeqRef.current = latestEventSeq;
         subscribeSinceRef.current = latestEventSeq;
         if (!history || history.length === 0) {
@@ -1701,6 +1727,22 @@ export function ChatScreen() {
             }
             break;
           }
+          case "background_review": {
+            if (evt.data?.updated) {
+              setMessages((prev) => [
+                ...prev,
+                { id: `br-${Date.now()}`, role: "notice", content: t("chatScreen.memoryUpdated"), timestamp: Date.now() },
+              ]);
+            }
+            break;
+          }
+          case "session_notice": {
+            setMessages((prev) => [
+              ...prev,
+              { id: `sn-${Date.now()}`, role: "notice", content: t("chatScreen.sessionFrozen"), timestamp: Date.now() },
+            ]);
+            break;
+          }
           case "steer": {
             // A message the user injected mid-turn was folded into the
             // running turn server-side. Render it as a user bubble
@@ -1992,6 +2034,11 @@ export function ChatScreen() {
     }, 0);
   };
 
+  const handleThaw = async () => {
+    await setSessionFrozenApi(selectedAgent, sessionId, false);
+    setSessionFrozen(false);
+  };
+
   const handleNewChat = () => {
     const newId = generateSessionId();
     setSessionId(newId);
@@ -2118,6 +2165,14 @@ export function ChatScreen() {
               const elements: React.ReactNode[] = [];
               for (let i = 0; i < messages.length; i++) {
                 const msg = messages[i];
+                if (msg.role === "notice") {
+                  elements.push(
+                    <div key={msg.id} className="flex justify-center my-1">
+                      <span className="text-[11px] text-muted-foreground/60">{msg.content}</span>
+                    </div>,
+                  );
+                  continue;
+                }
                 if (msg.role === "auth-prompt") {
                   elements.push(
                     <div key={msg.id} className="flex justify-start">
@@ -2603,15 +2658,17 @@ export function ChatScreen() {
                     onKeyDown={handleKeyDown}
                     onBlur={() => setTimeout(() => setSlashOpen(false), 120)}
                     placeholder={
-                      isActAsView
-                        ? t("chatScreen.readOnlyViewing")
-                        : isReadOnlyChannel
-                          ? t("chatScreen.readOnlyReplyFrom", { channel: channelLabel(currentChannel) })
-                          : selectedAgent
-                            ? t("chatScreen.messageAgentSlash", { name: agentName || selectedAgent })
-                            : t("chat.selectAgentFirst")
+                      sessionFrozen
+                        ? t("chatScreen.frozenHint")
+                        : isActAsView
+                          ? t("chatScreen.readOnlyViewing")
+                          : isReadOnlyChannel
+                            ? t("chatScreen.readOnlyReplyFrom", { channel: channelLabel(currentChannel) })
+                            : selectedAgent
+                              ? t("chatScreen.messageAgentSlash", { name: agentName || selectedAgent })
+                              : t("chat.selectAgentFirst")
                     }
-                    disabled={!selectedAgent || isReadOnlyView}
+                    disabled={!selectedAgent || isReadOnlyView || sessionFrozen}
                     rows={3}
                     className="block w-full resize-none bg-transparent text-[15px] placeholder:text-muted-foreground/50 outline-none disabled:opacity-50"
                     style={{ maxHeight: 240, minHeight: 72 }}
@@ -2620,7 +2677,7 @@ export function ChatScreen() {
                     <div className="flex items-center gap-2 min-w-0">
                       <label
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors ${
-                          !selectedAgent || sending || isReadOnlyView
+                          !selectedAgent || sending || isReadOnlyView || sessionFrozen
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-muted hover:text-foreground cursor-pointer"
                         }`}
@@ -2633,7 +2690,7 @@ export function ChatScreen() {
                           multiple
                           className="sr-only"
                           onChange={handleFilePick}
-                          disabled={!selectedAgent || sending || isReadOnlyView}
+                          disabled={!selectedAgent || sending || isReadOnlyView || sessionFrozen}
                         />
                       </label>
                       {urlProjectId && projectInfo && (
@@ -2660,7 +2717,7 @@ export function ChatScreen() {
                     ) : (
                       <Button
                         onClick={() => handleSend()}
-                        disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView}
+                        disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView || sessionFrozen}
                         size="icon"
                         className="h-8 w-8 shrink-0 rounded-lg"
                         aria-label={t("chat.send")}
@@ -2672,9 +2729,15 @@ export function ChatScreen() {
                 </>
               ) : (
                 <div className="flex items-center gap-2">
+                  {sessionFrozen && (
+                    <Button onClick={handleThaw} variant="outline" size="sm" className="h-8 shrink-0 gap-1 text-xs">
+                      <Unlock className="h-3.5 w-3.5" />
+                      {t("chatScreen.thaw")}
+                    </Button>
+                  )}
                   <label
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors ${
-                      !selectedAgent || sending || isReadOnlyView
+                      !selectedAgent || sending || isReadOnlyView || sessionFrozen
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:bg-muted hover:text-foreground cursor-pointer"
                     }`}
@@ -2687,7 +2750,7 @@ export function ChatScreen() {
                       multiple
                       className="sr-only"
                       onChange={handleFilePick}
-                      disabled={!selectedAgent || sending || isReadOnlyView}
+                      disabled={!selectedAgent || sending || isReadOnlyView || sessionFrozen}
                     />
                   </label>
                   <textarea
@@ -2697,15 +2760,17 @@ export function ChatScreen() {
                     onKeyDown={handleKeyDown}
                     onBlur={() => setTimeout(() => setSlashOpen(false), 120)}
                     placeholder={
-                      isActAsView
-                        ? t("chatScreen.readOnlyViewing")
-                        : isReadOnlyChannel
-                          ? t("chatScreen.readOnlyReplyFrom", { channel: channelLabel(currentChannel) })
-                          : selectedAgent
-                            ? t("chatScreen.messageAgentSlash", { name: agentName || selectedAgent })
-                            : t("chat.selectAgentFirst")
+                      sessionFrozen
+                        ? t("chatScreen.frozenHint")
+                        : isActAsView
+                          ? t("chatScreen.readOnlyViewing")
+                          : isReadOnlyChannel
+                            ? t("chatScreen.readOnlyReplyFrom", { channel: channelLabel(currentChannel) })
+                            : selectedAgent
+                              ? t("chatScreen.messageAgentSlash", { name: agentName || selectedAgent })
+                              : t("chat.selectAgentFirst")
                     }
-                    disabled={!selectedAgent || isReadOnlyView}
+                    disabled={!selectedAgent || isReadOnlyView || sessionFrozen}
                     rows={1}
                     className="flex-1 resize-none bg-transparent text-[15px] leading-8 placeholder:text-muted-foreground/50 outline-none disabled:opacity-50"
                     style={{ maxHeight: 200, minHeight: 32 }}
@@ -2722,7 +2787,7 @@ export function ChatScreen() {
                   ) : (
                     <Button
                       onClick={() => handleSend()}
-                      disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView}
+                      disabled={(!input.trim() && attachments.length === 0) || !selectedAgent || isReadOnlyView || sessionFrozen}
                       size="icon"
                       className="h-8 w-8 shrink-0 rounded-lg"
                       aria-label={t("chat.sendMessage")}
@@ -2865,6 +2930,46 @@ function ChatHeaderTitle({ title, fallback, onSave }: ChatHeaderTitleProps) {
  *  `nested`, the outer flex/max-width wrappers are dropped so a parent
  *  container (ToolRoundsBundle) can stack rounds without each one
  *  re-imposing its own bubble alignment. */
+// Tool family theming — siblings share an accent so related tools read
+// as one group at a glance: every kb_* tool is emerald + BookOpen, every
+// memory_* is lunar-violet + Brain. Matched by name prefix, so adding
+// kb_read/kb_write/memory_save later inherits the look automatically —
+// add one row here to theme a new family. regex-hook overrides this
+// (blue) via msg.isRegexHook; delegate_task keeps its own progress UI.
+type ToolFamily = {
+  icon: typeof Wrench;
+  accent: string;        // group header + per-tool family icon color
+  title: string;         // per-tool title text color
+  dot: string;           // per-tool spinner border color
+  check: string;         // per-tool check icon color
+  nonDefault: boolean;   // render the family icon beside per-tool title
+};
+
+const MEM_TEXT = "text-lunar-violet"; // #9488D8
+const KB_TEXT = "text-emerald-500";
+
+const DEFAULT_FAMILY: ToolFamily = {
+  icon: Wrench,
+  accent: "text-primary",
+  title: "text-foreground",
+  dot: "border-primary/60",
+  check: "text-emerald-500",
+  nonDefault: false,
+};
+
+const TOOL_FAMILIES: Array<ToolFamily & { match: (name: string) => boolean }> = [
+  { match: (n) => n.startsWith("memory_"), icon: Brain, accent: MEM_TEXT, title: MEM_TEXT, dot: "border-[#9488D8]/60", check: MEM_TEXT, nonDefault: true },
+  { match: (n) => n.startsWith("knowledgebase_") || n.startsWith("kb_"), icon: BookOpen, accent: KB_TEXT, title: KB_TEXT, dot: "border-emerald-500/60", check: KB_TEXT, nonDefault: true },
+  { match: (n) => n.startsWith("web_"), icon: Globe, accent: "text-sky-500", title: "text-sky-500", dot: "border-sky-500/60", check: "text-sky-500", nonDefault: true },
+  { match: (n) => n === "image_gen", icon: ImageIcon, accent: "text-pink-500", title: "text-pink-500", dot: "border-pink-500/60", check: "text-pink-500", nonDefault: true },
+  { match: (n) => n === "tts", icon: Music, accent: "text-amber-500", title: "text-amber-500", dot: "border-amber-500/60", check: "text-amber-500", nonDefault: true },
+];
+
+function familyOf(name: string): ToolFamily {
+  for (const f of TOOL_FAMILIES) if (f.match(name)) return f;
+  return DEFAULT_FAMILY;
+}
+
 function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, roundIndex, subagentProgress }: { msg: ChatMessage; surfacedSrcs?: ReadonlySet<string>; agentId: string; sessionId: string; nested?: boolean; roundIndex?: number; subagentProgress?: { iteration?: number; max?: number; phase?: "thinking" | "running" | "final-delivery" | "done"; tools?: string[] } | null }) {
   const [groupOpen, setGroupOpen] = useState(false);
   const [expandedTool, setExpandedTool] = useState<Record<string, boolean>>({});
@@ -2896,16 +3001,13 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
   const spinDotColor = isRH ? "border-blue-500/60" : "border-primary/60";
   const checkColor = isRH ? "text-blue-500" : "text-emerald-500";
 
-  // Per-tool accent: memory_search → Lunar Violet + Brain; kb_search →
-  // emerald + BookOpen. Both read distinctly from generic tool calls
-  // (Wrench + primary) so recall vs knowledge vs other tools are
-  // visually separable at a glance.
-  const isMem = (name: string) => name === "memory_search";
-  const isKb = (name: string) => name === "kb_search";
-  const groupIsMem = tools.length > 0 && tools.every((tc) => isMem(tc.name));
-  const groupIsKb = tools.length > 0 && tools.every((tc) => isKb(tc.name));
-  const MEM_TEXT = "text-lunar-violet"; // #9488D8
-  const KB_TEXT = "text-emerald-500";
+  // Group accent: only when every tool in the round belongs to the same
+  // non-default family — a mixed round (e.g. kb_search + write_file)
+  // stays generic so a family color isn't misleading.
+  const groupFamily =
+    tools.length > 0 && tools.every((tc) => familyOf(tc.name) === familyOf(tools[0].name))
+      ? familyOf(tools[0].name)
+      : DEFAULT_FAMILY;
 
   const inner = (
     <>
@@ -2940,12 +3042,11 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
               </span>
             ) : isRH ? (
               <Zap className={`h-3.5 w-3.5 ${iconColor} shrink-0`} />
-            ) : groupIsMem ? (
-              <Brain className={`h-3.5 w-3.5 ${MEM_TEXT} shrink-0`} />
-            ) : groupIsKb ? (
-              <BookOpen className={`h-3.5 w-3.5 ${KB_TEXT} shrink-0`} />
             ) : (
-              <Wrench className={`h-3.5 w-3.5 ${iconColor} shrink-0`} />
+              (() => {
+                const FamIcon = groupFamily.icon;
+                return <FamIcon className={`h-3.5 w-3.5 ${groupFamily.accent} shrink-0`} />;
+              })()
             )}
             <span className="font-medium text-foreground">
               {isRH
@@ -2971,10 +3072,11 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/30 transition-colors"
                   >
                     {(() => {
-                      const mem = isMem(tc.name);
-                      const kb = isKb(tc.name);
-                      const dotBorder = mem ? "border-[#9488D8]/60" : kb ? "border-emerald-500/60" : spinDotColor;
-                      const checkCls = mem ? MEM_TEXT : kb ? KB_TEXT : checkColor;
+                      const fam = familyOf(tc.name);
+                      const dotBorder = isRH ? spinDotColor : fam.dot;
+                      const checkCls = isRH ? checkColor : fam.check;
+                      const titleCls = isRH ? "text-foreground" : fam.title;
+                      const FamIcon = fam.nonDefault && !isRH ? fam.icon : null;
                       return (
                         <>
                           {tc.result === undefined ? (
@@ -2982,9 +3084,8 @@ function ToolCallGroup({ msg, surfacedSrcs, agentId, sessionId, nested = false, 
                           ) : (
                             <Check className={`h-3 w-3 ${checkCls} shrink-0`} />
                           )}
-                          {mem && <Brain className={`h-3 w-3 ${MEM_TEXT} shrink-0`} />}
-                          {kb && <BookOpen className={`h-3 w-3 ${KB_TEXT} shrink-0`} />}
-                          <span className={`font-medium ${mem ? MEM_TEXT : kb ? KB_TEXT : "text-foreground"}`}>{isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name}</span>
+                          {FamIcon && <FamIcon className={`h-3 w-3 ${fam.accent} shrink-0`} />}
+                          <span className={`font-medium ${titleCls}`}>{isRH ? tc.name.replace(/^regex_hook:\s*/, "") : tc.name}</span>
                         </>
                       );
                     })()}
@@ -3653,6 +3754,7 @@ function SlashMenu({
   onSelect: (s: SlashItem) => void;
 }) {
   const t = useT();
+  const [skillsOpen, setSkillsOpen] = useState(false);
   return (
     <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-popover shadow-lg overflow-hidden z-20">
       <div className="max-h-[320px] overflow-y-auto py-1">
@@ -3693,13 +3795,24 @@ function SlashMenu({
           );
         })}
       </div>
-      <Link
-        href="/skills/"
-        className="flex items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+      <button
+        type="button"
+        onClick={() => setSkillsOpen(true)}
+        className="flex items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors w-full"
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
         {t("chatScreen.manageSkills")}
-      </Link>
+      </button>
+      <Dialog open={skillsOpen} onOpenChange={setSkillsOpen}>
+        <DialogContent className="max-w-5xl w-full h-[80vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="px-5 py-3 border-b border-border">
+            <DialogTitle>{t("chatScreen.manageSkills")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <AgentSkillsPage />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

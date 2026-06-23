@@ -22,6 +22,7 @@ interface MemoryEmbeddingConfig {
   apiKey: string;
   apiBase: string;
   dim: number;
+  dimEnabled?: boolean;
 }
 
 interface MemoryRerankerConfig {
@@ -57,6 +58,7 @@ export default function MemoryPage() {
     apiKey: "",
     apiBase: "",
     dim: 1024,
+    dimEnabled: false,
   });
 
   const [reranker, setReranker] = useState<MemoryRerankerConfig>({
@@ -85,6 +87,7 @@ export default function MemoryPage() {
           apiKey: e.apiKey || "",
           apiBase: e.apiBase || "",
           dim: e.dim || 1024,
+          dimEnabled: e.dimEnabled ?? false,
         });
       }
       if (mem?.reranker) {
@@ -297,15 +300,23 @@ export default function MemoryPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>{t("memory.dimensions")}</Label>
-                <Input
-                  type="number"
-                  value={embedding.dim}
-                  onChange={(e) =>
-                    setEmbedding({ ...embedding, dim: parseInt(e.target.value) || 1024 })
-                  }
-                  placeholder="1024"
-                  className="font-mono text-sm"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={embedding.dim}
+                    onChange={(e) =>
+                      setEmbedding({ ...embedding, dim: parseInt(e.target.value) || 1024 })
+                    }
+                    placeholder="1024"
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Switch
+                    checked={!!embedding.dimEnabled}
+                    onCheckedChange={(v) => setEmbedding({ ...embedding, dimEnabled: v })}
+                    aria-label={t("memory.sendDimensions")}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground/70">{t("memory.sendDimensions")}</p>
               </div>
             </div>
             <MemoryTestButton
@@ -314,6 +325,7 @@ export default function MemoryPage() {
               apiKey={embedding.apiKey || ""}
               model={embedding.model || ""}
               dim={embedding.dim}
+              dimEnabled={embedding.dimEnabled}
             />
           </div>
         )}

@@ -861,6 +861,7 @@ export async function getChatHistory(agentId: string, sessionId: string): Promis
 export interface ChatHistoryResult {
   history: ChatHistoryMessage[];
   latestEventSeq: number; // -1 when there's nothing logged yet
+  frozen?: boolean;
 }
 
 export async function getChatHistoryWithCursor(agentId: string, sessionId: string): Promise<ChatHistoryResult> {
@@ -872,7 +873,8 @@ export async function getChatHistoryWithCursor(agentId: string, sessionId: strin
     : Array.isArray(data) ? data : [];
   const seqRaw = data?.latestEventSeq;
   const latestEventSeq = typeof seqRaw === "number" ? seqRaw : -1;
-  return { history, latestEventSeq };
+  const frozen = data?.frozen === true;
+  return { history, latestEventSeq, frozen };
 }
 
 export interface ChatSessionEntry {
@@ -1001,6 +1003,15 @@ export async function renameChatSession(agentId: string, sessionId: string, titl
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agentId, title }),
+  });
+  return res.json();
+}
+
+export async function setSessionFrozen(agentId: string, sessionId: string, frozen: boolean) {
+  const res = await apiFetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/frozen`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agentId, frozen }),
   });
   return res.json();
 }
@@ -1156,7 +1167,9 @@ export interface ChatStreamEvent {
     | "indicator"
     | "regex_hook"
     | "auth_prompt"
-    | "session_title";
+    | "session_title"
+    | "background_review"
+    | "session_notice";
   // Per-session monotonic sequence assigned by chat_events. Lets the
   // chat page dedupe events arriving on both the active POST stream
   // and the parallel /api/chat/subscribe SSE connection. -1 means
@@ -1189,6 +1202,9 @@ export interface ChatStreamEvent {
     description?: string;
     options?: { cmd: string; label_zh: string; label_en: string }[];
     auth_call_ids?: string[];
+    // background_review event — chatter nonice shown as a centered muted
+    // line when the review actually wrote files.
+    updated?: boolean;
   };
 }
 
@@ -1492,6 +1508,7 @@ export interface MemoryEmbeddingConfig {
   apiKey?: string;
   apiBase?: string;
   dim?: number;
+  dimEnabled?: boolean;
 }
 
 export interface MemoryRerankerConfig {
@@ -1558,6 +1575,7 @@ export async function testEmbedding(req: {
   apiKey: string;
   model: string;
   dim?: number;
+  dimEnabled?: boolean;
 }): Promise<{ ok: boolean; error?: string; dim?: number }> {
   const res = await apiFetch("/api/memory/test-embedding", {
     method: "POST",

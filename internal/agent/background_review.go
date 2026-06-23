@@ -51,13 +51,22 @@ func buildReviewPrompt() string { return reviewPromptText }
 func (a *Agent) maybeBackgroundReview(ctx context.Context, messages []provider.Message, chatterUID string, chatterTurns int) {
 	cfg := a.memoryCfg.Review
 	if cfg.EveryNTurns == 0 {
-		cfg.EveryNTurns = 10
+		cfg.EveryNTurns = 5
 	}
 	if !reviewFires(cfg, chatterTurns, cfg.EveryNTurns) || chatterUID == "" {
 		return
 	}
 	slog.Info("background review firing", "agent", a.name, "chatter", chatterUID, "turns", chatterTurns)
-	go a.runBackgroundReview(ctx, messages, chatterUID)
+	// Background ctx detached from the request (post-turn ctx is canceled
+	// once the HTTP response flushes), but carrying the event stream so the
+	// review's "updated memory" notice persists to session_events and
+	// reaches live SSE subscribers. Without the stream, emitEvent hits a
+	// ctx with no sink/hub and the notice evaporates.
+	streamCtx := context.Background()
+	if sessionKey := a.registry.GoalSessionKey(); sessionKey != "" && a.dataStore != nil && a.eventHub != nil {
+		streamCtx = ContextWithStream(streamCtx, nil, a.dataStore, a.eventHub, a.ownerUserID, a.agentID, sessionKey)
+	}
+	go a.runBackgroundReview(streamCtx, messages, chatterUID)
 }
 
 // runBackgroundReview fork 一个绑 chatter 的白名单 registry + ctxBuilder，
@@ -94,17 +103,17 @@ func (a *Agent) runBackgroundReview(ctx context.Context, messages []provider.Mes
 		name:              a.name + "/review",
 		maxToolIterations: maxIter,
 	}
-	// 用 background ctx 脱离 request —— runPostTurn 的 ctx 在 HTTP response
-	// flush 后已 cancel，审查复用会立即 DeadlineExceeded（实测踩过）。
-	bgCtx := context.Background()
-	result, err := runSubagentLoopWith(bgCtx, task, maxIter, deps)
+	// ctx 已在 maybeBackgroundReview 构造为 background + stream：脱离
+	// request（post-turn ctx 已 cancel），且带 event stream 让审查的
+	// "更新了记忆" 通知能持久化到 session_events 并发布到 SSE hub。
+	result, err := runSubagentLoopWith(ctx, task, maxIter, deps)
 	if err != nil {
 		slog.Warn("background review failed", "agent", a.name, "error", err)
 		return
 	}
 	slog.Info("background review done",
 		"agent", a.name, "result_len", len(result), "write_origin", "background_review")
-	maybeEmitReviewFeedback(bgCtx, result, chatterUID)
+	maybeEmitReviewFeedback(ctx, result, chatterUID)
 }
 
 // summarizeForReview 把 messages 拼成审查输入（跳过 system/tool，截断超长）。
@@ -128,13 +137,13 @@ func summarizeForReview(messages []provider.Message) string {
 }
 
 // maybeEmitReviewFeedback：审查若实际写了文件（result 文本启发式判断），
-// 推一条 chat event 让 web/IM 显示「💾 后台审查更新了 …」。没写则静默。
+// 推一条 background_review 事件。文案在前端按 locale 渲染，这里只发信号。
 func maybeEmitReviewFeedback(ctx context.Context, result, chatterUID string) {
 	if result == "" || strings.Contains(strings.ToLower(result), "nothing to save") {
 		return
 	}
 	emitEvent(ctx, ChatEvent{Type: "background_review", Data: map[string]any{
 		"chatter": chatterUID,
-		"summary":  "💾 后台审查更新了记忆/技能",
+		"updated": true,
 	}})
 }

@@ -93,6 +93,10 @@ type Store interface {
 	// drag-and-drop affordance. Workspace file migration is the
 	// caller's responsibility — this only flips sessions.project_id.
 	MoveSession(ctx context.Context, userID, agentID, sessionKey, projectID string) error
+	// SetSessionFrozen toggles a session's read-only flag. /new freezes
+	// the prior thread; the UI thaws it to resume. A frozen session
+	// rejects inbound messages at the chat handler.
+	SetSessionFrozen(ctx context.Context, userID, agentID, sessionKey string, frozen bool) error
 	// ResolveActiveSessionKey returns the most recently updated session_key
 	// for the (channel, accountID, chatID) triple, or ErrNotFound. Used by
 	// IM routing to pick the conversation thread an inbound message
@@ -498,6 +502,10 @@ type SessionRecord struct {
 	ProjectID string           `json:"projectId,omitempty"`
 	Messages  []SessionMessage `json:"messages"`
 	UpdatedAt time.Time        `json:"updatedAt"`
+	// Frozen marks a session read-only — no new messages accepted. Set by
+	// /new so the prior thread can't be accidentally resumed; cleared to
+	// resume. Lives on the sessions row, independent of Messages.
+	Frozen bool `json:"frozen,omitempty"`
 }
 
 // SessionMessage is a single message in a session.
@@ -565,6 +573,7 @@ type SessionMeta struct {
 	Title        string    `json:"title,omitempty"`
 	MessageCount int       `json:"messageCount"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	Frozen       bool      `json:"frozen,omitempty"`
 }
 
 // ProjectRecord is a per-(user, agent) named workspace folder. Sessions

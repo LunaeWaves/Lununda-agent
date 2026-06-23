@@ -15,6 +15,7 @@ interface MemoryTestButtonProps {
   apiKey: string;
   model: string;
   dim?: number;
+  dimEnabled?: boolean;
 }
 
 // MemoryTestButton pings the configured embedding or reranker endpoint
@@ -28,6 +29,7 @@ export function MemoryTestButton({
   apiKey,
   model,
   dim,
+  dimEnabled,
 }: MemoryTestButtonProps) {
   const t = useT();
   const [status, setStatus] = useState<Status>("idle");
@@ -44,7 +46,7 @@ export function MemoryTestButton({
       let ok = false;
       let errMsg: string | undefined;
       if (kind === "embedding") {
-        const r = await testEmbedding({ apiBase, apiKey, model, dim });
+        const r = await testEmbedding({ apiBase, apiKey, model, dim, dimEnabled });
         ok = r.ok;
         errMsg = r.error;
         if (ok && typeof r.dim === "number") setDimResult(r.dim);

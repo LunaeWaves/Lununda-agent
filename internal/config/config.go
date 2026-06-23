@@ -256,6 +256,11 @@ type EmbeddingCfg struct {
 	APIKey   string `json:"apiKey,omitempty"`
 	APIBase  string `json:"apiBase,omitempty"`
 	Dim      int    `json:"dim,omitempty"`
+	// DimEnabled sends the `dimensions` param to the embedding API. Off by
+	// default: most models reject it (SiliconFlow bge-m3 → 400); only some
+	// (Qwen3-Embedding) accept a non-native dim. Dim stays the expected
+	// vector length for the startup probe regardless.
+	DimEnabled bool `json:"dimEnabled,omitempty"`
 }
 
 type RerankerCfg struct {

@@ -1853,7 +1853,7 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		sess.SetChatter(chatterUID)
 		sess.BeginTurn()
 		sess.Append(buildUserMessage(msg))
-		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Type: "function", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: msg.Text}}}, Timestamp: time.Now().UnixMilli()})
+		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Type: "function", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: regexHookArgs(msg.Text)}}}, Timestamp: time.Now().UnixMilli()})
 		sess.Append(provider.Message{Role: "tool", ToolCallID: "regex-hook-0", Content: "matched"})
 		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
 		sess.EndTurn()
@@ -1901,8 +1901,13 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 		if msg.Channel != "web" {
 			replyText = expandSlashSentinel(replyText, a.locale)
 		}
+		isWebNew := msg.Channel == "web" && result.reply == "__NEW_SESSION__"
 		if sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID); sess != nil {
-			if !result.continueToLoop {
+			// /new on web freezes this thread and jumps to a fresh chat —
+			// don't persist the "/new" text as a user bubble (it would
+			// clutter the frozen history). A session_notice is emitted
+			// below as the "conversation ended" marker instead.
+			if !result.continueToLoop && !isWebNew {
 				sess.Append(buildUserMessage(msg))
 			}
 			// __NEW_SESSION__ is a live-stream sentinel the frontend
@@ -1913,6 +1918,12 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			if replyText != "" && replyText != "__NEW_SESSION__" {
 				sess.Append(provider.Message{Role: "assistant", Content: replyText, Timestamp: time.Now().UnixMilli()})
 			}
+		}
+		if isWebNew {
+			// Centered muted marker on the frozen thread ("conversation
+			// ended"). Persisted to session_events; the frontend renders
+			// session_notice as a notice line.
+			emitEvent(ctx, ChatEvent{Type: "session_notice", Data: map[string]any{"kind": "frozen"}})
 		}
 		if replyText != "" {
 			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": replyText}})
@@ -2816,7 +2827,7 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		sess.SetChatter(chatterUID)
 		sess.BeginTurn()
 		sess.Append(buildUserMessage(msg))
-		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Type: "function", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: msg.Text}}}, Timestamp: time.Now().UnixMilli()})
+		sess.Append(provider.Message{Role: "assistant", Content: "", ToolCalls: []provider.ToolCall{{ID: "regex-hook-0", Type: "function", Function: provider.FunctionCall{Name: "regex_hook: " + hookName, Arguments: regexHookArgs(msg.Text)}}}, Timestamp: time.Now().UnixMilli()})
 		sess.Append(provider.Message{Role: "tool", ToolCallID: "regex-hook-0", Content: "matched"})
 		sess.Append(provider.Message{Role: "assistant", Content: reply, Timestamp: time.Now().UnixMilli()})
 		sess.EndTurn()
@@ -2851,8 +2862,13 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 		if msg.Channel != "web" {
 			replyText = expandSlashSentinel(replyText, a.locale)
 		}
+		isWebNew := msg.Channel == "web" && result.reply == "__NEW_SESSION__"
 		if sess := a.sessions.Get(msg.Channel, msg.AccountID, msg.ChatID, msg.ProjectID); sess != nil {
-			if !result.continueToLoop {
+			// /new on web freezes this thread and jumps to a fresh chat —
+			// don't persist the "/new" text as a user bubble (it would
+			// clutter the frozen history). A session_notice is emitted
+			// below as the "conversation ended" marker instead.
+			if !result.continueToLoop && !isWebNew {
 				sess.Append(buildUserMessage(msg))
 			}
 			// __NEW_SESSION__ is a live-stream sentinel the frontend
@@ -2863,6 +2879,12 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 			if replyText != "" && replyText != "__NEW_SESSION__" {
 				sess.Append(provider.Message{Role: "assistant", Content: replyText, Timestamp: time.Now().UnixMilli()})
 			}
+		}
+		if isWebNew {
+			// Centered muted marker on the frozen thread ("conversation
+			// ended"). Persisted to session_events; the frontend renders
+			// session_notice as a notice line.
+			emitEvent(ctx, ChatEvent{Type: "session_notice", Data: map[string]any{"kind": "frozen"}})
 		}
 		if replyText != "" {
 			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": replyText}})

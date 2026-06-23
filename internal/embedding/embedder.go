@@ -33,13 +33,19 @@ type OpenAICompatEmbedder struct {
 	apiKey  string
 	model   string
 	dim     int
+	// sendDim controls whether the `dimensions` request param is sent. Most
+	// APIs reject it (SiliconFlow bge-m3 → 400 "parameter invalid"); only
+	// some (Qwen3-Embedding) accept a non-native dim. dim is always the
+	// expected vector length used by the startup probe.
+	sendDim bool
 	client  *http.Client
 }
 
 // NewOpenAICompatEmbedder creates an embedder for an OpenAI-compatible API.
 // apiBase is the full base URL (e.g. "https://api.openai.com/v1").
 // dim defaults to 1024 when set to 0.
-func NewOpenAICompatEmbedder(apiBase, apiKey, model string, dim int) *OpenAICompatEmbedder {
+// sendDim true sends the `dimensions` param; false omits it.
+func NewOpenAICompatEmbedder(apiBase, apiKey, model string, dim int, sendDim bool) *OpenAICompatEmbedder {
 	if dim == 0 {
 		dim = 1024
 	}
@@ -48,6 +54,7 @@ func NewOpenAICompatEmbedder(apiBase, apiKey, model string, dim int) *OpenAIComp
 		apiKey:  apiKey,
 		model:   model,
 		dim:     dim,
+		sendDim: sendDim,
 		client:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -77,11 +84,14 @@ func (e *OpenAICompatEmbedder) Embed(ctx context.Context, texts []string) ([][]f
 		return nil, nil
 	}
 
-	body, err := json.Marshal(openAIEmbedRequest{
-		Model:      e.model,
-		Input:      texts,
-		Dimensions: e.dim,
-	})
+	embReq := openAIEmbedRequest{
+		Model: e.model,
+		Input: texts,
+	}
+	if e.sendDim {
+		embReq.Dimensions = e.dim
+	}
+	body, err := json.Marshal(embReq)
 	if err != nil {
 		return nil, err
 	}
