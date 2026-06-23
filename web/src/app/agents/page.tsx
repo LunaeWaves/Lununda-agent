@@ -26,8 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bot, Plus, Trash2, ImagePlus, Pencil, Copy, Check } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Bot, Plus, Trash2, ImagePlus, Pencil } from "lucide-react";
 import {
   adminListAgents,
   apiFetch,
@@ -117,11 +116,9 @@ export default function AgentsPage() {
   // Edit dialog state
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editIsPublic, setEditIsPublic] = useState(false);
   const [editAvatar, setEditAvatar] = useState<File | null>(null);
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [editLinkCopied, setEditLinkCopied] = useState(false);
   const editAvatarInput = useRef<HTMLInputElement>(null);
 
   const resetCreateForm = () => {
@@ -136,12 +133,10 @@ export default function AgentsPage() {
   const resetEditForm = () => {
     setEditName("");
     setEditDescription("");
-    setEditIsPublic(false);
     setEditAvatar(null);
     if (editAvatarPreview) URL.revokeObjectURL(editAvatarPreview);
     setEditAvatarPreview(null);
     setEditError(null);
-    setEditLinkCopied(false);
   };
 
   const openEdit = (agent: AgentDetail) => {
@@ -149,7 +144,6 @@ export default function AgentsPage() {
     setEditTarget(agent);
     setEditName(agent.name || "");
     setEditDescription(agent.description || "");
-    setEditIsPublic(!!agent.isPublic);
   };
 
   const fetchAgents = async () => {
@@ -240,7 +234,6 @@ export default function AgentsPage() {
     const resp = await updateAgent(editTarget.id, {
       name: editName.trim(),
       description: editDescription.trim(),
-      isPublic: editIsPublic,
     });
     if (resp && (resp.ok === false || resp.error)) {
       setEditError(resp.error || t("agents.updateFailed"));
@@ -352,24 +345,8 @@ export default function AgentsPage() {
               className="group flex h-full flex-col rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/50 cursor-pointer"
               onClick={() => (window.location.href = `/agents/${agent.id}/chat/`)}
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="mb-4">
                 <AgentAvatar agent={agent} bust={avatarBust[agent.id]} size={48} />
-                {agent.isPublic ? (
-                  <Badge
-                    variant="outline"
-                    className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                  >
-                    <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    {t("agents.public")}
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="bg-muted/60 text-muted-foreground"
-                  >
-                    {t("agents.private")}
-                  </Badge>
-                )}
               </div>
               <p className="text-base font-medium mb-1 truncate">{agent.name || agent.id}</p>
               <p
@@ -625,73 +602,6 @@ export default function AgentsPage() {
                 placeholder="What's this agent for?"
                 rows={3}
               />
-            </div>
-
-            {/* Public/Private toggle. Off (default) = owner-only.
-                On = anyone with the chat URL can chat under their own
-                account; sessions/memory partition per chatter. */}
-            <div className="space-y-3 rounded-lg border border-border p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-edit-public" className="text-sm font-medium">
-                    Public access
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {editIsPublic
-                      ? "Anyone with the link can chat. Their history stays private to them."
-                      : "Only you can use this agent."}
-                  </p>
-                </div>
-                <Switch
-                  id="agent-edit-public"
-                  checked={editIsPublic}
-                  onCheckedChange={(v) => {
-                    setEditIsPublic(!!v);
-                    setEditLinkCopied(false);
-                  }}
-                />
-              </div>
-              {editIsPublic && editTarget && (
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={
-                      typeof window !== "undefined"
-                        ? `${window.location.origin}/agents/${editTarget.id}/chat/`
-                        : `/agents/${editTarget.id}/chat/`
-                    }
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="font-mono text-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      if (!editTarget) return;
-                      const url = `${window.location.origin}/agents/${editTarget.id}/chat/`;
-                      try {
-                        await navigator.clipboard.writeText(url);
-                        setEditLinkCopied(true);
-                        setTimeout(() => setEditLinkCopied(false), 2000);
-                      } catch {
-                        // clipboard blocked — user can still select the input
-                      }
-                    }}
-                  >
-                    {editLinkCopied ? (
-                      <>
-                        <Check className="h-4 w-4 mr-1.5" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4 mr-1.5" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
             </div>
 
             {editError && <p className="text-sm text-destructive">{editError}</p>}

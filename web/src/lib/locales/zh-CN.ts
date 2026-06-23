@@ -199,8 +199,6 @@ const zhCN: Record<string, string> = {
   "profile.namePlaceholder": "我的助手",
   "profile.description": "描述",
   "profile.descPlaceholder": "这个智能体用来做什么？",
-  "profile.shared": "任何有链接的人都可以对话，历史记录是私密的。",
-  "profile.private": "仅你可以使用此智能体。",
   "profile.save": "保存资料",
   "profile.saving": "保存中...",
 
@@ -220,8 +218,6 @@ const zhCN: Record<string, string> = {
   "agents.title": "智能体",
   "agents.subtitle": "管理你的 AI 智能体及其配置",
   "agents.newAgent": "新建智能体",
-  "agents.public": "公开",
-  "agents.private": "私有",
   "agents.remove": "移除",
   "agents.deleteAgent": "删除智能体",
   "agents.descLabel": "描述",
@@ -985,7 +981,6 @@ const zhCN: Record<string, string> = {
   // Profile panel extras
   "profile.notFound": "未找到智能体。",
   "profile.title": "资料",
-  "profile.publicAccess": "公开访问",
   "profile.copied": "已复制",
   "profile.copy": "复制",
 

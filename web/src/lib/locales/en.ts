@@ -199,8 +199,6 @@ const en: Record<string, string> = {
   "profile.namePlaceholder": "My Helper",
   "profile.description": "Description",
   "profile.descPlaceholder": "What's this agent for?",
-  "profile.shared": "Anyone with the link can chat. Their history stays private to them.",
-  "profile.private": "Only you can use this agent.",
   "profile.save": "Save profile",
   "profile.saving": "Saving...",
 
@@ -220,8 +218,6 @@ const en: Record<string, string> = {
   "agents.title": "Agents",
   "agents.subtitle": "Manage your AI agents and their configurations",
   "agents.newAgent": "New Agent",
-  "agents.public": "Public",
-  "agents.private": "Private",
   "agents.remove": "Remove",
   "agents.deleteAgent": "Delete Agent",
   "agents.descLabel": "Description",
@@ -985,7 +981,6 @@ const en: Record<string, string> = {
   // Profile panel extras
   "profile.notFound": "Agent not found.",
   "profile.title": "Profile",
-  "profile.publicAccess": "Public access",
   "profile.copied": "Copied",
   "profile.copy": "Copy",
 
