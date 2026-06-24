@@ -72,6 +72,12 @@ type Store interface {
 	GetSession(ctx context.Context, userID, agentID, sessionKey string) (*SessionRecord, error)
 	SaveSession(ctx context.Context, userID, agentID, sessionKey string, session *SessionRecord) error
 	ListSessions(ctx context.Context, userID, agentID string) ([]SessionMeta, error)
+	// ListIdleSessions returns sessions under (userID, agentID) whose
+	// updated_at is before cutoff and message_count >= minMessages —
+	// candidates for the idle-summary background sweep. The sweep
+	// double-checks updated_at again before summarizing (the row may
+	// have been touched between scan and processing).
+	ListIdleSessions(ctx context.Context, userID, agentID string, cutoff time.Time, minMessages int) ([]IdleSession, error)
 	// LastSessionByChannel returns the most recently updated session for
 	// this agent on the given channel with a non-empty chat_id, or
 	// (nil, nil) when no such session exists. Used by the skill-evolution
@@ -590,6 +596,16 @@ type SessionMeta struct {
 	MessageCount int       `json:"messageCount"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	Frozen       bool      `json:"frozen,omitempty"`
+}
+
+// IdleSession is a session that hasn't been touched since a cutoff,
+// with enough messages to be worth summarizing. Used by the idle-
+// summary background sweep.
+type IdleSession struct {
+	SessionKey    string
+	ChatterUserID string
+	MessageCount  int
+	UpdatedAt     time.Time
 }
 
 // ProjectRecord is a per-(user, agent) named workspace folder. Sessions

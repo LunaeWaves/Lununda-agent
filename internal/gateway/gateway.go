@@ -644,6 +644,16 @@ func (g *Gateway) Run() error {
 		defer wg.Done()
 		g.staleArchiveTicker(ctx)
 	}()
+	// Idle session summary sweep: summarize sessions the user ended by
+	// walking away (never /compact, never /new) so their content still
+	// enters cross-session recall. Default 10min interval, 24h idle
+	// threshold, >=4 messages. Each agent's summary is incremental —
+	// only messages since the last summary are fed.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		g.idleSummaryTicker(ctx, 10*time.Minute, 24*time.Hour, 4)
+	}()
 	wg.Wait()
 	if g.taskQueue != nil {
 		g.taskQueue.Stop()

@@ -2656,6 +2656,33 @@ func (d *DBStore) ListSessions(ctx context.Context, userID, agentID string) ([]S
 	return metas, rows.Err()
 }
 
+// ListIdleSessions returns sessions under (userID, agentID) whose
+// updated_at is before cutoff and message_count >= minMessages. Used by
+// the idle-summary background sweep to find sessions whose conversation
+// has likely ended (gone quiet long enough) but were never summarized
+// because the user never hit /compact or switched sessions.
+func (d *DBStore) ListIdleSessions(ctx context.Context, userID, agentID string, cutoff time.Time, minMessages int) ([]IdleSession, error) {
+	rows, err := d.db.QueryContext(ctx,
+		fmt.Sprintf(`SELECT session_key, COALESCE(NULLIF(chatter_user_id, ''), user_id), message_count, updated_at FROM sessions
+			WHERE user_id = %s AND agent_id = %s AND updated_at < %s AND message_count >= %s
+			ORDER BY updated_at ASC`,
+			d.ph(1), d.ph(2), d.ph(3), d.ph(4)),
+		userID, agentID, cutoff, minMessages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []IdleSession
+	for rows.Next() {
+		var s IdleSession
+		if err := rows.Scan(&s.SessionKey, &s.ChatterUserID, &s.MessageCount, &s.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
 // LastSessionByChannel returns the most recently updated session on
 // (agent, channel) with a non-empty chat_id. nil + nil error when none.
 func (d *DBStore) LastSessionByChannel(ctx context.Context, agentID, channel string) (*SessionMeta, error) {

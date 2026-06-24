@@ -448,6 +448,27 @@ func (m *Manager) All() []*Agent {
 	return result
 }
 
+// SummarizeIdleSessions runs the idle-summary sweep across every agent
+// in this manager (i.e. one user's agents). Called periodically by the
+// gateway's idleSummaryTicker. Each agent is recovered independently so
+// one panic doesn't kill the whole sweep.
+func (m *Manager) SummarizeIdleSessions(ctx context.Context, idleAfter time.Duration, minMessages int) {
+	for _, ag := range m.All() {
+		if ctx.Err() != nil {
+			return
+		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Warn("idle summary sweep panic",
+						"agent", ag.agentID, "error", r)
+				}
+			}()
+			ag.summarizeIdleSessions(ctx, idleAfter, minMessages)
+		}()
+	}
+}
+
 // Names returns all agent IDs.
 func (m *Manager) Names() []string {
 	names := make([]string, 0, len(m.agents))

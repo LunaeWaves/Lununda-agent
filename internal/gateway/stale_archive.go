@@ -111,3 +111,54 @@ func (g *Gateway) runStaleArchiveCycle(ctx context.Context) {
 func runStaleArchiveCycleForTest(ctx context.Context, g *Gateway, _ time.Duration) {
 	g.runStaleArchiveCycle(ctx)
 }
+
+// idleSummaryTicker is the background sweep that summarizes sessions
+// the user ended by walking away from (no /compact, no /new). Every
+// interval it walks every loaded UserSpace's agents and runs
+// SummarizeIdleSessions on each. A session qualifies when it's been
+// quiet longer than idleAfter AND has >= minMessages messages — the
+// sweep double-checks quiet again before summarizing so a user who came
+// back between scan and processing is left alone. Exits on ctx cancel.
+func (g *Gateway) idleSummaryTicker(ctx context.Context, interval, idleAfter time.Duration, minMessages int) {
+	if interval <= 0 {
+		interval = 10 * time.Minute
+	}
+	if idleAfter <= 0 {
+		idleAfter = 24 * time.Hour
+	}
+	slog.Info("idle summary sweep started",
+		"interval", interval, "idle_after", idleAfter, "min_messages", minMessages)
+	// Run once at boot so a backlog clears without waiting a full interval.
+	g.runIdleSummaryCycle(ctx, idleAfter, minMessages)
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("idle summary sweep stopped")
+			return
+		case <-t.C:
+			g.runIdleSummaryCycle(ctx, idleAfter, minMessages)
+		}
+	}
+}
+
+// runIdleSummaryCycle walks every loaded UserSpace and invokes
+// SummarizeIdleSessions on its agent manager. One agent's failure
+// (panic) is recovered so the rest still run.
+func (g *Gateway) runIdleSummaryCycle(ctx context.Context, idleAfter time.Duration, minMessages int) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Warn("idle summary cycle panic", "error", r)
+		}
+	}()
+	for _, sp := range g.users.all() {
+		if ctx.Err() != nil {
+			return
+		}
+		if sp.Agents == nil {
+			continue
+		}
+		sp.Agents.SummarizeIdleSessions(ctx, idleAfter, minMessages)
+	}
+}

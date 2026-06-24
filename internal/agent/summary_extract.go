@@ -297,6 +297,66 @@ func messagesAfterSeq(messages []provider.Message, windowStart, lastSeq int) (ou
 	return out, firstSeq, lastSeqSeen, hasNew
 }
 
+// summarizeIdleSessions scans this agent's sessions that have been
+// quiet for at least idleAfter and have at least minMessages messages,
+// and runs persistConversationSummary on each (incremental when the
+// session was summarized before). It's the background safety net for
+// conversations the user ended by walking away — never /compact, never
+// /new — so their content still enters cross-session recall.
+//
+// Best-effort: per-session errors are logged and the sweep moves on.
+// Each session is re-checked for idle AFTER the list query (the row may
+// have been touched between scan and processing — if the user came
+// back, skip it).
+func (a *Agent) summarizeIdleSessions(ctx context.Context, idleAfter time.Duration, minMessages int) {
+	db, ok := a.dataStore.(*store.DBStore)
+	if !ok || a.provider == nil {
+		return
+	}
+	cutoff := time.Now().Add(-idleAfter)
+	sessions, err := db.ListIdleSessions(ctx, a.ownerUserID, a.agentID, cutoff, minMessages)
+	if err != nil {
+		slog.Warn("idle summary: list sessions failed",
+			"agent", a.agentID, "error", err)
+		return
+	}
+	model := a.summaryModel
+	if model == "" {
+		model = a.model
+	}
+	for _, s := range sessions {
+		if ctx.Err() != nil {
+			return
+		}
+		// Double-check idle — user may have come back between scan and now.
+		if !s.UpdatedAt.Before(cutoff) {
+			continue
+		}
+		rawMsgs, err := db.ListSessionMessages(ctx, a.ownerUserID, a.agentID, s.SessionKey)
+		if err != nil {
+			slog.Warn("idle summary: load messages failed",
+				"agent", a.agentID, "session", s.SessionKey, "error", err)
+			continue
+		}
+		if len(rawMsgs) < 2 {
+			continue
+		}
+		msgs := make([]provider.Message, len(rawMsgs))
+		for i, m := range rawMsgs {
+			msgs[i] = provider.Message{Role: m.Role, Content: m.Content, Origin: m.Origin}
+		}
+		slog.Info("idle summary: summarizing quiet session",
+			"agent", a.agentID, "session", s.SessionKey,
+			"messages", len(msgs), "idle_for", time.Since(s.UpdatedAt).Round(time.Minute))
+		// seqStart/seqEnd follow the existing convention (1-based window
+		// over the loaded messages); persistConversationSummary reads
+		// sessions.last_summarized_seq internally to pick full vs merge.
+		persistConversationSummary(ctx, db, a.provider, model, a.embedder,
+			a.ownerUserID, a.agentID, s.SessionKey, s.ChatterUserID,
+			msgs, 1, len(msgs))
+	}
+}
+
 // persistConversationSummary writes the LLM-extracted topics to the
 // store. Triggered by /compact, new-session, and the idle-session sweep.
 //
