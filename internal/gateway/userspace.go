@@ -943,20 +943,20 @@ func newProviderFromConfig(cfg *config.Config) provider.Provider {
 	defaultModel := cfg.Agents.Defaults.Model
 	parts := strings.SplitN(defaultModel, "/", 2)
 	if len(parts) != 2 {
-		slog.Warn("no provider configured: default model is missing the '<provider>/<model>' prefix",
+		slog.Debug("no provider configured: default model is missing the '<provider>/<model>' prefix",
 			"defaultModel", defaultModel, "providerCount", len(cfg.Providers))
 		return nil
 	}
 	key := parts[0]
 	p, ok := cfg.Providers[key]
 	if !ok {
-		slog.Warn("no provider configured: default model references a provider key that isn't in cfg.Providers",
+		slog.Debug("no provider configured: default model references a provider key that isn't in cfg.Providers",
 			"key", key, "defaultModel", defaultModel,
 			"availableKeys", providerKeyList(cfg.Providers))
 		return nil
 	}
 	if p.APIKey == "" {
-		slog.Warn("provider matched but its APIKey is empty",
+		slog.Debug("provider matched but its APIKey is empty",
 			"key", key, "apiBase", p.APIBase)
 		return nil
 	}
