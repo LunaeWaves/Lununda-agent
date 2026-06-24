@@ -155,10 +155,14 @@ type Store interface {
 	// untouched by compaction. DeleteSession cascades to clean these up.
 	AppendSessionMessage(ctx context.Context, userID, agentID, sessionKey string, msg SessionMessage) error
 	ListSessionMessages(ctx context.Context, userID, agentID, sessionKey string) ([]SessionMessage, error)
-	// ListSessionMessagesBySeq returns messages in [seqStart, seqEnd] for the
-	// same (userID, agentID, sessionKey) tuple, scoped to chatterUserID.
-	// Used by curator 段 2 to fetch conversation context around a skill usage.
-	ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, seqStart, seqEnd int) ([]SessionMessage, error)
+	// ListSessionMessagesBySeq returns messages whose seq falls in any of
+	// the supplied [start,end] ranges for the same (userID, agentID,
+	// sessionKey) tuple, scoped to chatterUserID. A topic in an
+	// interleaved conversation often covers several disjoint ranges, so
+	// the caller passes them all and gets the union in ascending seq
+	// order. Used by fetch_messages (topic pointer follow) and curator
+	// 段 2 (single-range context fetch).
+	ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, ranges [][2]int) ([]SessionMessage, error)
 	// CountChatterUserMessages returns how many role='user' rows this
 	// chatter has accumulated under the agent — across all sessions,
 	// all channels. Used by the autoPersist gate as a *durable* "every

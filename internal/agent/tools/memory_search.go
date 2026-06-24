@@ -260,17 +260,35 @@ func formatSummaryResults(hits []store.ConversationSummary, query string) string
 	for i, h := range hits {
 		fmt.Fprintf(&sb, "--- Summary %d (session=%s, time=%s) ---\n",
 			i+1, h.SessionKey, h.CreatedAt.Format("2006-01-02 15:04"))
+		if h.Topic != "" {
+			fmt.Fprintf(&sb, "Topic: %s\n", h.Topic)
+		}
 		sb.WriteString(h.Summary)
 		if len(h.Keywords) > 0 {
 			sb.WriteString("\n\nKeywords: ")
 			sb.WriteString(strings.Join(h.Keywords, ", "))
 		}
-		fmt.Fprintf(&sb, "\n\n[session_key=%s seq_start=%d seq_end=%d]\n\n",
-			h.SessionKey, h.SeqStart, h.SeqEnd)
+		fmt.Fprintf(&sb, "\n\n[session_key=%s segments=%s]\n\n",
+			h.SessionKey, formatSegmentsPointer(h.Segments, h.SeqStart, h.SeqEnd))
 	}
 	sb.WriteString("\nTo retrieve the verbatim original messages of any summary above, call:\n")
-	sb.WriteString("  fetch_messages(session_key=<value>, seq_start=<value>, seq_end=<value>)\n")
+	sb.WriteString("  fetch_messages(session_key=<value>, segments=<value>)\n")
 	return sb.String()
+}
+
+// formatSegmentsPointer renders the segments pointer for memory_search
+// output. Uses Segments when present (topic-segmented rows, possibly
+// several disjoint ranges); falls back to a single seq_start-seq_end
+// range for legacy rows that predate topic segmentation.
+func formatSegmentsPointer(segs [][2]int, seqStart, seqEnd int) string {
+	if len(segs) == 0 {
+		return fmt.Sprintf("%d-%d", seqStart, seqEnd)
+	}
+	parts := make([]string, len(segs))
+	for i, s := range segs {
+		parts[i] = fmt.Sprintf("%d-%d", s[0], s[1])
+	}
+	return strings.Join(parts, ",")
 }
 
 func formatLegacyResults(results []searchResult, query string) string {

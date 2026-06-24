@@ -13,42 +13,55 @@ import (
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
-// ExtractedSummary is what the LLM returns from the extraction prompt.
-type ExtractedSummary struct {
-	Summary    string   `json:"summary"`
-	Keywords   []string `json:"keywords"`
-	SeqStart   int      `json:"seq_start"`
-	SeqEnd     int      `json:"seq_end"`
-	Importance int      `json:"importance"` // 1-5 LLM-assigned value; 0 = unset
+// seqSegment is one [start,end] seq range a topic covers. Mirrors the
+// JSON shape the LLM emits so it unmarshals directly.
+type seqSegment struct {
+	S int `json:"s"`
+	E int `json:"e"`
 }
 
-// extractConversationSummary calls the LLM to distill a range of messages
-// into a single ExtractedSummary. Returns nil if the LLM says nothing
-// worth saving (empty summary). Errors out only on network/parse failure.
+// ExtractedTopic is one topic the LLM distilled from a conversation
+// window. A window may yield several topics (interleaved conversations),
+// each with its own summary and the disjoint seq ranges it actually
+// covers — so a future fetch_messages retrieves only the messages
+// belonging to that topic, not the whole interleaved window.
+type ExtractedTopic struct {
+	Topic      string       `json:"topic"`
+	Summary    string       `json:"summary"`
+	Keywords   []string     `json:"keywords"`
+	Importance int          `json:"importance"`
+	Segments   []seqSegment `json:"segments"`
+}
+
+// extractConversationTopics calls the LLM to split a message window into
+// one or more topics, each annotated with the seq ranges it covers.
+// Returns nil when the model says nothing is worth saving. Errors only
+// on network/parse failure.
 //
-// seqStart/seqEnd are the row positions in session_messages the summary
-// covers — they're attached to the returned struct and overwrite whatever
-// the LLM wrote (never trust LLM to fill numbers correctly).
-func extractConversationSummary(
+// The transcript is prefixed with [seq=N role=R] using the real
+// session_messages seq numbers, so the model can mark accurate segments.
+// Persist validates every segment against [seqStart, seqEnd] and drops
+// anything out of range — never trust model-filled numbers blindly.
+func extractConversationTopics(
 	ctx context.Context,
 	prov provider.Provider,
 	model string,
 	messages []provider.Message,
 	seqStart, seqEnd int,
-) (*ExtractedSummary, error) {
+) ([]ExtractedTopic, error) {
 	if len(messages) == 0 {
 		return nil, nil
 	}
 
 	// Render messages into a text transcript. Skip system + synthetic
-	// origin messages — they pollute the transcript with scaffolding.
+	// origin messages — they pollute the transcript with scaffolding —
+	// but seq advances past them anyway so the seq numbers shown to the
+	// model match session_messages.seq exactly.
 	var transcript strings.Builder
-	for _, m := range messages {
+	for i, m := range messages {
 		if m.Role == "system" {
 			continue
 		}
-		// m.Origin is "" for real user/assistant turns, non-empty for
-		// synthetic (e.g. goal-context continuations). Skip synthetic.
 		if m.Origin != "" {
 			continue
 		}
@@ -56,14 +69,14 @@ func extractConversationSummary(
 		if len(content) > 500 {
 			content = content[:500] + "..."
 		}
-		fmt.Fprintf(&transcript, "[role=%s] %s\n", m.Role, content)
+		fmt.Fprintf(&transcript, "[seq=%d role=%s] %s\n", seqStart+i, m.Role, content)
 	}
 
 	if transcript.Len() == 0 {
 		return nil, nil
 	}
 
-	prompt := fmt.Sprintf(`Analyze this conversation excerpt (message seq range: %d to %d).
+	prompt := fmt.Sprintf(`Analyze this conversation excerpt. Each line is tagged with its seq number and role.
 
 CRITICAL — OUTPUT LANGUAGE:
 The summary and keywords MUST be in the same language as the conversation.
@@ -72,73 +85,84 @@ The summary and keywords MUST be in the same language as the conversation.
 - Mixed → use the language the user typed in
 This is load-bearing: a Chinese-speaking user can only search in Chinese. A summary in the wrong language will NEVER be found by later queries.
 
-Judge whether this excerpt is worth remembering at all. Only facts, decisions,
-preferences, outcomes, or notable context belong — NOT greetings, small talk,
-chit-chat, or errors with no resolution. If it's forgettable, emit the empty
-shape below.
+Group the excerpt into TOPICS. Real conversations interleave several topics (e.g. weather small-talk wedged between health-advice threads). Each topic becomes its own recallable summary, scoped to ONLY the seq ranges where it was actually discussed — so future retrieval fetches the verbatim messages of that topic without unrelated turns.
+
+For each topic emit:
+- topic: short label (<=8 words) in the conversation's language
+- summary: 1-2 sentences in the conversation's language
+- keywords: 3-7 keywords in the conversation's language
+- importance: 1-5 (usefulness to a FUTURE conversation; 1=trivial, 5=key fact/decision/preference)
+- segments: list of {"s":N,"e":N} pairs. s and e are seq numbers SHOWN IN THE TRANSCRIPT that belong to this topic. A topic spanning disjoint ranges gets several pairs. Use the exact seq numbers from the transcript; do not invent numbers not present.
+
+Skip greetings, small talk, chit-chat, unresolved errors — emit NO topic for them.
 
 Output STRICT JSON only — no markdown fences, no commentary:
-{
-  "summary": "1-2 sentence summary in the conversation's language",
-  "keywords": ["3-7 keywords in the conversation's language"],
-  "importance": <1-5>,
-  "seq_start": %d,
-  "seq_end": %d
-}
+{"topics":[{"topic":"...","summary":"...","keywords":[...],"importance":N,"segments":[{"s":N,"e":N}]}]}
 
-importance is how useful this will be to a FUTURE conversation with the same
-user: 1 = trivial/forgettable, 3 = moderately useful, 5 = a key fact,
-decision, or preference the user will likely reference again.
-
-If the conversation has nothing worth remembering, output:
-{"summary": "", "keywords": [], "importance": 0, "seq_start": %d, "seq_end": %d}
+If nothing is worth remembering: {"topics":[]}
 
 Conversation:
-%s`,
-		seqStart, seqEnd, seqStart, seqEnd, seqStart, seqEnd, transcript.String())
+%s`, transcript.String())
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	resp, err := prov.Chat(ctx, []provider.Message{
 		{Role: "user", Content: prompt},
-	}, nil, model, 800, 0.3)
+	}, nil, model, 1200, 0.3)
 	if err != nil {
-		return nil, fmt.Errorf("extract summary LLM call: %w", err)
+		return nil, fmt.Errorf("extract topics LLM call: %w", err)
 	}
 
-	// Strip markdown fences if model wrapped output
 	content := stripJSONFence(resp.Content)
-
-	var ex ExtractedSummary
-	if err := json.Unmarshal([]byte(content), &ex); err != nil {
-		return nil, fmt.Errorf("parse summary JSON: %w (raw=%q)", err, content)
+	var parsed struct {
+		Topics []ExtractedTopic `json:"topics"`
+	}
+	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+		return nil, fmt.Errorf("parse topics JSON: %w (raw=%q)", err, content)
 	}
 
-	// Override seq range — never trust LLM to fill numbers correctly
-	ex.SeqStart = seqStart
-	ex.SeqEnd = seqEnd
-
-	if strings.TrimSpace(ex.Summary) == "" {
-		return nil, nil // nothing worth saving
+	// Validate every segment: fix s>e order, drop anything outside
+	// [seqStart, seqEnd]. Drop topics left with no valid segment or with
+	// empty topic/summary. Clamp importance to [1,5] (default 3).
+	var cleaned []ExtractedTopic
+	for _, t := range parsed.Topics {
+		if strings.TrimSpace(t.Topic) == "" || strings.TrimSpace(t.Summary) == "" {
+			continue
+		}
+		var valid []seqSegment
+		for _, seg := range t.Segments {
+			if seg.S > seg.E {
+				seg.S, seg.E = seg.E, seg.S
+			}
+			if seg.S < seqStart || seg.E > seqEnd {
+				continue
+			}
+			valid = append(valid, seg)
+		}
+		if len(valid) == 0 {
+			continue
+		}
+		t.Segments = valid
+		if t.Importance < 1 {
+			t.Importance = 3
+		}
+		if t.Importance > 5 {
+			t.Importance = 5
+		}
+		if t.Keywords == nil {
+			t.Keywords = []string{}
+		}
+		cleaned = append(cleaned, t)
 	}
-	// Clamp importance to [1,5]; default to a neutral 3 if the model
-	// omitted or gave garbage. importance feeds the recall score + the
-	// store threshold.
-	if ex.Importance < 1 {
-		ex.Importance = 3
+	if len(cleaned) == 0 {
+		return nil, nil
 	}
-	if ex.Importance > 5 {
-		ex.Importance = 5
-	}
-	if ex.Keywords == nil {
-		ex.Keywords = []string{}
-	}
-
-	return &ex, nil
+	return cleaned, nil
 }
 
-// persistConversationSummary writes an ExtractedSummary to the store.
+// persistConversationSummary writes the LLM-extracted topics to the
+// store — one row per topic, each scoped to its precise seq segments.
 // Called from the CompactMessages post-hook and the new-session hook.
 //
 // Best-effort: logs errors but does not propagate them — extraction
@@ -157,79 +181,93 @@ func persistConversationSummary(
 		return
 	}
 
-	ex, err := extractConversationSummary(ctx, prov, model, messages, seqStart, seqEnd)
+	topics, err := extractConversationTopics(ctx, prov, model, messages, seqStart, seqEnd)
 	if err != nil {
 		slog.Warn("conversation summary extract failed",
 			"agent", agentID, "session", sessionKey, "error", err)
 		return
 	}
-	if ex == nil {
+	if len(topics) == 0 {
 		slog.Debug("conversation summary: nothing to save",
 			"agent", agentID, "session", sessionKey,
 			"seq_range", fmt.Sprintf("%d-%d", seqStart, seqEnd))
 		return
 	}
 
-	// No importance threshold at ingest — keep everything that the LLM
-	// distilled into a non-empty summary. Low-importance (chit-chat that
-	// slipped past the empty-summary gate) is marginalized organically:
-	// it starts at importance 1-2 with access_count 0, never gets
-	// recalled, and the recency×access score decays it to the bottom of
-	// future rankings (soft forgetting). Reversible — nothing is
-	// irreversibly dropped, and storage/embedding cost is acceptable.
+	// No importance threshold at ingest — keep everything the LLM
+	// distilled into a non-empty topic. Low-importance topics are
+	// marginalized organically by the recency×access recall score.
 
-	// Stamp the embedding model on the row so a later model-switch can
-	// detect+rebuild (ListConversationSummariesNeedingVector compares
-	// this against the configured model). Only set when we're actually
-	// going to embed below; an empty value means "keyword-only".
+	// Stamp the embedding model on every row so a later model-switch
+	// can detect+rebuild. Empty when no embedder is configured
+	// ("keyword-only").
 	embModel := ""
 	if emb != nil && emb.Available() {
 		embModel = emb.Model()
 	}
-	id, err := db.InsertConversationSummary(ctx, store.ConversationSummary{
-		UserID:         userID,
-		AgentID:        agentID,
-		SessionKey:     sessionKey,
-		ChatterUserID:  chatterUserID,
-		Summary:        ex.Summary,
-		Keywords:       ex.Keywords,
-		SeqStart:       ex.SeqStart,
-		SeqEnd:         ex.SeqEnd,
-		EmbeddingModel: embModel,
-		Importance:     ex.Importance,
-	})
-	if err != nil {
-		slog.Warn("conversation summary persist failed",
-			"agent", agentID, "session", sessionKey, "error", err)
-		return
-	}
 
-	// Vectorize the summary so query-time KNN recall can find it. Embed
-	// the summary + keywords together (keywords carry the high-signal
-	// terms). Best-effort: a failure here leaves the row
-	// keyword-searchable but not vector-searchable — logged, not fatal.
-	if emb != nil && emb.Available() && id > 0 {
-		text := ex.Summary
-		if len(ex.Keywords) > 0 {
-			text += " " + strings.Join(ex.Keywords, " ")
+	saved := 0
+	for _, t := range topics {
+		// SeqStart/SeqEnd = the topic's min/max seq (unique-index key +
+		// range display). Segments holds the precise disjoint ranges
+		// fetch_messages reads back.
+		minSeq, maxSeq := t.Segments[0].S, t.Segments[0].E
+		segs := make([][2]int, 0, len(t.Segments))
+		for _, seg := range t.Segments {
+			if seg.S < minSeq {
+				minSeq = seg.S
+			}
+			if seg.E > maxSeq {
+				maxSeq = seg.E
+			}
+			segs = append(segs, [2]int{seg.S, seg.E})
 		}
-		vecs, embErr := emb.Embed(ctx, []string{text})
-		if embErr != nil {
-			slog.Warn("conversation summary embedding failed",
-				"agent", agentID, "session", sessionKey, "error", embErr)
-		} else if len(vecs) == 1 {
-			if err := db.InsertConversationSummaryVector(ctx, id, vecs[0]); err != nil {
-				slog.Warn("conversation summary vector insert failed",
-					"agent", agentID, "session", sessionKey, "error", err)
-			} else {
-				slog.Info("conversation summary vectorized",
-					"agent", agentID, "session", sessionKey, "summary_id", id, "dim", len(vecs[0]))
+		id, err := db.InsertConversationSummary(ctx, store.ConversationSummary{
+			UserID:         userID,
+			AgentID:        agentID,
+			SessionKey:     sessionKey,
+			ChatterUserID:  chatterUserID,
+			Topic:          t.Topic,
+			Summary:        t.Summary,
+			Keywords:       t.Keywords,
+			Segments:       segs,
+			SeqStart:       minSeq,
+			SeqEnd:         maxSeq,
+			EmbeddingModel: embModel,
+			Importance:     t.Importance,
+		})
+		if err != nil {
+			slog.Warn("conversation summary persist failed",
+				"agent", agentID, "session", sessionKey, "topic", t.Topic, "error", err)
+			continue
+		}
+		saved++
+
+		// Vectorize so query-time KNN recall can find this topic. Embed
+		// the summary + keywords together. Best-effort — a failure here
+		// leaves the row keyword-searchable but not vector-searchable.
+		if emb != nil && emb.Available() && id > 0 {
+			text := t.Summary
+			if len(t.Keywords) > 0 {
+				text += " " + strings.Join(t.Keywords, " ")
+			}
+			vecs, embErr := emb.Embed(ctx, []string{text})
+			if embErr != nil {
+				slog.Warn("conversation summary embedding failed",
+					"agent", agentID, "session", sessionKey, "topic", t.Topic, "error", embErr)
+				continue
+			}
+			if len(vecs) == 1 {
+				if err := db.InsertConversationSummaryVector(ctx, id, vecs[0]); err != nil {
+					slog.Warn("conversation summary vector insert failed",
+						"agent", agentID, "session", sessionKey, "topic", t.Topic, "error", err)
+				}
 			}
 		}
 	}
 
 	slog.Info("conversation summary saved",
 		"agent", agentID, "session", sessionKey,
-		"seq_range", fmt.Sprintf("%d-%d", ex.SeqStart, ex.SeqEnd),
-		"keywords", len(ex.Keywords))
+		"seq_range", fmt.Sprintf("%d-%d", seqStart, seqEnd),
+		"topics", saved)
 }

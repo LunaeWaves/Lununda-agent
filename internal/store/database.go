@@ -170,6 +170,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateConversationSummariesScoring(ctx); err != nil {
 		return fmt.Errorf("migrate conversation_summaries scoring columns: %w", err)
 	}
+	if err := d.migrateConversationSummariesSegments(ctx); err != nil {
+		return fmt.Errorf("migrate conversation_summaries segments column: %w", err)
+	}
 	if err := d.migratePurgeNonOwnerAgentFiles(ctx); err != nil {
 		return fmt.Errorf("migrate purge non-owner agent_files: %w", err)
 	}
@@ -380,6 +383,44 @@ func (d *DBStore) migrateConversationSummariesScoring(ctx context.Context) error
 		{"importance", "INTEGER NOT NULL DEFAULT 0"},
 		{"access_count", "INTEGER NOT NULL DEFAULT 0"},
 		{"last_accessed_at", "TIMESTAMP"},
+	}
+	for _, c := range columns {
+		has, err := d.tableHasColumn(ctx, "conversation_summaries", c.name)
+		if err != nil {
+			return err
+		}
+		if has {
+			continue
+		}
+		if _, err := d.db.ExecContext(ctx, fmt.Sprintf(
+			`ALTER TABLE conversation_summaries ADD COLUMN %s %s`, c.name, c.decl)); err != nil {
+			return fmt.Errorf("add column %s: %w", c.name, err)
+		}
+	}
+	return nil
+}
+
+// migrateConversationSummariesSegments adds the topic + segments columns
+// that back topic-segmented summaries. `segments` is a JSON array of
+// [seq_start, seq_end] pairs — a single topic in an interleaved
+// conversation often spans several disjoint seq ranges (e.g. anti-aging
+// discussion split across weather/news interruptions). Legacy rows get
+// '[]' and fall back to seq_start/seq_end; fetch_messages treats an
+// empty segments list as the single range [seq_start, seq_end].
+func (d *DBStore) migrateConversationSummariesSegments(ctx context.Context) error {
+	hasTable, err := d.tableExists(ctx, "conversation_summaries")
+	if err != nil {
+		return err
+	}
+	if !hasTable {
+		return nil
+	}
+	type col struct {
+		name, decl string
+	}
+	columns := []col{
+		{"topic", "TEXT NOT NULL DEFAULT ''"},
+		{"segments", "TEXT NOT NULL DEFAULT '[]'"},
 	}
 	for _, c := range columns {
 		has, err := d.tableHasColumn(ctx, "conversation_summaries", c.name)
@@ -4392,18 +4433,36 @@ func (d *DBStore) ReorderRegexHooks(ctx context.Context, agentID string, hookIDs
 
 var _ Store = (*DBStore)(nil)
 
-// ListSessionMessagesBySeq returns messages where seq is between seqStart
-// and seqEnd inclusive. Used by the fetch_messages tool to retrieve the
-// original conversation a summary points to.
-func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, seqStart, seqEnd int) ([]SessionMessage, error) {
+// ListSessionMessagesBySeq returns messages whose seq falls in any of
+// the supplied [start,end] ranges (inclusive), ordered by seq. Used by
+// the fetch_messages tool to retrieve the verbatim messages of a topic,
+// which may span several disjoint ranges in an interleaved conversation.
+func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID, sessionKey, chatterUserID string, ranges [][2]int) ([]SessionMessage, error) {
+	if len(ranges) == 0 {
+		return nil, nil
+	}
+	// Build "(seq >= ? AND seq <= ?)" per range with dialect-correct
+	// placeholders, OR'd together. Caller is expected to have merged
+	// overlaps (fetch_messages.normalizeSegments does).
+	orClauses := make([]string, len(ranges))
+	args := make([]any, 0, len(ranges)+5)
+	args = append(args, userID, agentID, sessionKey)
+	ph := 4
+	for i, rg := range ranges {
+		orClauses[i] = fmt.Sprintf("(seq >= %s AND seq <= %s)", d.ph(ph), d.ph(ph+1))
+		args = append(args, rg[0], rg[1])
+		ph += 2
+	}
+	args = append(args, chatterUserID)
 	rows, err := d.db.QueryContext(ctx,
 		fmt.Sprintf(`SELECT role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
 			FROM session_messages
-			WHERE user_id = %s AND agent_id = %s AND session_key = %s AND seq >= %s AND seq <= %s
+			WHERE user_id = %s AND agent_id = %s AND session_key = %s
+			  AND (%s)
 			  AND (chatter_user_id = %s OR chatter_user_id = '')
 			ORDER BY seq ASC`,
-			d.ph(1), d.ph(2), d.ph(3), d.ph(4), d.ph(5), d.ph(6)),
-		userID, agentID, sessionKey, seqStart, seqEnd, chatterUserID)
+			d.ph(1), d.ph(2), d.ph(3), strings.Join(orClauses, " OR "), d.ph(ph)),
+		args...)
 	if err != nil {
 		return nil, err
 	}

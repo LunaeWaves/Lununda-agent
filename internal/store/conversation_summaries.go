@@ -26,6 +26,8 @@ type ConversationSummary struct {
 	ChatterUserID  string
 	Summary        string
 	Keywords       []string
+	Topic          string   // short topic label (empty on legacy rows)
+	Segments       [][2]int // seq ranges this topic actually covers; empty → fall back to SeqStart/SeqEnd
 	SeqStart       int
 	SeqEnd         int
 	EmbeddingModel string // empty if no embedding generated
@@ -57,6 +59,10 @@ func (d *DBStore) InsertConversationSummary(
 	if err != nil {
 		return 0, fmt.Errorf("marshal keywords: %w", err)
 	}
+	segmentsJSON, err := marshalSegments(s.Segments)
+	if err != nil {
+		return 0, fmt.Errorf("marshal segments: %w", err)
+	}
 
 	var id int64
 	switch d.dialect {
@@ -70,17 +76,19 @@ func (d *DBStore) InsertConversationSummary(
 		err = d.db.QueryRowContext(ctx, `
 			INSERT INTO conversation_summaries
 				(user_id, agent_id, session_key, chatter_user_id,
-				 summary, keywords, seq_start, seq_end, embedding_model, importance)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+				 summary, keywords, seq_start, seq_end, embedding_model, importance, topic, segments)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 			ON CONFLICT (chatter_user_id, agent_id, session_key, seq_start, seq_end)
 			DO UPDATE SET summary = EXCLUDED.summary,
 			              keywords = EXCLUDED.keywords,
 			              embedding_model = EXCLUDED.embedding_model,
-			              importance = EXCLUDED.importance
+			              importance = EXCLUDED.importance,
+			              topic = EXCLUDED.topic,
+			              segments = EXCLUDED.segments
 			RETURNING id`,
 			s.UserID, s.AgentID, s.SessionKey, s.ChatterUserID,
 			s.Summary, string(keywordsJSON), s.SeqStart, s.SeqEnd,
-			nilIfEmpty(s.EmbeddingModel), s.Importance,
+			nilIfEmpty(s.EmbeddingModel), s.Importance, s.Topic, string(segmentsJSON),
 		).Scan(&id)
 	default:
 		// SQLite upsert. RETURNING id (modernc supports it) gives the
@@ -89,20 +97,46 @@ func (d *DBStore) InsertConversationSummary(
 		err = d.db.QueryRowContext(ctx, `
 			INSERT INTO conversation_summaries
 				(user_id, agent_id, session_key, chatter_user_id,
-				 summary, keywords, seq_start, seq_end, embedding_model, importance)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 summary, keywords, seq_start, seq_end, embedding_model, importance, topic, segments)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(chatter_user_id, agent_id, session_key, seq_start, seq_end)
 			DO UPDATE SET summary = excluded.summary,
 			              keywords = excluded.keywords,
 			              embedding_model = excluded.embedding_model,
-			              importance = excluded.importance
+			              importance = excluded.importance,
+			              topic = excluded.topic,
+			              segments = excluded.segments
 			RETURNING id`,
 			s.UserID, s.AgentID, s.SessionKey, s.ChatterUserID,
 			s.Summary, string(keywordsJSON), s.SeqStart, s.SeqEnd,
-			nilIfEmpty(s.EmbeddingModel), s.Importance,
+			nilIfEmpty(s.EmbeddingModel), s.Importance, s.Topic, string(segmentsJSON),
 		).Scan(&id)
 	}
 	return id, err
+}
+
+// marshalSegments serializes a slice of [start,end] seq pairs as JSON.
+// Nil/empty → "[]" (the column default), which readers interpret as
+// "fall back to seq_start/seq_end".
+func marshalSegments(segs [][2]int) ([]byte, error) {
+	if len(segs) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal(segs)
+}
+
+// unmarshalSegments is the scan-side inverse. Empty/invalid JSON → nil
+// (caller falls back to SeqStart/SeqEnd).
+func unmarshalSegments(raw string) [][2]int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "[]" || raw == "null" {
+		return nil
+	}
+	var out [][2]int
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil
+	}
+	return out
 }
 
 func nilIfEmpty(s string) any {
@@ -161,7 +195,7 @@ func (d *DBStore) SearchConversationSummariesFTS(
 		args = append(args, fetchLimit)
 		rows, err := d.db.QueryContext(ctx, `
 			SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
+			       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
 			FROM conversation_summaries
 			WHERE chatter_user_id = $1 AND agent_id = $2
 			  AND (`+strings.Join(clauses, " OR ")+`)
@@ -188,7 +222,7 @@ func (d *DBStore) SearchConversationSummariesFTS(
 	args = append(args, fetchLimit)
 	rows, err := d.db.QueryContext(ctx, `
 		SELECT id, user_id, agent_id, session_key, chatter_user_id,
-		       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
+		       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
 		FROM conversation_summaries
 		WHERE chatter_user_id = ? AND agent_id = ?
 		  AND (`+strings.Join(clauses, " OR ")+`)
@@ -212,10 +246,13 @@ func scanConversationSummaries(rows *sql.Rows) ([]ConversationSummary, error) {
 		var keywordsJSON string
 		var embModel sql.NullString
 		var lastAccessed sql.NullTime
+		var topic string
+		var segmentsJSON string
 		err := rows.Scan(
 			&s.ID, &s.UserID, &s.AgentID, &s.SessionKey, &s.ChatterUserID,
 			&s.Summary, &keywordsJSON, &s.SeqStart, &s.SeqEnd, &embModel,
 			&s.Importance, &s.AccessCount, &lastAccessed, &s.CreatedAt,
+			&topic, &segmentsJSON,
 		)
 		if err != nil {
 			return nil, err
@@ -228,6 +265,8 @@ func scanConversationSummaries(rows *sql.Rows) ([]ConversationSummary, error) {
 		if s.Keywords == nil {
 			s.Keywords = []string{}
 		}
+		s.Topic = topic
+		s.Segments = unmarshalSegments(segmentsJSON)
 		out = append(out, s)
 	}
 	return out, rows.Err()
@@ -654,7 +693,7 @@ func (d *DBStore) ListConversationSummariesByAgent(ctx context.Context, agentID 
 	case "postgres":
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
 			 FROM conversation_summaries
 			 WHERE agent_id = $1
 			 ORDER BY created_at
@@ -662,7 +701,7 @@ func (d *DBStore) ListConversationSummariesByAgent(ctx context.Context, agentID 
 	default:
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
 			 FROM conversation_summaries
 			 WHERE agent_id = ?
 			 ORDER BY created_at
@@ -703,7 +742,7 @@ func (d *DBStore) ListConversationSummariesNeedingVector(ctx context.Context, mo
 	case "postgres":
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
 			 FROM conversation_summaries
 			 WHERE embedding IS NULL OR ($1 != '' AND (embedding_model IS NULL OR embedding_model != $1))
 			 ORDER BY created_at
@@ -711,7 +750,7 @@ func (d *DBStore) ListConversationSummariesNeedingVector(ctx context.Context, mo
 	default:
 		rows, err = d.db.QueryContext(ctx,
 			`SELECT s.id, s.user_id, s.agent_id, s.session_key, s.chatter_user_id,
-			        s.summary, s.keywords, s.seq_start, s.seq_end, s.embedding_model, s.importance, s.access_count, s.last_accessed_at, s.created_at
+			        s.summary, s.keywords, s.seq_start, s.seq_end, s.embedding_model, s.importance, s.access_count, s.last_accessed_at, s.created_at, s.topic, s.segments
 			 FROM conversation_summaries s
 			 LEFT JOIN conversation_summaries_vec v ON v.summary_id = s.id
 			 WHERE v.summary_id IS NULL OR (? != '' AND (s.embedding_model IS NULL OR s.embedding_model != ?))
@@ -742,7 +781,7 @@ func (d *DBStore) GetConversationSummariesByIDs(ctx context.Context, ids []int64
 	}
 
 	q := fmt.Sprintf(`SELECT id, user_id, agent_id, session_key, chatter_user_id,
-	       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at
+	       summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
 	FROM conversation_summaries
 	WHERE id IN (%s)
 	ORDER BY created_at DESC`, strings.Join(placeholders, ","))

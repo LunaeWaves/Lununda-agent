@@ -44,7 +44,7 @@ func (j *pairJudger) Judge(ctx context.Context, agentID, skillA, skillB string, 
 	}
 	end := hi + relevanceBuffer
 	// chatterUserID = userID（私有化后 owner=chatter 恒成立，见 curator 设计）
-	msgs, err := j.store.ListSessionMessagesBySeq(ctx, userID, agentID, sessionKey, userID, start, end)
+	msgs, err := j.store.ListSessionMessagesBySeq(ctx, userID, agentID, sessionKey, userID, [][2]int{{start, end}})
 	if err != nil {
 		return "", "", fmt.Errorf("fetch context: %w", err)
 	}
