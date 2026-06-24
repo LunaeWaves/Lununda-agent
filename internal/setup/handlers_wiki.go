@@ -12,6 +12,7 @@ import (
 
 	"github.com/LunaeWaves/Lununda-agent/internal/kb"
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/scope"
 	"github.com/LunaeWaves/Lununda-agent/internal/store"
 	"github.com/LunaeWaves/Lununda-agent/internal/wiki"
 )
@@ -256,7 +257,8 @@ func (s *Server) runWikiGeneration(agentID string, sourceIDs []string, force boo
 	}
 }
 
-// providerForAgent reads system + agent model config and constructs a provider.
+// providerForAgent merges system → user(owner) → agent provider scopes
+// (agent wins) via scope.Providers, matching the chat path.
 func (s *Server) providerForAgent(agentID string) (provider.Provider, string) {
 	if s.dataStore == nil {
 		return nil, ""
@@ -264,9 +266,15 @@ func (s *Server) providerForAgent(agentID string) (provider.Provider, string) {
 
 	ctx := context.Background()
 
-	// Read system-scope providers
-	providerRows, err := s.dataStore.ListConfigs(ctx, store.KindProvider, "", "")
-	if err != nil || len(providerRows) == 0 {
+	var ownerUserID string
+	if agentID != "" {
+		if ag, err := s.dataStore.GetAgent(ctx, agentID); err == nil && ag != nil {
+			ownerUserID = ag.UserID
+		}
+	}
+
+	providerMap, err := scope.Providers(ctx, s.dataStore, ownerUserID, agentID)
+	if err != nil || len(providerMap) == 0 {
 		slog.Warn("wiki: no providers configured", "error", err)
 		return nil, ""
 	}
@@ -297,20 +305,11 @@ func (s *Server) providerForAgent(agentID string) (provider.Provider, string) {
 		return nil, ""
 	}
 
-	// Find matching provider
-	for _, row := range providerRows {
-		if row.Name != parts[0] {
-			continue
-		}
-		apiKey, _ := row.Data["apiKey"].(string)
-		apiBase, _ := row.Data["apiBase"].(string)
-		apiType, _ := row.Data["apiType"].(string)
-		if apiKey == "" {
-			continue
-		}
-		return provider.NewProvider(apiKey, apiBase, apiType), model
+	p, ok := providerMap[parts[0]]
+	if !ok || p.APIKey == "" {
+		return nil, ""
 	}
-	return nil, ""
+	return provider.NewProvider(p.APIKey, p.APIBase, p.APIType), model
 }
 
 func (s *Server) wikiStoreFor(agentID string) *wiki.WikiStore {
