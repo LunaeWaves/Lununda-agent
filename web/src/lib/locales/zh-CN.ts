@@ -330,7 +330,7 @@ const zhCN: Record<string, string> = {
   "context.splitReplies": "多气泡回复",
   "context.splitRepliesDesc": "让智能体使用分隔符将一条回复拆分为多个聊天气泡——适合 IM 中的短消息多段回复。适用于所有 IM 通道（微信 / Telegram / Discord / Slack / LINE / 飞书）；Web 端忽略。默认关闭——保持每条回复为单条消息。",
   "context.autoPersist": "后台审查",
-  "context.autoPersistDesc": "每 10 个用户轮次，运行时 fork 一个白名单子智能体，审查对话并更新 USER.md / MEMORY.md / 技能。子智能体能读取已有内容、只写 per-chatter 文件、跳过身份文件。默认开启 —— 主要持久化路径。",
+  "context.autoPersistDesc": "每 5 个用户轮次，运行时 fork 一个白名单子智能体，审查对话并更新 USER.md / MEMORY.md / 技能。子智能体能读取已有内容、只写 per-chatter 文件、跳过身份文件。默认开启 —— 主要持久化路径。",
   "context.autoTitle": "自动标题",
   "context.autoTitleDesc": "第 3 个用户轮次后，运行时会调用智能体的主模型，把对话总结成短标题写回侧边栏。用户手动改名过的会话会被跳过，不会被覆盖。默认开启；关闭后退化为使用第一句话作为标题。",
   "context.autoTitleModel": "标题模型（可选）",

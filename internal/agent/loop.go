@@ -406,7 +406,7 @@ func NewAgentWithSkillsCfg(rc config.ResolvedAgent, prov provider.Provider, mb *
 		}
 	}
 	if ag.memoryCfg.Review.EveryNTurns == 0 {
-		ag.memoryCfg.Review.EveryNTurns = 10
+		ag.memoryCfg.Review.EveryNTurns = 5
 	}
 	// Review default-on mirrors AutoTitle above. This production path is
 	// the only one the manager calls, so without it default agents leave

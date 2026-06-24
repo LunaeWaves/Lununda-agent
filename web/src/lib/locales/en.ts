@@ -330,7 +330,7 @@ const en: Record<string, string> = {
   "context.splitReplies": "Multi-bubble replies",
   "context.splitRepliesDesc": "Let the agent split one reply into multiple chat bubbles using a separator marker — natural for short, multi-beat replies in IM. Applies to every IM channel (WeChat / Telegram / Discord / Slack / LINE / Feishu); ignored on web. Off by default — keeps each reply as a single message.",
   "context.autoPersist": "Background Review",
-  "context.autoPersistDesc": "Every 10 user-turns the runtime forks a white-listed subagent that reviews the conversation and updates USER.md / MEMORY.md / skills. The subagent reads existing content, writes only per-chatter files, and skips identity files. On by default — the primary persistence path.",
+  "context.autoPersistDesc": "Every 5 user-turns the runtime forks a white-listed subagent that reviews the conversation and updates USER.md / MEMORY.md / skills. The subagent reads existing content, writes only per-chatter files, and skips identity files. On by default — the primary persistence path.",
   "context.autoTitle": "Auto Title",
   "context.autoTitleDesc": "After the third user turn the runtime asks the agent's primary model to summarise the conversation into a short title and writes it to the sidebar. Skips any session you've renamed manually. On by default; turn off to keep titles as the first user message.",
   "context.autoTitleModel": "Title model (optional)",
