@@ -39,22 +39,21 @@ type ExtractedTopic struct {
 // on network/parse failure. Used for the FULL extraction path (session
 // never summarized before).
 //
-// The transcript is prefixed with [seq=N role=R] using the real
-// session_messages seq numbers, so the model can mark accurate segments.
-// Persist validates every segment against [seqStart, seqEnd] and drops
-// anything out of range — never trust model-filled numbers blindly.
+// Each message carries its true DB seq (store.SessionMessage.Seq), so
+// the transcript is tagged [seq=N role=R] with the real
+// session_messages.seq — the LLM's segment numbers map 1:1 to rows
+// fetch_messages reads back. No more seqStart+i guesswork.
 func extractConversationTopics(
 	ctx context.Context,
 	prov provider.Provider,
 	model string,
-	messages []provider.Message,
-	seqStart, seqEnd int,
+	messages []store.SessionMessage,
 ) ([]ExtractedTopic, error) {
-	topics, err := callExtractTopics(ctx, prov, model, messages, seqStart, seqEnd, false, nil)
+	topics, err := callExtractTopics(ctx, prov, model, messages, false, nil)
 	if err != nil {
 		return nil, err
 	}
-	return validateTopics(topics, seqStart, seqEnd, nil), nil
+	return validateTopics(topics, messages, nil), nil
 }
 
 // mergeConversationTopics is the INCREMENTAL extraction path. Given the
@@ -64,23 +63,20 @@ func extractConversationTopics(
 // messages are NOT re-fed; only their distilled topic summaries + the
 // new transcript go to the model, saving tokens on long-running sessions.
 //
-// Segment validation is looser than extract's: a segment is accepted if
-// it's either a carried-over existing segment OR a new one inside
-// [newSeqStart, newSeqEnd]. Carried-over segments were validated when
-// first written, so they're trusted verbatim.
+// Segment validation: a segment is accepted if it's a carried-over
+// existing segment OR a new one inside the new messages' seq range.
 func mergeConversationTopics(
 	ctx context.Context,
 	prov provider.Provider,
 	model string,
 	existing []store.ConversationSummary,
-	messages []provider.Message,
-	newSeqStart, newSeqEnd int,
+	messages []store.SessionMessage,
 ) ([]ExtractedTopic, error) {
-	topics, err := callExtractTopics(ctx, prov, model, messages, newSeqStart, newSeqEnd, true, existing)
+	topics, err := callExtractTopics(ctx, prov, model, messages, true, existing)
 	if err != nil {
 		return nil, err
 	}
-	return validateTopics(topics, newSeqStart, newSeqEnd, existing), nil
+	return validateTopics(topics, messages, existing), nil
 }
 
 // callExtractTopics is the shared LLM-call core for the full and
@@ -91,8 +87,7 @@ func callExtractTopics(
 	ctx context.Context,
 	prov provider.Provider,
 	model string,
-	messages []provider.Message,
-	seqStart, seqEnd int,
+	messages []store.SessionMessage,
 	incremental bool,
 	existing []store.ConversationSummary,
 ) ([]ExtractedTopic, error) {
@@ -100,11 +95,8 @@ func callExtractTopics(
 		return nil, nil
 	}
 
-	// Render messages with [seq=N role=R]. seq advances past skipped
-	// system/synthetic messages so the seq numbers shown match
-	// session_messages.seq exactly.
 	var transcript strings.Builder
-	for i, m := range messages {
+	for _, m := range messages {
 		if m.Role == "system" || m.Origin != "" {
 			continue
 		}
@@ -112,7 +104,7 @@ func callExtractTopics(
 		if len(content) > 500 {
 			content = content[:500] + "..."
 		}
-		fmt.Fprintf(&transcript, "[seq=%d role=%s] %s\n", seqStart+i, m.Role, content)
+		fmt.Fprintf(&transcript, "[seq=%d role=%s] %s\n", m.Seq, m.Role, content)
 	}
 	if transcript.Len() == 0 {
 		return nil, nil
@@ -120,7 +112,7 @@ func callExtractTopics(
 
 	var prompt string
 	if incremental {
-		prompt = buildIncrementalPrompt(existing, seqStart, seqEnd, transcript.String())
+		prompt = buildIncrementalPrompt(existing, transcript.String())
 	} else {
 		prompt = buildFullPrompt(transcript.String())
 	}
@@ -149,11 +141,31 @@ func callExtractTopics(
 	return parsed.Topics, nil
 }
 
+// seqRangeOf returns the [min,max] seq across messages (skipping nothing
+// — the caller already filtered). Used to bound segment validation.
+func seqRangeOf(messages []store.SessionMessage) (int, int) {
+	if len(messages) == 0 {
+		return 0, 0
+	}
+	mn, mx := messages[0].Seq, messages[0].Seq
+	for _, m := range messages[1:] {
+		if m.Seq < mn {
+			mn = m.Seq
+		}
+		if m.Seq > mx {
+			mx = m.Seq
+		}
+	}
+	return mn, mx
+}
+
 // validateTopics clamps importance, drops empty topic/summary, and
-// validates segments. For the full path a segment must be in
-// [seqStart, seqEnd]; for incremental it may also be a carried-over
-// existing segment (validated when first written).
-func validateTopics(parsed []ExtractedTopic, seqStart, seqEnd int, existing []store.ConversationSummary) []ExtractedTopic {
+// validates segments. A segment is accepted if it's inside the current
+// window's seq range OR it's a carried-over existing segment (validated
+// when first written). The window range comes from the messages' true
+// DB seq, not a seqStart+i guess.
+func validateTopics(parsed []ExtractedTopic, messages []store.SessionMessage, existing []store.ConversationSummary) []ExtractedTopic {
+	mn, mx := seqRangeOf(messages)
 	existingSegSet := map[[2]int]bool{}
 	for _, e := range existing {
 		for _, s := range e.Segments {
@@ -170,7 +182,7 @@ func validateTopics(parsed []ExtractedTopic, seqStart, seqEnd int, existing []st
 			if seg.S > seg.E {
 				seg.S, seg.E = seg.E, seg.S
 			}
-			inWindow := seg.S >= seqStart && seg.E <= seqEnd
+			inWindow := seg.S >= mn && seg.E <= mx
 			if inWindow || existingSegSet[[2]int{seg.S, seg.E}] {
 				valid = append(valid, seg)
 			}
@@ -223,17 +235,17 @@ Conversation:
 %s`, transcript)
 }
 
-func buildIncrementalPrompt(existing []store.ConversationSummary, newSeqStart, newSeqEnd int, transcript string) string {
+func buildIncrementalPrompt(existing []store.ConversationSummary, transcript string) string {
 	type seg struct {
 		S int `json:"s"`
 		E int `json:"e"`
 	}
 	type existingTopic struct {
-		Topic      string `json:"topic"`
-		Summary    string `json:"summary"`
+		Topic      string   `json:"topic"`
+		Summary    string   `json:"summary"`
 		Keywords   []string `json:"keywords"`
-		Importance int    `json:"importance"`
-		Segments   []seg  `json:"segments"`
+		Importance int      `json:"importance"`
+		Segments   []seg    `json:"segments"`
 	}
 	old := make([]existingTopic, 0, len(existing))
 	for _, e := range existing {
@@ -261,40 +273,19 @@ Your job: output the FULL updated topic list.
 EXISTING TOPICS (JSON; segments are [seq_start, seq_end] pairs already covered):
 %s
 
-NEW MESSAGES (each tagged with seq and role; seq range %d to %d):
+NEW MESSAGES (each tagged with seq and role; use the exact seq numbers shown):
 %s
 
 Rules:
 - Every segment from EXISTING topics that you carry over MUST reappear unchanged in the output.
-- New segments must use seq numbers FROM THE NEW MESSAGES transcript only (range %d to %d).
+- New segments must use seq numbers FROM THE NEW MESSAGES transcript only.
 - Do not invent seq numbers not present in either source.
 
 Output STRICT JSON only — no markdown fences:
 {"topics":[{"topic":"...","summary":"...","keywords":[...],"importance":N,"segments":[{"s":N,"e":N}]}]}
 
 If the new messages add nothing worth remembering, return the existing topics unchanged.`,
-		string(existingJSON), newSeqStart, newSeqEnd, transcript, newSeqStart, newSeqEnd)
-}
-
-// messagesAfterSeq returns the subset of `messages` whose seq is greater
-// than lastSeq, plus that subset's [start,end] seq range. hasNew is
-// false when nothing new has arrived since the last summary — the
-// caller should skip extraction entirely in that case. messages[i] is
-// assumed to have seq = windowStart + i (the caller's window invariant).
-func messagesAfterSeq(messages []provider.Message, windowStart, lastSeq int) (out []provider.Message, firstSeq, lastSeqSeen int, hasNew bool) {
-	for i := range messages {
-		seq := windowStart + i
-		if seq <= lastSeq {
-			continue
-		}
-		if !hasNew {
-			firstSeq = seq
-			hasNew = true
-		}
-		lastSeqSeen = seq
-		out = append(out, messages[i])
-	}
-	return out, firstSeq, lastSeqSeen, hasNew
+		string(existingJSON), transcript)
 }
 
 // summarizeIdleSessions scans this agent's sessions that have been
@@ -320,53 +311,42 @@ func (a *Agent) summarizeIdleSessions(ctx context.Context, idleAfter time.Durati
 			"agent", a.agentID, "error", err)
 		return
 	}
-	model := a.summaryModel
-	if model == "" {
-		model = a.model
-	}
 	for _, s := range sessions {
 		if ctx.Err() != nil {
 			return
 		}
-		// Double-check idle — user may have come back between scan and now.
 		if !s.UpdatedAt.Before(cutoff) {
 			continue
 		}
-		rawMsgs, err := db.ListSessionMessages(ctx, a.ownerUserID, a.agentID, s.SessionKey)
-		if err != nil {
-			slog.Warn("idle summary: load messages failed",
-				"agent", a.agentID, "session", s.SessionKey, "error", err)
-			continue
-		}
-		if len(rawMsgs) < 2 {
-			continue
-		}
-		msgs := make([]provider.Message, len(rawMsgs))
-		for i, m := range rawMsgs {
-			msgs[i] = provider.Message{Role: m.Role, Content: m.Content, Origin: m.Origin}
-		}
 		slog.Info("idle summary: summarizing quiet session",
 			"agent", a.agentID, "session", s.SessionKey,
-			"messages", len(msgs), "idle_for", time.Since(s.UpdatedAt).Round(time.Minute))
-		// seqStart/seqEnd follow the existing convention (1-based window
-		// over the loaded messages); persistConversationSummary reads
-		// sessions.last_summarized_seq internally to pick full vs merge.
-		persistConversationSummary(ctx, db, a.provider, model, a.embedder,
-			a.ownerUserID, a.agentID, s.SessionKey, s.ChatterUserID,
-			msgs, 1, len(msgs))
+			"messages", s.MessageCount, "idle_for", time.Since(s.UpdatedAt).Round(time.Minute))
+		persistConversationSummary(ctx, db, a.provider, a.summaryModelFor(), a.embedder,
+			a.ownerUserID, a.agentID, s.SessionKey, s.ChatterUserID)
 	}
 }
 
-// persistConversationSummary writes the LLM-extracted topics to the
-// store. Triggered by /compact, new-session, and the idle-session sweep.
+// summaryModelFor returns the configured summary model, falling back to
+// the agent's primary model.
+func (a *Agent) summaryModelFor() string {
+	if a.summaryModel != "" {
+		return a.summaryModel
+	}
+	return a.model
+}
+
+// persistConversationSummary loads a session's messages from the store
+// (each carrying its true DB seq), runs full or incremental extraction,
+// and writes the topic rows. Triggered by /compact, new-session, and
+// the idle-session sweep.
 //
-// Incremental: when the session's sessions.last_summarized_seq > 0, only
-// messages with seq > that value are fed to the LLM, alongside the
-// existing topic list for merge. Old messages are never re-fed. On
-// success the session's rows are replaced with the merged set and
-// last_summarized_seq is advanced. On any failure (LLM, parse, delete),
-// nothing is written and last_summarized_seq stays — the next trigger
-// retries.
+// Incremental: when sessions.last_summarized_seq > 0, only messages
+// with seq > that value are fed to the LLM, alongside the existing
+// topic list for merge. Old messages are never re-fed. On success the
+// session's rows are replaced with the merged set and
+// last_summarized_seq is advanced to the highest seq covered. On any
+// failure (LLM, parse, delete), nothing is written and
+// last_summarized_seq stays — the next trigger retries.
 //
 // Best-effort: logs errors but never propagates them — summary failures
 // must not crash the main conversation flow.
@@ -377,12 +357,20 @@ func persistConversationSummary(
 	model string,
 	emb embedding.Embedder,
 	userID, agentID, sessionKey, chatterUserID string,
-	messages []provider.Message,
-	seqStart, seqEnd int,
 ) {
-	if db == nil || len(messages) == 0 {
+	if db == nil || prov == nil {
 		return
 	}
+	allMsgs, err := db.ListSessionMessages(ctx, userID, agentID, sessionKey)
+	if err != nil {
+		slog.Warn("conversation summary: load messages failed",
+			"agent", agentID, "session", sessionKey, "error", err)
+		return
+	}
+	if len(allMsgs) < 2 {
+		return
+	}
+	maxSeq := allMsgs[len(allMsgs)-1].Seq
 
 	lastSeq := 0
 	if rec, rerr := db.GetSession(ctx, userID, agentID, sessionKey); rerr == nil && rec != nil {
@@ -391,15 +379,15 @@ func persistConversationSummary(
 
 	var (
 		topics      []ExtractedTopic
-		err         error
+		extractErr  error
 		incremental bool
 	)
 	if lastSeq == 0 {
-		topics, err = extractConversationTopics(ctx, prov, model, messages, seqStart, seqEnd)
+		topics, extractErr = extractConversationTopics(ctx, prov, model, allMsgs)
 	} else {
 		incremental = true
-		newMsgs, incStart, incEnd, hasNew := messagesAfterSeq(messages, seqStart, lastSeq)
-		if !hasNew {
+		newMsgs := messagesAfterSeq(allMsgs, lastSeq)
+		if len(newMsgs) == 0 {
 			slog.Debug("conversation summary: no new messages since last summary",
 				"agent", agentID, "session", sessionKey, "last_seq", lastSeq)
 			return
@@ -408,26 +396,22 @@ func persistConversationSummary(
 		if lerr != nil {
 			slog.Warn("conversation summary: list existing failed, falling back to full",
 				"agent", agentID, "session", sessionKey, "error", lerr)
-			topics, err = extractConversationTopics(ctx, prov, model, newMsgs, incStart, incEnd)
+			topics, extractErr = extractConversationTopics(ctx, prov, model, allMsgs)
 		} else {
-			topics, err = mergeConversationTopics(ctx, prov, model, existing, newMsgs, incStart, incEnd)
+			topics, extractErr = mergeConversationTopics(ctx, prov, model, existing, newMsgs)
 		}
 	}
-	if err != nil {
+	if extractErr != nil {
 		slog.Warn("conversation summary extract failed",
-			"agent", agentID, "session", sessionKey, "error", err)
+			"agent", agentID, "session", sessionKey, "error", extractErr)
 		return
 	}
 	if len(topics) == 0 {
 		slog.Debug("conversation summary: nothing to save",
-			"agent", agentID, "session", sessionKey,
-			"seq_range", fmt.Sprintf("%d-%d", seqStart, seqEnd), "incremental", incremental)
+			"agent", agentID, "session", sessionKey, "incremental", incremental)
 		return
 	}
 
-	// Incremental replaces the session's rows with the merged set. A
-	// delete failure aborts without touching last_summarized_seq, so the
-	// next trigger retries the same window.
 	if incremental {
 		if derr := db.DeleteConversationSummariesBySession(ctx, userID, agentID, sessionKey); derr != nil {
 			slog.Warn("conversation summary: delete old failed, aborting incremental",
@@ -443,14 +427,14 @@ func persistConversationSummary(
 
 	saved := 0
 	for _, t := range topics {
-		minSeq, maxSeq := t.Segments[0].S, t.Segments[0].E
+		minSeq, tMaxSeq := t.Segments[0].S, t.Segments[0].E
 		segs := make([][2]int, 0, len(t.Segments))
 		for _, seg := range t.Segments {
 			if seg.S < minSeq {
 				minSeq = seg.S
 			}
-			if seg.E > maxSeq {
-				maxSeq = seg.E
+			if seg.E > tMaxSeq {
+				tMaxSeq = seg.E
 			}
 			segs = append(segs, [2]int{seg.S, seg.E})
 		}
@@ -464,7 +448,7 @@ func persistConversationSummary(
 			Keywords:       t.Keywords,
 			Segments:       segs,
 			SeqStart:       minSeq,
-			SeqEnd:         maxSeq,
+			SeqEnd:         tMaxSeq,
 			EmbeddingModel: embModel,
 			Importance:     t.Importance,
 		})
@@ -495,15 +479,24 @@ func persistConversationSummary(
 		}
 	}
 
-	// Advance last_summarized_seq only after a successful write so a
-	// failure leaves the session ready for a clean retry.
-	if serr := db.SetSessionLastSummarizedSeq(ctx, userID, agentID, sessionKey, seqEnd); serr != nil {
+	if serr := db.SetSessionLastSummarizedSeq(ctx, userID, agentID, sessionKey, maxSeq); serr != nil {
 		slog.Warn("conversation summary: advance last_summarized_seq failed",
 			"agent", agentID, "session", sessionKey, "error", serr)
 	}
 
 	slog.Info("conversation summary saved",
 		"agent", agentID, "session", sessionKey,
-		"seq_range", fmt.Sprintf("%d-%d", seqStart, seqEnd),
-		"topics", saved, "incremental", incremental)
+		"max_seq", maxSeq, "topics", saved, "incremental", incremental)
+}
+
+// messagesAfterSeq returns messages whose Seq is greater than lastSeq.
+// Empty when nothing new has arrived since the last summary.
+func messagesAfterSeq(messages []store.SessionMessage, lastSeq int) []store.SessionMessage {
+	var out []store.SessionMessage
+	for _, m := range messages {
+		if m.Seq > lastSeq {
+			out = append(out, m)
+		}
+	}
+	return out
 }

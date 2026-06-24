@@ -100,7 +100,7 @@ func (a *Agent) handleSlashCommand(msg bus.InboundMessage) slashResult {
 		if oldSess := a.sessions.GetByKey(oldKey); oldSess != nil {
 			oldMsgs := oldSess.GetMessages()
 			if len(oldMsgs) > 0 {
-				a.maybeExtractSummary(oldMsgs, 1, len(oldMsgs), oldSess, "new_session")
+				a.maybeExtractSummary(oldSess, "new_session")
 			}
 		}
 		if msg.Channel == "web" {
@@ -398,7 +398,7 @@ func (a *Agent) slashCompact(msg bus.InboundMessage) slashResult {
 	// this conversation so far" even if there's no token pressure.
 	// The compaction hook only fires on real compaction, so trigger
 	// summary extraction explicitly here.
-	a.maybeExtractSummary(sessionMsgs, 1, len(sessionMsgs), sess, "manual_compact")
+	a.maybeExtractSummary(sess, "manual_compact")
 	return slashResult{handled: true, reply: slashReply("compact_within", map[string]any{"count": len(sessionMsgs)})}
 }
 

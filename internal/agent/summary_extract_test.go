@@ -45,13 +45,13 @@ func TestExtractConversationTopics_HappyPath(t *testing.T) {
 		response: `{"topics":[{"topic":"auth bug fix","summary":"We fixed the bug","keywords":["bug","fix"],"importance":4,"segments":[{"s":100,"e":102}]}]}`,
 	}
 
-	msgs := []provider.Message{
-		{Role: "user", Content: "Hey there's a bug in the auth flow"},
-		{Role: "assistant", Content: "Let me look. Found it — line 42"},
-		{Role: "user", Content: "Great, fixed?"},
+	msgs := []store.SessionMessage{
+		{Seq: 100, Role: "user", Content: "Hey there's a bug in the auth flow"},
+		{Seq: 101, Role: "assistant", Content: "Let me look. Found it — line 42"},
+		{Seq: 102, Role: "user", Content: "Great, fixed?"},
 	}
 
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 100, 200)
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -82,41 +82,37 @@ func TestExtractConversationTopics_MultipleTopics(t *testing.T) {
 			{"topic":"health","summary":"Blood pressure management","keywords":["bp","diet"],"importance":4,"segments":[{"s":4,"e":5},{"s":8,"e":9}]}
 		]}`,
 	}
-	msgs := []provider.Message{
-		{Role: "user", Content: "weather?"},
-		{Role: "assistant", Content: "raining"},
-		{Role: "user", Content: "skip"},
-		{Role: "user", Content: "blood pressure?"},
-		{Role: "assistant", Content: "advice"},
-		{Role: "user", Content: "skip"},
-		{Role: "user", Content: "skip"},
-		{Role: "user", Content: "diet?"},
-		{Role: "assistant", Content: "advice"},
+	msgs := []store.SessionMessage{
+		{Seq: 1, Role: "user", Content: "weather?"},
+		{Seq: 2, Role: "assistant", Content: "raining"},
+		{Seq: 3, Role: "user", Content: "skip"},
+		{Seq: 4, Role: "user", Content: "blood pressure?"},
+		{Seq: 5, Role: "assistant", Content: "advice"},
+		{Seq: 6, Role: "user", Content: "skip"},
+		{Seq: 7, Role: "user", Content: "skip"},
+		{Seq: 8, Role: "user", Content: "diet?"},
+		{Seq: 9, Role: "assistant", Content: "advice"},
 	}
 
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 1, 10)
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
 	if len(topics) != 2 {
 		t.Fatalf("expected 2 topics, got %d", len(topics))
 	}
-	// Second topic has two disjoint segments
 	if len(topics[1].Segments) != 2 {
 		t.Errorf("expected 2 segments on health topic, got %d", len(topics[1].Segments))
 	}
 }
 
 func TestExtractConversationTopics_EmptyTopics(t *testing.T) {
-	mp := &mockSummaryProvider{
-		response: `{"topics":[]}`,
+	mp := &mockSummaryProvider{response: `{"topics":[]}`}
+	msgs := []store.SessionMessage{
+		{Seq: 1, Role: "user", Content: "Hi"},
+		{Seq: 2, Role: "assistant", Content: "Hello"},
 	}
-	msgs := []provider.Message{
-		{Role: "user", Content: "Hi"},
-		{Role: "assistant", Content: "Hello"},
-	}
-
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 1, 2)
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -129,9 +125,8 @@ func TestExtractConversationTopics_JSONWithFences(t *testing.T) {
 	mp := &mockSummaryProvider{
 		response: "```json\n{\"topics\":[{\"topic\":\"x\",\"summary\":\"test\",\"keywords\":[\"x\"],\"importance\":3,\"segments\":[{\"s\":1,\"e\":1}]}]}\n```",
 	}
-	msgs := []provider.Message{{Role: "user", Content: "test"}}
-
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 1, 2)
+	msgs := []store.SessionMessage{{Seq: 1, Role: "user", Content: "test"}}
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -142,7 +137,7 @@ func TestExtractConversationTopics_JSONWithFences(t *testing.T) {
 
 func TestExtractConversationTopics_NoMessages(t *testing.T) {
 	mp := &mockSummaryProvider{}
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", nil, 1, 2)
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", nil)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -157,32 +152,26 @@ func TestExtractConversationTopics_NoMessages(t *testing.T) {
 func TestExtractConversationTopics_SkipsSyntheticOrigin(t *testing.T) {
 	// Messages with Origin set are synthetic (e.g. goal-context continuations).
 	// They must NOT be transcribed — they're scaffolding, not user content.
-	mp := &mockSummaryProvider{
-		response: `{"topics":[]}`,
+	mp := &mockSummaryProvider{response: `{"topics":[]}`}
+	msgs := []store.SessionMessage{
+		{Seq: 1, Role: "user", Content: "real msg"},
+		{Seq: 2, Role: "assistant", Content: "synthetic", Origin: "goal_context"},
 	}
-	msgs := []provider.Message{
-		{Role: "user", Content: "real msg"},
-		{Role: "assistant", Content: "synthetic", Origin: "goal_context"},
-	}
-
-	_, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 1, 2)
+	_, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
-	// LLM was called with only the real msg (transcript non-empty after filtering)
 	if mp.called != 1 {
 		t.Errorf("expected 1 LLM call after filtering synthetic, got %d", mp.called)
 	}
 }
 
 func TestExtractConversationTopics_AllSyntheticShortCircuits(t *testing.T) {
-	// All messages synthetic → transcript empty → no LLM call at all.
 	mp := &mockSummaryProvider{}
-	msgs := []provider.Message{
-		{Role: "assistant", Content: "synthetic", Origin: "goal_context"},
+	msgs := []store.SessionMessage{
+		{Seq: 1, Role: "assistant", Content: "synthetic", Origin: "goal_context"},
 	}
-
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 1, 2)
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -194,7 +183,7 @@ func TestExtractConversationTopics_AllSyntheticShortCircuits(t *testing.T) {
 	}
 }
 
-// LLM 标的 seq 段可能落在窗口外（幻觉数字）。越界的段必须丢弃；
+// LLM 标的 seq 段可能落在消息范围外（幻觉数字）。越界的段必须丢弃；
 // 一个 topic 如果所有段都越界，整个 topic 丢弃。这是不让 LLM
 // 数字污染检索的关键护栏。
 func TestExtractConversationTopics_DropsOutOfRangeSegments(t *testing.T) {
@@ -204,14 +193,13 @@ func TestExtractConversationTopics_DropsOutOfRangeSegments(t *testing.T) {
 			{"topic":"drops-fully-out","summary":"illegal","keywords":["b"],"importance":3,"segments":[{"s":50,"e":60}]}
 		]}`,
 	}
-	msgs := []provider.Message{
-		{Role: "user", Content: "a"},
-		{Role: "assistant", Content: "b"},
-		{Role: "user", Content: "c"},
-		{Role: "assistant", Content: "d"},
+	msgs := []store.SessionMessage{
+		{Seq: 1, Role: "user", Content: "a"},
+		{Seq: 2, Role: "assistant", Content: "b"},
+		{Seq: 3, Role: "user", Content: "c"},
+		{Seq: 4, Role: "assistant", Content: "d"},
 	}
-
-	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs, 1, 10)
+	topics, err := extractConversationTopics(context.Background(), mp, "mock-model", msgs)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -221,7 +209,7 @@ func TestExtractConversationTopics_DropsOutOfRangeSegments(t *testing.T) {
 	if topics[0].Topic != "keeps-in-range" {
 		t.Errorf("wrong topic kept: %+v", topics[0])
 	}
-	// [1,99] has e=99 > 10 → dropped; only [1,3] survives
+	// [1,99] has e=99 > 4 → dropped; only [1,3] survives
 	if len(topics[0].Segments) != 1 || topics[0].Segments[0].E != 3 {
 		t.Errorf("out-of-range segment not dropped: %+v", topics[0].Segments)
 	}
@@ -238,20 +226,19 @@ func TestMergeConversationTopics_ContinuesAndAdds(t *testing.T) {
 	existing := []store.ConversationSummary{
 		{Topic: "health", Summary: "bp advice", Keywords: []string{"bp"}, Segments: [][2]int{{1, 5}}, Importance: 3},
 	}
-	msgs := []provider.Message{
-		{Role: "user", Content: "diet?"},
-		{Role: "assistant", Content: "advice"},
-		{Role: "user", Content: "weather?"},
-		{Role: "assistant", Content: "rain"},
+	msgs := []store.SessionMessage{
+		{Seq: 10, Role: "user", Content: "diet?"},
+		{Seq: 11, Role: "assistant", Content: "advice"},
+		{Seq: 12, Role: "user", Content: "weather?"},
+		{Seq: 13, Role: "assistant", Content: "rain"},
 	}
-	topics, err := mergeConversationTopics(context.Background(), mp, "mock-model", existing, msgs, 10, 13)
+	topics, err := mergeConversationTopics(context.Background(), mp, "mock-model", existing, msgs)
 	if err != nil {
 		t.Fatalf("merge: %v", err)
 	}
 	if len(topics) != 2 {
 		t.Fatalf("expected 2 topics (health continued + weather new), got %d (%+v)", len(topics), topics)
 	}
-	// health 保留 carried-over [1,5] + 新 [10,11]
 	var health *ExtractedTopic
 	for i := range topics {
 		if topics[i].Topic == "health" {
@@ -271,11 +258,11 @@ func TestMergeConversationTopics_DropsOutOfRangeNewSegments(t *testing.T) {
 	mp := &mockSummaryProvider{
 		response: `{"topics":[{"topic":"x","summary":"s","keywords":["k"],"importance":3,"segments":[{"s":10,"e":11},{"s":50,"e":60}]}]}`,
 	}
-	msgs := []provider.Message{
-		{Role: "user", Content: "a"},
-		{Role: "assistant", Content: "b"},
+	msgs := []store.SessionMessage{
+		{Seq: 10, Role: "user", Content: "a"},
+		{Seq: 11, Role: "assistant", Content: "b"},
 	}
-	topics, err := mergeConversationTopics(context.Background(), mp, "mock-model", nil, msgs, 10, 11)
+	topics, err := mergeConversationTopics(context.Background(), mp, "mock-model", nil, msgs)
 	if err != nil {
 		t.Fatalf("merge: %v", err)
 	}

@@ -2964,7 +2964,7 @@ func (d *DBStore) LatestSessionEventSeq(ctx context.Context, userID, agentID, se
 // to sessions.messages should check len() and decide.
 func (d *DBStore) ListSessionMessages(ctx context.Context, userID, agentID, sessionKey string) ([]SessionMessage, error) {
 	rows, err := d.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
+		fmt.Sprintf(`SELECT seq, role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
 			FROM session_messages
 			WHERE user_id = %s AND agent_id = %s AND session_key = %s
 			ORDER BY seq ASC`, d.ph(1), d.ph(2), d.ph(3)),
@@ -2977,7 +2977,7 @@ func (d *DBStore) ListSessionMessages(ctx context.Context, userID, agentID, sess
 	for rows.Next() {
 		var m SessionMessage
 		var contentParts, toolCalls, metadata, rawAssistant string
-		if err := rows.Scan(&m.Role, &m.Content, &contentParts, &toolCalls, &m.ToolCallID, &m.Name, &metadata, &m.Thinking, &rawAssistant, &m.Origin, &m.Timestamp); err != nil {
+		if err := rows.Scan(&m.Seq, &m.Role, &m.Content, &contentParts, &toolCalls, &m.ToolCallID, &m.Name, &metadata, &m.Thinking, &rawAssistant, &m.Origin, &m.Timestamp); err != nil {
 			return nil, err
 		}
 		if contentParts != "" && contentParts != "null" {
@@ -4519,7 +4519,7 @@ func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID,
 	}
 	args = append(args, chatterUserID)
 	rows, err := d.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
+		fmt.Sprintf(`SELECT seq, role, content, content_parts, tool_calls, tool_call_id, name, metadata, thinking, raw_assistant, origin, created_at
 			FROM session_messages
 			WHERE user_id = %s AND agent_id = %s AND session_key = %s
 			  AND (%s)
@@ -4535,7 +4535,7 @@ func (d *DBStore) ListSessionMessagesBySeq(ctx context.Context, userID, agentID,
 	for rows.Next() {
 		var m SessionMessage
 		var contentParts, toolCalls, metadata, rawAssistant string
-		if err := rows.Scan(&m.Role, &m.Content, &contentParts, &toolCalls, &m.ToolCallID, &m.Name, &metadata, &m.Thinking, &rawAssistant, &m.Origin, &m.Timestamp); err != nil {
+		if err := rows.Scan(&m.Seq, &m.Role, &m.Content, &contentParts, &toolCalls, &m.ToolCallID, &m.Name, &metadata, &m.Thinking, &rawAssistant, &m.Origin, &m.Timestamp); err != nil {
 			return nil, err
 		}
 		if contentParts != "" && contentParts != "null" {

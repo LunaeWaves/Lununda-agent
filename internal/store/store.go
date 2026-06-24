@@ -532,6 +532,12 @@ type SessionRecord struct {
 
 // SessionMessage is a single message in a session.
 type SessionMessage struct {
+	// Seq is the message's position in session_messages (0-based,
+	// COALESCE(MAX(seq),-1)+1). Populated by ListSessionMessages /
+	// ListSessionMessagesBySeq; zero on freshly-constructed rows that
+	// haven't been appended yet. Carries the true DB seq up to the
+	// summary path so topic segments point at real rows.
+	Seq          int                  `json:"seq,omitempty"`
 	Role         string                 `json:"role"`
 	Content      string                 `json:"content"`
 	ContentParts interface{}            `json:"contentParts,omitempty"`
