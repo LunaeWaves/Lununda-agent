@@ -79,6 +79,13 @@ type Registry struct {
 	// Wired by the manager from store.RecordSkillUsage; nil → no-op.
 	skillUsageRecorder SkillUsageRecorder
 
+	// ephemeral marks tools whose results the agent loop must not persist
+	// to session_messages (e.g. load_skill's INTERNAL CONTEXT — large
+	// system instructions that pollute retrieval). The result still
+	// reaches the LLM this turn via in-memory messages; it's just not
+	// archived. Lazily initialized by MarkEphemeral.
+	ephemeral map[string]bool
+
 	// summaryDB is the relational store handle used by memory_search to
 	// query conversation_summaries across sessions. Wired after Agent
 	// construction by the manager (dataStore isn't available at
@@ -717,6 +724,21 @@ func (r *Registry) Close() {
 // Register adds a tool to the registry (as a built-in tool).
 func (r *Registry) Register(name, description string, parameters interface{}, fn ToolFunc) {
 	r.RegisterFrom(name, description, parameters, fn, SourceBuiltin)
+}
+
+// MarkEphemeral declares that results from `name` must not be persisted
+// to session_messages. Used by tools like load_skill whose output is
+// large system context meant for the current turn only.
+func (r *Registry) MarkEphemeral(name string) {
+	if r.ephemeral == nil {
+		r.ephemeral = make(map[string]bool)
+	}
+	r.ephemeral[name] = true
+}
+
+// IsEphemeral reports whether `name`'s results are marked non-persistent.
+func (r *Registry) IsEphemeral(name string) bool {
+	return r.ephemeral[name]
 }
 
 // RegisterFrom adds a tool to the registry with an explicit source.

@@ -128,6 +128,7 @@ type toolCallResult struct {
 	toolName   string
 	result     string
 	err        error
+	ephemeral  bool
 }
 
 // executeToolsConcurrently runs tool calls using the SDK's concurrent executor.
@@ -218,6 +219,9 @@ func (e *sdkEngine) executeToolsConcurrently(ctx context.Context, fcRegistry *to
 				result:     resultText,
 			}
 		}
+	}
+	for i := range results {
+		results[i].ephemeral = fcRegistry.IsEphemeral(results[i].toolName)
 	}
 	return results
 }

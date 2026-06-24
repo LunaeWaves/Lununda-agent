@@ -25,6 +25,12 @@ func RegisterLoadSkill(r *Registry, skillDirs []string) {
 		},
 		"required": []string{"name"},
 	}, makeLoadSkill(r, skillDirs))
+	// load_skill returns the full SKILL.md wrapped as INTERNAL CONTEXT —
+	// large system instructions that must reach the LLM this turn but
+	// should never be archived into session_messages (they pollute
+	// retrieval and bloat history). Mark ephemeral so the agent loop
+	// skips persist on both the tool_use and its result.
+	r.MarkEphemeral("load_skill")
 }
 
 func makeLoadSkill(r *Registry, skillDirs []string) ToolFunc {

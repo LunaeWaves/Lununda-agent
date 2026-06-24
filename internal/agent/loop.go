@@ -2268,7 +2268,22 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			Timestamp:    time.Now().UnixMilli(),
 			RawAssistant: resp.RawAssistant,
 		}
-		sess.Append(assistantMsg)
+		// Strip ephemeral tool_uses before persisting — their results
+		// aren't archived either (see result loop), so keeping the
+		// tool_use would orphan it on the next turn's API call. The
+		// full ToolCalls stay in the in-memory messages slice so the
+		// LLM still executes them this turn.
+		persistMsg := assistantMsg
+		if len(assistantMsg.ToolCalls) > 0 {
+			kept := make([]provider.ToolCall, 0, len(assistantMsg.ToolCalls))
+			for _, tc := range assistantMsg.ToolCalls {
+				if !a.registry.IsEphemeral(tc.Function.Name) {
+					kept = append(kept, tc)
+				}
+			}
+			persistMsg.ToolCalls = kept
+		}
+		sess.Append(persistMsg)
 		messages = append(messages, assistantMsg)
 
 		// Loop detection: check before executing
@@ -2441,7 +2456,10 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			// Registry.PriorFailure / web_fetch).
 			thisFailed := isFailedToolResult(r.err, resultContent)
 			if thisFailed {
-				summary := r.err.Error()
+				summary := ""
+				if r.err != nil {
+					summary = r.err.Error()
+				}
 				if summary == "" || summary == "<nil>" {
 					summary = firstNonEmptyLine(resultContent)
 				}
@@ -2464,8 +2482,12 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 				Name:       r.toolName,
 				Metadata:   meta,
 			}
-			sess.Append(toolMsg)
-			messages = append(messages, toolMsg)
+			if r.ephemeral {
+				messages = append(messages, toolMsg)
+			} else {
+				sess.Append(toolMsg)
+				messages = append(messages, toolMsg)
+			}
 
 			evt := map[string]any{
 				"id":     tc.ID,
@@ -3103,7 +3125,22 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 			Timestamp:    time.Now().UnixMilli(),
 			RawAssistant: resp.RawAssistant,
 		}
-		sess.Append(assistantMsg)
+		// Strip ephemeral tool_uses before persisting — their results
+		// aren't archived either (see result loop), so keeping the
+		// tool_use would orphan it on the next turn's API call. The
+		// full ToolCalls stay in the in-memory messages slice so the
+		// LLM still executes them this turn.
+		persistMsg := assistantMsg
+		if len(assistantMsg.ToolCalls) > 0 {
+			kept := make([]provider.ToolCall, 0, len(assistantMsg.ToolCalls))
+			for _, tc := range assistantMsg.ToolCalls {
+				if !a.registry.IsEphemeral(tc.Function.Name) {
+					kept = append(kept, tc)
+				}
+			}
+			persistMsg.ToolCalls = kept
+		}
+		sess.Append(persistMsg)
 		messages = append(messages, assistantMsg)
 
 		// Loop detection
@@ -3176,8 +3213,12 @@ func (a *Agent) HandleMessageStream(ctx context.Context, msg bus.InboundMessage)
 				}
 
 				toolMsg := provider.Message{Role: "tool", Content: resultContent, ToolCallID: tc.ID, Name: r.toolName, Metadata: meta}
-				sess.Append(toolMsg)
-				messages = append(messages, toolMsg)
+				if r.ephemeral {
+					messages = append(messages, toolMsg)
+				} else {
+					sess.Append(toolMsg)
+					messages = append(messages, toolMsg)
+				}
 			}
 		}
 	}
