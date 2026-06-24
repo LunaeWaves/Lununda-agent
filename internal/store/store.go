@@ -97,6 +97,12 @@ type Store interface {
 	// the prior thread; the UI thaws it to resume. A frozen session
 	// rejects inbound messages at the chat handler.
 	SetSessionFrozen(ctx context.Context, userID, agentID, sessionKey string, frozen bool) error
+	// SetSessionLastSummarizedSeq records the highest session_messages.seq
+	// the conversation summary has covered, so the next summary trigger
+	// runs incremental (only newer messages) instead of full. Stamped
+	// after a successful persist by every trigger path (compact,
+	// new-session, idle sweep).
+	SetSessionLastSummarizedSeq(ctx context.Context, userID, agentID, sessionKey string, seq int) error
 	// ResolveActiveSessionKey returns the most recently updated session_key
 	// for the (channel, accountID, chatID) triple, or ErrNotFound. Used by
 	// IM routing to pick the conversation thread an inbound message
@@ -510,6 +516,12 @@ type SessionRecord struct {
 	// /new so the prior thread can't be accidentally resumed; cleared to
 	// resume. Lives on the sessions row, independent of Messages.
 	Frozen bool `json:"frozen,omitempty"`
+	// LastSummarizedSeq is the highest session_messages.seq the
+	// conversation summary has covered. 0 = never summarized (full
+	// extraction next trigger); >0 = next extraction is incremental
+	// (only messages with seq > this value). Managed by the summary
+	// path, independent of Messages.
+	LastSummarizedSeq int `json:"lastSummarizedSeq,omitempty"`
 }
 
 // SessionMessage is a single message in a session.

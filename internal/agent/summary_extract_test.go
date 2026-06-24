@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/LunaeWaves/Lununda-agent/internal/provider"
+	"github.com/LunaeWaves/Lununda-agent/internal/store"
 )
 
 type mockSummaryProvider struct {
@@ -223,5 +224,66 @@ func TestExtractConversationTopics_DropsOutOfRangeSegments(t *testing.T) {
 	// [1,99] has e=99 > 10 → dropped; only [1,3] survives
 	if len(topics[0].Segments) != 1 || topics[0].Segments[0].E != 3 {
 		t.Errorf("out-of-range segment not dropped: %+v", topics[0].Segments)
+	}
+}
+
+// 增量 merge：旧话题 carried-over segment 保留 + 新段在 window 内追加。
+func TestMergeConversationTopics_ContinuesAndAdds(t *testing.T) {
+	mp := &mockSummaryProvider{
+		response: `{"topics":[
+			{"topic":"health","summary":"bp + diet advice","keywords":["bp","diet"],"importance":4,"segments":[{"s":1,"e":5},{"s":10,"e":11}]},
+			{"topic":"weather","summary":"rained","keywords":["rain"],"importance":1,"segments":[{"s":12,"e":13}]}
+		]}`,
+	}
+	existing := []store.ConversationSummary{
+		{Topic: "health", Summary: "bp advice", Keywords: []string{"bp"}, Segments: [][2]int{{1, 5}}, Importance: 3},
+	}
+	msgs := []provider.Message{
+		{Role: "user", Content: "diet?"},
+		{Role: "assistant", Content: "advice"},
+		{Role: "user", Content: "weather?"},
+		{Role: "assistant", Content: "rain"},
+	}
+	topics, err := mergeConversationTopics(context.Background(), mp, "mock-model", existing, msgs, 10, 13)
+	if err != nil {
+		t.Fatalf("merge: %v", err)
+	}
+	if len(topics) != 2 {
+		t.Fatalf("expected 2 topics (health continued + weather new), got %d (%+v)", len(topics), topics)
+	}
+	// health 保留 carried-over [1,5] + 新 [10,11]
+	var health *ExtractedTopic
+	for i := range topics {
+		if topics[i].Topic == "health" {
+			health = &topics[i]
+		}
+	}
+	if health == nil {
+		t.Fatal("health topic missing from merge output")
+	}
+	if len(health.Segments) != 2 {
+		t.Errorf("health should carry [1,5]+[10,11], got %+v", health.Segments)
+	}
+}
+
+// 增量 merge 的新 segment 越界（不在新 window，也不在 existing）→ 丢弃。
+func TestMergeConversationTopics_DropsOutOfRangeNewSegments(t *testing.T) {
+	mp := &mockSummaryProvider{
+		response: `{"topics":[{"topic":"x","summary":"s","keywords":["k"],"importance":3,"segments":[{"s":10,"e":11},{"s":50,"e":60}]}]}`,
+	}
+	msgs := []provider.Message{
+		{Role: "user", Content: "a"},
+		{Role: "assistant", Content: "b"},
+	}
+	topics, err := mergeConversationTopics(context.Background(), mp, "mock-model", nil, msgs, 10, 11)
+	if err != nil {
+		t.Fatalf("merge: %v", err)
+	}
+	if len(topics) != 1 {
+		t.Fatalf("expected 1 topic, got %d", len(topics))
+	}
+	// [50,60] 不在新 window 10-11 也不在 existing(空) → 丢弃，只留 [10,11]
+	if len(topics[0].Segments) != 1 || topics[0].Segments[0].E != 11 {
+		t.Errorf("out-of-range new segment not dropped: %+v", topics[0].Segments)
 	}
 }

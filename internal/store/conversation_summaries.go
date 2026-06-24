@@ -714,6 +714,69 @@ func (d *DBStore) ListConversationSummariesByAgent(ctx context.Context, agentID 
 	return scanConversationSummaries(rows)
 }
 
+// ListConversationSummariesBySession returns every topic row for one
+// session (across the session's lifetime), ordered by creation. Used by
+// the incremental summary path to feed the LLM the existing topic list
+// for merge. Empty slice for a session that has never been summarized.
+func (d *DBStore) ListConversationSummariesBySession(ctx context.Context, userID, agentID, sessionKey string) ([]ConversationSummary, error) {
+	var rows *sql.Rows
+	var err error
+	switch d.dialect {
+	case "postgres":
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
+			 FROM conversation_summaries
+			 WHERE user_id = $1 AND agent_id = $2 AND session_key = $3
+			 ORDER BY created_at`, userID, agentID, sessionKey)
+	default:
+		rows, err = d.db.QueryContext(ctx,
+			`SELECT id, user_id, agent_id, session_key, chatter_user_id,
+			        summary, keywords, seq_start, seq_end, embedding_model, importance, access_count, last_accessed_at, created_at, topic, segments
+			 FROM conversation_summaries
+			 WHERE user_id = ? AND agent_id = ? AND session_key = ?
+			 ORDER BY created_at`, userID, agentID, sessionKey)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanConversationSummaries(rows)
+}
+
+// DeleteConversationSummariesBySession removes every topic row (main +
+// vector) for one session. Called by the incremental summary path before
+// writing the merged topic list — the LLM returns the full updated set,
+// so old rows are dropped and the new set inserted in their place.
+func (d *DBStore) DeleteConversationSummariesBySession(ctx context.Context, userID, agentID, sessionKey string) error {
+	if d.dialect == "postgres" {
+		_, err := d.db.ExecContext(ctx,
+			`DELETE FROM conversation_summaries WHERE user_id = $1 AND agent_id = $2 AND session_key = $3`,
+			userID, agentID, sessionKey)
+		return err
+	}
+	// SQLite: vec0 lives in a separate virtual table keyed by summary_id.
+	// Delete its orphans first, then the main rows, in one tx so a
+	// partial delete can't leave the session half-summarized.
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM conversation_summaries_vec WHERE summary_id IN (
+			SELECT id FROM conversation_summaries WHERE user_id = ? AND agent_id = ? AND session_key = ?)`,
+		userID, agentID, sessionKey); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM conversation_summaries WHERE user_id = ? AND agent_id = ? AND session_key = ?`,
+		userID, agentID, sessionKey); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // ClearConversationSummaryVectors deletes every row from the vector
 // table. Called before a rebuild.
 func (d *DBStore) ClearConversationSummaryVectors(ctx context.Context) error {

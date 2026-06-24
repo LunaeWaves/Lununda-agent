@@ -155,6 +155,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateSessionsAddFrozen(ctx); err != nil {
 		return fmt.Errorf("migrate sessions.frozen: %w", err)
 	}
+	if err := d.migrateSessionsAddLastSummarizedSeq(ctx); err != nil {
+		return fmt.Errorf("migrate sessions.last_summarized_seq: %w", err)
+	}
 	if err := d.migrateKBSourcesAddWikiGeneratedAt(ctx); err != nil {
 		return fmt.Errorf("migrate kb_sources.wiki_generated_at: %w", err)
 	}
@@ -674,6 +677,39 @@ func (d *DBStore) migrateSessionsAddFrozen(ctx context.Context) error {
 		return fmt.Errorf("add column: %w", err)
 	}
 	return nil
+}
+
+// migrateSessionsAddLastSummarizedSeq adds the last_summarized_seq column
+// to sessions. Default 0 (never summarized). Idempotent.
+func (d *DBStore) migrateSessionsAddLastSummarizedSeq(ctx context.Context) error {
+	has, err := d.tableHasColumn(ctx, "sessions", "last_summarized_seq")
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	if _, err := d.db.ExecContext(ctx,
+		`ALTER TABLE sessions ADD COLUMN last_summarized_seq INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return fmt.Errorf("add column last_summarized_seq: %w", err)
+	}
+	return nil
+}
+
+// SetSessionLastSummarizedSeq records the highest seq the conversation
+// summary has covered. Stamped after a successful persist so the next
+// trigger runs incremental (only seq > this value).
+func (d *DBStore) SetSessionLastSummarizedSeq(ctx context.Context, userID, agentID, sessionKey string, seq int) error {
+	if d.dialect == "postgres" {
+		_, err := d.db.ExecContext(ctx,
+			`UPDATE sessions SET last_summarized_seq=$1 WHERE user_id=$2 AND agent_id=$3 AND session_key=$4`,
+			seq, userID, agentID, sessionKey)
+		return err
+	}
+	_, err := d.db.ExecContext(ctx,
+		`UPDATE sessions SET last_summarized_seq=? WHERE user_id=? AND agent_id=? AND session_key=?`,
+		seq, userID, agentID, sessionKey)
+	return err
 }
 
 // SetSessionFrozen toggles sessions.frozen. /new freezes the prior
@@ -1657,6 +1693,7 @@ func (d *DBStore) migrationSQL() []string {
 			-- user_id in that case.
 			chatter_user_id TEXT NOT NULL DEFAULT '',
 			frozen INTEGER NOT NULL DEFAULT 0,
+			last_summarized_seq INTEGER NOT NULL DEFAULT 0,
 			PRIMARY KEY (user_id, agent_id, session_key)
 		)`,
 		// Index creation is moved to migrateSessionsAddChannelTriple so
@@ -2549,12 +2586,12 @@ func scanAgents(rows *sql.Rows) ([]AgentRecord, error) {
 
 func (d *DBStore) GetSession(ctx context.Context, userID, agentID, sessionKey string) (*SessionRecord, error) {
 	row := d.db.QueryRowContext(ctx,
-		fmt.Sprintf(`SELECT messages, channel, account_id, chat_id, project_id, updated_at, frozen FROM sessions WHERE user_id = %s AND agent_id = %s AND session_key = %s`,
+		fmt.Sprintf(`SELECT messages, channel, account_id, chat_id, project_id, updated_at, frozen, last_summarized_seq FROM sessions WHERE user_id = %s AND agent_id = %s AND session_key = %s`,
 			d.ph(1), d.ph(2), d.ph(3)),
 		userID, agentID, sessionKey)
 	var msgsStr string
 	var rec SessionRecord
-	if err := row.Scan(&msgsStr, &rec.Channel, &rec.AccountID, &rec.ChatID, &rec.ProjectID, &rec.UpdatedAt, &rec.Frozen); err != nil {
+	if err := row.Scan(&msgsStr, &rec.Channel, &rec.AccountID, &rec.ChatID, &rec.ProjectID, &rec.UpdatedAt, &rec.Frozen, &rec.LastSummarizedSeq); err != nil {
 		return nil, scanErr(err)
 	}
 	json.Unmarshal([]byte(msgsStr), &rec.Messages)
