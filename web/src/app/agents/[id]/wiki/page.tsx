@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -54,6 +56,9 @@ import {
   getWikiGraph,
   listKBSources,
   type KBSource,
+  type WikiAutoGenCfg,
+  getAgentMemory,
+  setAgentMemory,
 } from "@/lib/api";
 import { useAgentIdFromURL } from "@/hooks/use-agent-id";
 import { useAgentName } from "@/hooks/use-agent-name";
@@ -87,6 +92,12 @@ export default function WikiPage() {
   // KB sources for generation
   const [kbSources, setKbSources] = useState<KBSource[]>([]);
 
+  // Background auto-generation config (memory.wikiAutoGen). Loaded once,
+  // saved via spread so we never clobber sibling memory fields.
+  const [wikiCfg, setWikiCfg] = useState<WikiAutoGenCfg>({ enabled: false });
+  const [wikiSaving, setWikiSaving] = useState(false);
+  const wikiSavingRef = useRef(false);
+
   const loadData = useCallback(async () => {
     if (!agentId) return;
     setLoading(true);
@@ -110,6 +121,29 @@ export default function WikiPage() {
     if (!agentId) return;
     listKBSources(agentId).then(setKbSources).catch(() => {});
   }, [agentId]);
+
+  // Load auto-gen config
+  useEffect(() => {
+    if (!agentId) return;
+    getAgentMemory(agentId)
+      .then((m) => setWikiCfg(m.memory?.wikiAutoGen || { enabled: false }))
+      .catch(() => {});
+  }, [agentId]);
+
+  const saveWikiCfg = async (next: WikiAutoGenCfg) => {
+    if (wikiSavingRef.current) return;
+    wikiSavingRef.current = true;
+    setWikiCfg(next);
+    setWikiSaving(true);
+    try {
+      const cur = await getAgentMemory(agentId).catch(() => null);
+      const base = cur?.memory || {};
+      await setAgentMemory(agentId, { ...base, wikiAutoGen: next });
+    } finally {
+      setWikiSaving(false);
+      wikiSavingRef.current = false;
+    }
+  };
 
   const handleSelectPage = useCallback(
     async (pageId: string) => {
@@ -314,6 +348,40 @@ export default function WikiPage() {
             <p className="text-xs text-muted-foreground mt-1">
               {t("wiki.pageStats", { pages: stats.total_pages, links: stats.total_edges })}
             </p>
+          )}
+        </div>
+
+        {/* Auto-generation config */}
+        <div className="p-3 border-b space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">{t("wiki.autoGen")}</span>
+            <Switch
+              checked={wikiCfg.enabled}
+              onCheckedChange={(v) => saveWikiCfg({ ...wikiCfg, enabled: v })}
+              disabled={wikiSaving}
+            />
+          </div>
+          {wikiCfg.enabled && (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs text-muted-foreground">{t("wiki.autoGenInterval")}</label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-16 h-7 text-xs"
+                    value={wikiCfg.interval ? Math.round(wikiCfg.interval / 3600000000000) : 6}
+                    onChange={(e) => {
+                      const hours = Math.max(1, Number(e.target.value) || 6);
+                      saveWikiCfg({ ...wikiCfg, interval: hours * 3600000000000 });
+                    }}
+                    disabled={wikiSaving}
+                  />
+                  <span className="text-xs text-muted-foreground">{t("wiki.autoGenHours")}</span>
+                </div>
+              </div>
+              <p className="text-[11px] leading-tight text-muted-foreground">{t("wiki.autoGenHint")}</p>
+            </>
           )}
         </div>
 

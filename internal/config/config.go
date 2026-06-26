@@ -237,7 +237,12 @@ type MemoryCfg struct {
 	// verdicts → cluster synthesis → proposals (Plan 2-4). Disabled by
 	// default — synthesis burns tokens, owner opts in.
 	SkillEvolution SkillEvolutionCfg `json:"skillEvolution,omitempty"`
-	AutoTitle      AutoTitleCfg      `json:"autoTitle,omitempty"`
+	// WikiAutoGen drives the background wiki generator: every Interval,
+	// the gateway ticker scans the agent's KB for sources whose
+	// wiki_generated_at is NULL and runs the two-step wiki pipeline on
+	// each. Disabled by default — burns tokens like the skill curator.
+	WikiAutoGen WikiAutoGenCfg `json:"wikiAutoGen,omitempty"`
+	AutoTitle    AutoTitleCfg   `json:"autoTitle,omitempty"`
 	Embedding      EmbeddingCfg      `json:"embedding,omitempty"`
 	Reranker       RerankerCfg       `json:"reranker,omitempty"`
 	Settings       MemorySettingsCfg `json:"settings,omitempty"`
@@ -298,6 +303,16 @@ type SkillEvolutionCfg struct {
 	Notify             NotifyCfg     `json:"notify,omitempty"`
 	StaleAfter         time.Duration `json:"staleAfter,omitempty"` // 默认 90*24h；0 = 禁用 stale 检测
 	Pinned             []string      `json:"pinned,omitempty"`     // skill names never marked stale
+}
+
+// WikiAutoGenCfg drives the background wiki generator (gateway central
+// ticker): every Interval, scan the agent's KB for sources whose
+// wiki_generated_at is NULL and run the two-step wiki pipeline on each.
+// Disabled by default — burns tokens like the skill curator.
+type WikiAutoGenCfg struct {
+	Enabled  bool          `json:"enabled"`
+	Interval time.Duration `json:"interval,omitempty"` // 默认 6h
+	Model    string        `json:"model,omitempty"`    // empty = agent 默认 model
 }
 
 // NotifyCfg routes the "new proposal ready" ping to one specific chat.

@@ -290,6 +290,11 @@ func (s *KBStore) ListSources(ctx context.Context, agentID string, limit, offset
 		}
 		src.CreatedAt, _ = time.Parse(time.RFC3339, createdAt.String)
 		src.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt.String)
+		if wikiGeneratedAt.Valid && wikiGeneratedAt.String != "" {
+			if t, err := time.Parse(time.RFC3339, wikiGeneratedAt.String); err == nil {
+				src.WikiGeneratedAt = &t
+			}
+		}
 		sources = append(sources, src)
 	}
 	return sources, nil

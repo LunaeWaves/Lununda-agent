@@ -343,6 +343,13 @@ type Store interface {
 	// SetStaleArchiveLastRun UPSERTs the agent's last stale-archive run timestamp.
 	SetStaleArchiveLastRun(ctx context.Context, agentID string, t time.Time) error
 
+	// GetWikiAutoGenLastRun returns the agent's last background wiki-generation
+	// run; zero when never run. Used by the gateway central ticker to gate on
+	// WikiAutoGen.Interval.
+	GetWikiAutoGenLastRun(ctx context.Context, agentID string) (time.Time, error)
+	// SetWikiAutoGenLastRun UPSERTs the agent's last wiki-generation run timestamp.
+	SetWikiAutoGenLastRun(ctx context.Context, agentID string, t time.Time) error
+
 	// --- IM owner-identity claim (verification code) ---
 	//
 	// Web-side owner (authenticated) mints a one-time code via

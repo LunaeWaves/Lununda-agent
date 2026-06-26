@@ -655,6 +655,10 @@ const zhCN: Record<string, string> = {
   "wiki.forceRegenFull": "强制重新生成全部",
   "wiki.pageStats": "{pages} 页 · {links} 链接",
   "wiki.sourcesProcessed": "{done} 个源已处理，共 {total} 个",
+  "wiki.autoGen": "自动生成",
+  "wiki.autoGenInterval": "扫描间隔",
+  "wiki.autoGenHours": "小时",
+  "wiki.autoGenHint": "后台每小时检查，为新增的知识库源自动生成 Wiki。",
 
   // Admin
   "admin.loadChatsFailed": "加载对话失败",

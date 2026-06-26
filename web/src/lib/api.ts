@@ -1525,6 +1525,7 @@ export interface MemoryConfig {
   settings?: { enabled?: boolean; reindexIntervalMin?: number };
   summaryModel?: string;
   skillEvolution?: SkillEvolutionCfg;
+  wikiAutoGen?: WikiAutoGenCfg;
 }
 
 export interface AgentMemoryResponse {
@@ -1667,6 +1668,12 @@ export interface SkillEvolutionCfg {
   model?: string;
   notify?: SkillEvolutionNotifyCfg;
   pinned?: string[];
+}
+
+export interface WikiAutoGenCfg {
+  enabled: boolean;
+  interval?: number; // 纳秒（Go time.Duration JSON）；undefined = 默认 6 小时
+  model?: string;    // undefined = agent 默认 model
 }
 
 // assertOk throws on non-2xx with the backend's error body when available,

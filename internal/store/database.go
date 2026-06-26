@@ -185,6 +185,9 @@ func (d *DBStore) Migrate(ctx context.Context) error {
 	if err := d.migrateSkillEvolutionStaleRun(ctx); err != nil {
 		return fmt.Errorf("migrate skill_evolution_state.stale_last_run_at: %w", err)
 	}
+	if err := d.migrateSkillEvolutionWikiRun(ctx); err != nil {
+		return fmt.Errorf("migrate skill_evolution_state.wiki_last_run_at: %w", err)
+	}
 	return nil
 }
 
@@ -3891,6 +3894,55 @@ func (d *DBStore) SetStaleArchiveLastRun(ctx context.Context, agentID string, t 
 		d.ph(1), d.ph(2)), agentID, t.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("set stale archive last_run: %w", err)
+	}
+	return nil
+}
+
+// migrateSkillEvolutionWikiRun adds wiki_last_run_at to skill_evolution_state
+// so the gateway wiki auto-gen ticker can gate per-agent on WikiAutoGen.Interval
+// without a separate table. Idempotent via tableHasColumn.
+func (d *DBStore) migrateSkillEvolutionWikiRun(ctx context.Context) error {
+	has, err := d.tableHasColumn(ctx, "skill_evolution_state", "wiki_last_run_at")
+	if err != nil {
+		return fmt.Errorf("check wiki_last_run_at: %w", err)
+	}
+	if has {
+		return nil
+	}
+	if _, err := d.db.ExecContext(ctx,
+		`ALTER TABLE skill_evolution_state ADD COLUMN wiki_last_run_at TEXT NOT NULL DEFAULT ''`); err != nil {
+		return fmt.Errorf("add wiki_last_run_at: %w", err)
+	}
+	return nil
+}
+
+// GetWikiAutoGenLastRun returns the agent's last background wiki-generation run;
+// zero when never run. Used by the gateway central ticker to gate on
+// WikiAutoGen.Interval.
+func (d *DBStore) GetWikiAutoGenLastRun(ctx context.Context, agentID string) (time.Time, error) {
+	var s string
+	err := d.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT wiki_last_run_at FROM skill_evolution_state WHERE agent_id = %s`, d.ph(1)), agentID).Scan(&s)
+	if err == sql.ErrNoRows {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
+}
+
+// SetWikiAutoGenLastRun UPSERTs the agent's last wiki-generation run timestamp.
+func (d *DBStore) SetWikiAutoGenLastRun(ctx context.Context, agentID string, t time.Time) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf(
+		`INSERT INTO skill_evolution_state (agent_id, wiki_last_run_at) VALUES (%s, %s)
+		 ON CONFLICT (agent_id) DO UPDATE SET wiki_last_run_at = excluded.wiki_last_run_at`,
+		d.ph(1), d.ph(2)), agentID, t.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("set wiki auto-gen last_run: %w", err)
 	}
 	return nil
 }

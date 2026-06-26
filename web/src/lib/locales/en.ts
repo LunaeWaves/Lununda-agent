@@ -655,6 +655,10 @@ const en: Record<string, string> = {
   "wiki.forceRegenFull": "Force regenerate all",
   "wiki.pageStats": "{pages} pages · {links} links",
   "wiki.sourcesProcessed": "{done} of {total} sources processed, ",
+  "wiki.autoGen": "Auto-generate",
+  "wiki.autoGenInterval": "Scan every",
+  "wiki.autoGenHours": "hours",
+  "wiki.autoGenHint": "Background sweep each hour auto-generates Wiki pages for new KB sources.",
 
   // Admin
   "admin.loadChatsFailed": "Failed to load chats",

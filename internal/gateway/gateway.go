@@ -644,6 +644,15 @@ func (g *Gateway) Run() error {
 		defer wg.Done()
 		g.staleArchiveTicker(ctx)
 	}()
+	// Wiki auto-generation: hourly central ticker walks every agent with
+	// memory.wikiAutoGen.enabled and generates wiki pages for KB sources
+	// whose wiki_generated_at is NULL. Decoupled from chat traffic so new
+	// KB content still gets processed while the agent is idle.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		g.wikiAutoGenTicker(ctx)
+	}()
 	// Idle session summary sweep: summarize sessions the user ended by
 	// walking away (never /compact, never /new) so their content still
 	// enters cross-session recall. Default 10min interval, 24h idle
