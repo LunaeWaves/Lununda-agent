@@ -52,7 +52,7 @@ func RegisterCronTools(r *Registry, st store.Store, userID, agentID string) {
 				},
 				"type": map[string]interface{}{
 					"type":        "string",
-					"description": "Schedule type. Use 'once' for one-shot reminders ('5 分钟后…'), 'cron' for calendar-style recurring schedules ('每天 9 点'), or 'interval' for fixed-period polling ('每 30 分钟检查一次'). Defaults to 'cron'.",
+					"description": "Schedule type — match the user's phrasing precisely. 'once' = delayed one-shot (fires a single time then auto-deletes) for 'X 后 / 分钟后 / 小时后 / in X' (e.g. '1分钟后发', '5 分钟后提醒', '2 小时后叫我'); 'interval' = fixed-period RECURRING for '每 X / every X' (e.g. '每 30 分钟检查', 'every 2 hours'); 'cron' = calendar RECURRING for '每天 / 每周 X 点' (e.g. '每天 9 点', '0 9 * * *'). CRITICAL: when the user says 'X 后' or 'in X minutes/hours', ALWAYS pick 'once' — it fires once and stops — never 'interval' (which repeats forever). Defaults to 'cron'.",
 					"enum":        []string{"cron", "interval", "once"},
 				},
 			},
