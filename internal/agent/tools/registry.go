@@ -141,8 +141,13 @@ type Registry struct {
 	// scheduler later fires, it routes the synthesized inbound message
 	// back to the same channel/chatID the user was talking on, so the
 	// reminder lands in the right web/Telegram/Discord thread.
-	messageChannel string
-	messageChatID  string
+	// messageAccountID disambiguates which bot adapter within the channel
+	// owns the chat (e.g. which wechat bot account) — the cron
+	// scheduler's pre-flight uses (channel, accountID) to confirm the
+	// destination adapter is still registered before firing.
+	messageChannel  string
+	messageAccountID string
+	messageChatID   string
 	// goalSessionKey is the persistent session_key (session.Session's
 	// opaque identifier) for the in-flight turn — distinct from
 	// sessionID above, which is just the channel's chatID. Goal tools
@@ -633,15 +638,21 @@ func (r *Registry) wsPath(p string) string {
 // SetMessageContext records the bus address of the in-flight turn so
 // tools that persist deferred work (cron jobs) can capture it for
 // later replay. Channel is e.g. "web" / "telegram" / "discord";
+// accountID is the bot account within the channel (empty for web/api);
 // chatID is the thread/session identifier within that channel.
-func (r *Registry) SetMessageContext(channel, chatID string) {
+func (r *Registry) SetMessageContext(channel, accountID, chatID string) {
 	r.messageChannel = channel
+	r.messageAccountID = accountID
 	r.messageChatID = chatID
 }
 
 // MessageChannel returns the channel of the in-flight turn, or "" if
 // not set (e.g. a tool invocation outside a chat context).
 func (r *Registry) MessageChannel() string { return r.messageChannel }
+
+// MessageAccountID returns the bot account ID of the in-flight turn,
+// or "" if not set / not applicable (web, api).
+func (r *Registry) MessageAccountID() string { return r.messageAccountID }
 
 // MessageChatID returns the chat/session id of the in-flight turn,
 // or "" if not set.

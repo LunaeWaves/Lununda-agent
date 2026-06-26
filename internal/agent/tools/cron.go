@@ -26,11 +26,12 @@ type deleteCronJobArgs struct {
 
 // RegisterCronTools registers cron job management tools.
 //
-// Channel + chatID for the originating turn are read from the registry
-// at execute time via r.MessageChannel() / r.MessageChatID() so a single
-// registration at agent construction handles every chat context the
-// agent runs in. The agent loop's bindSession stamps the per-turn
-// values onto the registry before any tool fires.
+// Channel + accountID + chatID for the originating turn are read from
+// the registry at execute time via r.MessageChannel() /
+// r.MessageAccountID() / r.MessageChatID() so a single registration at
+// agent construction handles every chat context the agent runs in. The
+// agent loop's bindSession stamps the per-turn values onto the registry
+// before any tool fires.
 func RegisterCronTools(r *Registry, st store.Store, userID, agentID string) {
 	r.Register("create_cron_job",
 		"Create a scheduled task. Use this for any user request that names a specific time, an interval, or a recurring schedule (e.g. \"5 分钟后提醒\", \"every Monday 9am\", \"each day at 8\"). When the schedule fires, the agent receives `message` as a fresh inbound prompt on the same channel the request originated from. Do NOT write timed reminders into HEARTBEAT.md — that file is only for conditional self-checks reviewed at every heartbeat tick.",
@@ -100,9 +101,10 @@ func makeCreateCronJob(st store.Store, r *Registry, userID, agentID string) Tool
 		}
 
 		// Read the originating bus address at execute time — bindSession
-		// stamps it on every turn, so this captures the channel/chatID
-		// the user was on when they asked for the reminder.
+		// stamps it on every turn, so this captures the channel/accountID/
+		// chatID the user was on when they asked for the reminder.
 		channel := r.MessageChannel()
+		accountID := r.MessageAccountID()
 		chatID := r.MessageChatID()
 
 		// The chatter's effective timezone governs how the schedule is
@@ -155,6 +157,7 @@ func makeCreateCronJob(st store.Store, r *Registry, userID, agentID string) Tool
 			Schedule:  args.Schedule,
 			Message:   args.Message,
 			Channel:   channel,
+			AccountID: accountID,
 			ChatID:    chatID,
 			// "" = server-local; the scheduler's LocationOf maps it
 			// the same way LoadLocationOrLocal did above, so creation
