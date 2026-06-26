@@ -246,7 +246,16 @@ func (s *Scheduler) processDueJobs(ctx context.Context) {
 
 		text := j.Message
 		if text == "" {
-			text = fmt.Sprintf("[Cron Job: %s] This is a scheduled task trigger.", j.Name)
+			text = fmt.Sprintf("[定时任务 %s 到点触发] 请执行你预设的任务。", j.Name)
+		} else {
+			// Wrap the stored message so the agent treats it as a scheduled
+			// task firing (something it must actively carry out) rather
+			// than a fresh line of user chat. Without this framing the
+			// ReAct loop reads "让你给我发你好" as small talk and replies
+			// to it, instead of recognising it's the agent's own job to
+			// action (send the greeting, run a command, ...). The model
+			// decides the direction from the content itself.
+			text = fmt.Sprintf("[定时任务「%s」到点触发] 这是你预设的定时任务到点提醒，不是用户实时发来的消息。请根据下面的内容判断意图并主动执行——可能是「给用户发某条消息」，也可能是「执行某个操作」，按需调用工具完成：\n%s", j.Name, j.Message)
 		}
 
 		s.bus.Inbound <- bus.InboundMessage{
@@ -420,7 +429,9 @@ func (s *Scheduler) fireJob(job Job) {
 
 	text := job.Message
 	if text == "" {
-		text = fmt.Sprintf("[Cron Job: %s] This is a scheduled task trigger.", job.Name)
+		text = fmt.Sprintf("[定时任务 %s 到点触发] 请执行你预设的任务。", job.Name)
+	} else {
+		text = fmt.Sprintf("[定时任务「%s」到点触发] 这是你预设的定时任务到点提醒，不是用户实时发来的消息。请根据下面的内容判断意图并主动执行——可能是「给用户发某条消息」，也可能是「执行某个操作」，按需调用工具完成：\n%s", job.Name, job.Message)
 	}
 
 	s.bus.Inbound <- bus.InboundMessage{
