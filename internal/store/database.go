@@ -4326,6 +4326,16 @@ func (d *DBStore) ListAllProjectRuntimes(ctx context.Context) ([]ProjectRuntimeR
 // produce for TIMESTAMP columns (RFC3339, RFC3339Nano, and the Go default
 // format that older code paths wrote).
 func parseTimeString(s string) time.Time {
+	// modernc sqlite binds time.Time parameters via the value's String()
+	// method, which appends a monotonic-clock reading ("m=+...") when the
+	// value originated from time.Now(). None of the layouts below carry
+	// that suffix, so without stripping it every layout misses and we
+	// return the zero time — which makes cron.GetNextDueTime report
+	// "nothing due" and the scheduler falls into its 5-minute idle sleep,
+	// skipping jobs whose next_run is already in the past.
+	if i := strings.Index(s, " m="); i >= 0 {
+		s = s[:i]
+	}
 	for _, layout := range []string{
 		time.RFC3339Nano,
 		time.RFC3339,
