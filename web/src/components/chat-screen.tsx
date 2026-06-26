@@ -135,6 +135,10 @@ import { channelLabel } from "@/components/channel-icon";
 interface ProducedFile {
   path: string; // path relative to workspace
   size?: number;
+  // unix ms — the workspace object's modTime, used to place this file
+  // under the agent message whose turn produced it (closest message
+  // timestamp ≤ modTime). Missing on listings that didn't return it.
+  modTime?: number;
 }
 
 interface UserAttachment {
@@ -305,7 +309,7 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
             channel: h.senderChannel,
           }
         : undefined;
-      msgs.push({ id: `h-${i}`, role: "user", content: h.content || "", timestamp: 0, attachments, sender });
+      msgs.push({ id: `h-${i}`, role: "user", content: h.content || "", timestamp: h.timestamp || 0, attachments, sender });
       i++;
     } else if (h.role === "assistant" && h.toolCalls && h.toolCalls.length > 0) {
       // Group: assistant tool_calls + following tool results + final assistant content
@@ -344,13 +348,13 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
       // block; split, the model's actual answer stands as a first-class
       // reply.
       if (h.content) {
-        msgs.push({ id: `h-pre-${i}`, role: "agent", content: h.content, timestamp: 0, metadata: h.metadata });
+        msgs.push({ id: `h-pre-${i}`, role: "agent", content: h.content, timestamp: h.timestamp || 0, metadata: h.metadata });
       }
       msgs.push({
         id: `h-tool-${i}`,
         role: "tool-group",
         content: "",
-        timestamp: 0,
+        timestamp: h.timestamp || 0,
         toolCalls: calls,
         isRegexHook: calls.some((tc) => tc.name.startsWith("regex_hook:")),
       });
@@ -366,11 +370,11 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
         history[i].content &&
         !(history[i].toolCalls && history[i].toolCalls!.length > 0)
       ) {
-        msgs.push({ id: `h-${i}`, role: "agent", content: history[i].content || "", timestamp: 0, metadata: history[i].metadata });
+        msgs.push({ id: `h-${i}`, role: "agent", content: history[i].content || "", timestamp: history[i].timestamp || 0, metadata: history[i].metadata });
         i++;
       }
     } else if (h.role === "assistant") {
-      msgs.push({ id: `h-${i}`, role: "agent", content: h.content || "", timestamp: 0, metadata: h.metadata });
+      msgs.push({ id: `h-${i}`, role: "agent", content: h.content || "", timestamp: h.timestamp || 0, metadata: h.metadata });
       i++;
     } else {
       i++; // skip unexpected
@@ -1242,13 +1246,38 @@ export function ChatScreen() {
             await listAgentFiles(selectedAgent, sessionId)
           )
             .filter((f) => !isSystemFile(f.path))
-            .map((f) => ({ path: f.path, size: f.size }));
+            .map((f) => ({ path: f.path, size: f.size, modTime: f.modTime }));
           if (sessionFiles.length > 0) {
-            for (let i = built.length - 1; i >= 0; i--) {
-              if (built[i].role === "agent" || built[i].role === "tool-group") {
-                built[i] = { ...built[i], files: sessionFiles };
-                break;
+            // Place each file under the agent/tool-group message whose
+            // turn produced it: the last candidate with timestamp ≤ the
+            // file's modTime (file written at t during a turn falls in
+            // [tool-call decision, final reply], so it lands on the
+            // tool-group, not dumped on the conversation's last reply).
+            // Files without a usable modTime — or that predate every
+            // agent message — fall back to the last agent message.
+            const candidateIdxs: number[] = [];
+            built.forEach((m, idx) => {
+              if (m.role === "agent" || m.role === "tool-group") candidateIdxs.push(idx);
+            });
+            const lastAgentIdx = candidateIdxs.length > 0 ? candidateIdxs[candidateIdxs.length - 1] : -1;
+            const filesByMsg = new Map<number, ProducedFile[]>();
+            for (const f of sessionFiles) {
+              let target = lastAgentIdx;
+              if (f.modTime && f.modTime > 0) {
+                let found = -1;
+                for (const idx of candidateIdxs) {
+                  if (built[idx].timestamp > 0 && built[idx].timestamp <= f.modTime) found = idx;
+                }
+                if (found >= 0) target = found;
               }
+              if (target >= 0) {
+                const arr = filesByMsg.get(target) || [];
+                arr.push(f);
+                filesByMsg.set(target, arr);
+              }
+            }
+            for (const [idx, files] of filesByMsg) {
+              built[idx] = { ...built[idx], files };
             }
           }
         } catch { /* listing failed — fall back to no panel */ }

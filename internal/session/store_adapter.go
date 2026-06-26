@@ -204,6 +204,13 @@ func providerMessageFromStored(m store.SessionMessage) provider.Message {
 		RawAssistant: m.RawAssistant,
 		Origin:       m.Origin,
 	}
+	// sessionMessageFromProvider stamps Timestamp at write time; carry it
+	// back so the chat UI can place produced files in the right turn
+	// (file modTime vs message timestamp). Zero guard: a never-set row
+	// would otherwise surface as a huge negative UnixMilli.
+	if !m.Timestamp.IsZero() {
+		out.Timestamp = m.Timestamp.UnixMilli()
+	}
 	if m.ToolCalls != nil {
 		if raw, err := json.Marshal(m.ToolCalls); err == nil {
 			var tcs []provider.ToolCall

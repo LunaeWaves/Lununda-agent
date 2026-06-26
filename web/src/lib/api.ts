@@ -794,6 +794,11 @@ export async function listAgentFiles(
 export interface ChatHistoryMessage {
   role: "user" | "assistant" | "tool";
   content?: string;
+  // unix ms — set by WebChatHistory from the stored message timestamp.
+  // The chat UI uses this to place produced files in the turn that
+  // generated them (file modTime vs message timestamp). Missing on
+  // rows persisted before this field was carried back through.
+  timestamp?: number;
   toolCalls?: { id: string; name: string; arguments: string }[];
   name?: string;
   toolCallId?: string;
