@@ -2237,8 +2237,10 @@ func (a *Agent) HandleMessage(ctx context.Context, msg bus.InboundMessage) strin
 			return joinReplyParts(replyParts)
 		}
 
-		// Emit assistant content before tool calls if present
-		if resp.Content != "" {
+		// Emit assistant content before tool calls if present. Trim guard:
+		// LLMs sometimes return a whitespace-only string alongside
+		// tool_calls; emitting it creates a visually-empty bubble.
+		if strings.TrimSpace(resp.Content) != "" {
 			emitEvent(ctx, ChatEvent{Type: "content", Data: map[string]any{"content": resp.Content}})
 			replyParts = append(replyParts, resp.Content)
 		}

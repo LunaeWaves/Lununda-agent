@@ -347,7 +347,7 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
       // content. Folded, the body reads as preamble to a collapsed tool
       // block; split, the model's actual answer stands as a first-class
       // reply.
-      if (h.content) {
+      if (h.content && h.content.trim()) {
         msgs.push({ id: `h-pre-${i}`, role: "agent", content: h.content, timestamp: h.timestamp || 0, metadata: h.metadata });
       }
       msgs.push({
@@ -367,14 +367,16 @@ function buildChatMessages(history: ChatHistoryMessage[]): ChatMessage[] {
       if (
         i < history.length &&
         history[i].role === "assistant" &&
-        history[i].content &&
+        history[i].content?.trim() &&
         !(history[i].toolCalls && history[i].toolCalls!.length > 0)
       ) {
         msgs.push({ id: `h-${i}`, role: "agent", content: history[i].content || "", timestamp: history[i].timestamp || 0, metadata: history[i].metadata });
         i++;
       }
     } else if (h.role === "assistant") {
-      msgs.push({ id: `h-${i}`, role: "agent", content: h.content || "", timestamp: h.timestamp || 0, metadata: h.metadata });
+      if (h.content && h.content.trim()) {
+        msgs.push({ id: `h-${i}`, role: "agent", content: h.content, timestamp: h.timestamp || 0, metadata: h.metadata });
+      }
       i++;
     } else {
       i++; // skip unexpected
@@ -874,7 +876,7 @@ export function ChatScreen() {
           case "content": {
             const content = data.data?.content || "";
             const meta = data.data?.metadata;
-            if (!content && !meta) break;
+            if (!content.trim() && !meta) break;
             // The active POST sendChatStream is rendering this turn
             // via content_delta into streamingMsgIdRef. Both
             // subscriptions sit on the same hub, so the `content`
@@ -1531,7 +1533,7 @@ export function ChatScreen() {
             // when the turn completes so refresh / replay paths stay
             // intact even though deltas aren't persisted.
             let delta = evt.data?.delta || "";
-            if (!delta) break;
+            if (!delta || !delta.trim()) break;
             if (pendingIndicator) { delta = pendingIndicator + "\n\n" + delta; pendingIndicator = ""; }
             if (curCalls.length > 0 && !streamingMsgIdRef.current) {
               // Content after tool calls = new round; reset state so
@@ -1618,10 +1620,12 @@ export function ChatScreen() {
             const rhMeta = evt.data?.regexHook
               ? { ...meta, regexHook: evt.data.regexHook as string }
               : meta;
-            setMessages((prev) => [
-              ...prev,
-              { id: `a-${Date.now()}`, role: "agent", content, timestamp: Date.now(), metadata: rhMeta },
-            ]);
+            if (content.trim()) {
+              setMessages((prev) => [
+                ...prev,
+                { id: `a-${Date.now()}`, role: "agent", content, timestamp: Date.now(), metadata: rhMeta },
+              ]);
+            }
             break;
           }
           case "tool_call": {
